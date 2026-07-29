@@ -1,9 +1,13 @@
 """Rule entity."""
 
-from dataclasses import dataclass
+from collections.abc import Mapping
+from dataclasses import dataclass, field
+from types import MappingProxyType
+from typing import Any
 from uuid import UUID
 
 from core.domain._validation import ensure_non_blank
+from core.domain.enums import RuleType
 from core.domain.exceptions import ValidationError
 
 
@@ -14,6 +18,8 @@ class Rule:
     id: UUID
     name: str
     enabled: bool
+    rule_type: RuleType = RuleType.PRICE_DROP
+    parameters: Mapping[str, Any] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         """Validate rule invariants."""
@@ -22,3 +28,12 @@ class Rule:
         ensure_non_blank(self.name, "rule name")
         if not isinstance(self.enabled, bool):
             raise ValidationError("enabled must be a bool")
+        if not isinstance(self.rule_type, RuleType):
+            raise ValidationError("rule_type must be a RuleType")
+        if not isinstance(self.parameters, Mapping):
+            raise ValidationError("parameters must be a mapping")
+        object.__setattr__(
+            self,
+            "parameters",
+            MappingProxyType(dict(self.parameters)),
+        )

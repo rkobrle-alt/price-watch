@@ -15,6 +15,11 @@ The public API is exported by `core.domain`:
 All entities and value objects are immutable. Prices use `Decimal`, identifiers
 use `UUID`, and domain timestamps must be timezone-aware.
 
+`Product.availability` records whether a product can currently be purchased and
+defaults to `True` for compatibility. `Rule.rule_type` selects the future rule
+evaluator, while `Rule.parameters` stores an immutable, opaque configuration
+mapping.
+
 ## Provider SDK
 
 The transport-neutral provider integration API is exported by `core.provider`:

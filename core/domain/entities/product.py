@@ -23,11 +23,14 @@ class Product:
     url: str
     image_url: str | None
     created_at: datetime
+    availability: bool = True
 
     def __post_init__(self) -> None:
         """Validate product invariants."""
         ensure_non_blank(self.name, "product name")
         ensure_timezone_aware(self.created_at, "created_at")
+        if not isinstance(self.availability, bool):
+            raise ValidationError("availability must be a bool")
         if self.original_price is not None:
             if not isinstance(self.original_price, Money):
                 raise ValidationError("original_price must be Money or None")
