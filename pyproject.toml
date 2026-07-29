@@ -1,4 +1,8 @@
 [project]
-name='price-watch'
-version='0.1.0'
-requires-python='>=3.13'
+name = "price-watch"
+version = "0.1.0"
+requires-python = ">=3.13"
+
+[tool.pytest.ini_options]
+addopts = "--cov=core --cov-branch --cov-report=term-missing --cov-fail-under=100"
+testpaths = ["tests"]
