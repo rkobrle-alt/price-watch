@@ -47,6 +47,12 @@ Every subsystem owns its own exception hierarchy.
 
 Exceptions should communicate domain intent.
 
+Public APIs raise `TypeError` when an argument has an invalid type.
+
+Subsystem-specific exceptions represent operational failures owned by that
+subsystem. They are not substitutes for `TypeError` or value-object invariant
+validation.
+
 ---
 
 # Logging

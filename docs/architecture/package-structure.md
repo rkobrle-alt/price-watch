@@ -2,7 +2,13 @@
 
 This document defines the long-term package organization of Price Watch.
 
-Every new package should follow the same structure.
+The structure follows the principles of Clean Architecture.
+
+The Core defines business models and abstractions.
+
+Infrastructure provides concrete implementations.
+
+Applications compose the system.
 
 ---
 
@@ -12,13 +18,33 @@ Every new package should follow the same structure.
 core/
 
     domain/
+
     provider/
+
     rules/
+
+    state/
+
     notifications/
+
     scheduler/
 ```
 
-Core contains only business logic.
+The Core contains only business logic.
+
+The Core must not perform I/O.
+
+The Core defines public abstractions (Protocols), domain models and business services.
+
+Concrete implementations belong to Infrastructure.
+
+For product state, `core.state` contains only:
+
+- the `StateStore` Protocol
+- the immutable `StateSnapshot`
+- the `StateStoreError` persistence-failure contract
+
+It contains no concrete State Store implementation.
 
 ---
 
@@ -28,22 +54,48 @@ Core contains only business logic.
 infrastructure/
 
     providers/
+
         alza/
+
         datart/
+
         amazon/
+
         lidl/
 
-    notifications/
-        email/
-        telegram/
-        discord/
-
     persistence/
+
+        memory/
+
+        json/
+
+        sqlite/
+
+    notifications/
+
+        console/
+
+        email/
+
+        telegram/
+
+        discord/
 
     http/
 ```
 
-Infrastructure performs all side effects.
+Infrastructure contains all external integrations and concrete implementations.
+
+`infrastructure.persistence.memory` contains the reference
+`InMemoryStateStore` implementation.
+
+It is responsible for:
+
+- persistence
+- network communication
+- notification delivery
+- filesystem access
+- external APIs
 
 ---
 
@@ -59,7 +111,9 @@ applications/
     homeassistant/
 ```
 
-Applications wire the system together.
+Applications compose the system.
+
+They configure dependencies and execute workflows.
 
 ---
 
@@ -76,6 +130,8 @@ tests/
 
         rules/
 
+        state/
+
         notifications/
 
     integration/
@@ -91,7 +147,9 @@ Integration tests may access external systems.
 
 Applications → Infrastructure → Core
 
-Never the opposite.
+Dependencies always point toward the Core.
+
+The Core must never depend on Infrastructure or Applications.
 
 ---
 
@@ -99,7 +157,9 @@ Never the opposite.
 
 Every package exports its public API through:
 
+```
 __init__.py
+```
 
 Internal modules remain private.
 
@@ -109,16 +169,24 @@ Internal modules remain private.
 
 Packages use:
 
+```
 lowercase
+```
 
 Classes use:
 
+```
 PascalCase
+```
 
-Functions:
+Functions use:
 
+```
 snake_case
+```
 
-Constants:
+Constants use:
 
+```
 UPPER_CASE
+```

@@ -19,7 +19,7 @@ Current Products
 
     ▼
 
-History Store
+State Store
 
     │
 
@@ -45,6 +45,18 @@ Notification Engine
 
 Delivery
 ```
+
+---
+
+The workflow depends on the `StateStore` abstraction from `core.state`.
+
+Applications inject a concrete implementation from Infrastructure.
+
+The reference implementation is
+`infrastructure.persistence.memory.InMemoryStateStore`.
+
+Snapshots are loaded and saved using `snapshot.product.id` as their unique
+storage key.
 
 ---
 

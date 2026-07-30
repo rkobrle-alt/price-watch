@@ -40,7 +40,7 @@ Provider
 Products
     │
     ▼
-History Store
+State Store
     │
     ▼
 Rule Engine
@@ -61,10 +61,12 @@ Provider
 
 - retrieves products
 
-History Store
+State Store
 
 - loads previous state
 - stores current state
+- uses `snapshot.product.id` as the unique storage key
+- depends on caller-supplied snapshot timestamps
 
 Rule Engine
 
@@ -82,11 +84,27 @@ Each component performs exactly one responsibility.
 
 Components communicate through immutable domain objects.
 
+Core defines the `StateStore` abstraction and immutable `StateSnapshot`.
+
+Concrete State Store implementations belong to Infrastructure.
+
+The reference implementation is located in
+`infrastructure.persistence.memory`.
+
 ---
 
 ## Error Handling
 
 A failure in one provider must not stop the entire synchronization cycle.
+
+
+State Store implementations report persistence-related failures using
+`StateStoreError`.
+
+Invalid public API argument types raise `TypeError`.
+
+`StateSnapshot` validates its own invariants. A naive snapshot timestamp raises
+`ValueError`; snapshot validation does not depend on `StateStoreError`.
 
 ---
 
@@ -98,4 +116,3 @@ Future workflow stages may include:
 - metrics
 - tracing
 - retries
-```
