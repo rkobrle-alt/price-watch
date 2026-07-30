@@ -20,6 +20,12 @@ class PriceDropEvaluatorTests(TestCase):
     def test_exposes_supported_rule_type(self) -> None:
         self.assertIs(self.evaluator.rule_type, RuleType.PRICE_DROP)
 
+    def test_supports_only_price_drop_rules(self) -> None:
+        self.assertTrue(self.evaluator.supports(self.rule))
+        self.assertFalse(
+            self.evaluator.supports(create_rule(RuleType.BACK_IN_STOCK))
+        )
+
     def test_matches_price_decrease(self) -> None:
         result = self.evaluator.evaluate(
             self.rule,
@@ -176,6 +182,12 @@ class BackInStockEvaluatorTests(TestCase):
 
     def test_exposes_supported_rule_type(self) -> None:
         self.assertIs(self.evaluator.rule_type, RuleType.BACK_IN_STOCK)
+
+    def test_supports_only_back_in_stock_rules(self) -> None:
+        self.assertTrue(self.evaluator.supports(self.rule))
+        self.assertFalse(
+            self.evaluator.supports(create_rule(RuleType.PRICE_DROP))
+        )
 
     def test_matches_unavailable_to_available_transition(self) -> None:
         result = self.evaluator.evaluate(

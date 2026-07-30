@@ -16,10 +16,15 @@ class EvaluatorRegistry:
         """Register an evaluator for its single supported rule type."""
         try:
             rule_type = evaluator.rule_type
+            supports = evaluator.supports
             evaluate = evaluator.evaluate
         except AttributeError as error:
             raise RuleError("invalid evaluator registration") from error
-        if not isinstance(rule_type, RuleType) or not callable(evaluate):
+        if (
+            not isinstance(rule_type, RuleType)
+            or not callable(supports)
+            or not callable(evaluate)
+        ):
             raise RuleError("invalid evaluator registration")
         if rule_type in self._evaluators:
             raise RuleError(f"evaluator for {rule_type.value} is already registered")

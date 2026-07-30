@@ -25,6 +25,10 @@ class RecordingEvaluator:
     result: EvaluationResult
     calls: int = 0
 
+    def supports(self, rule: Rule) -> bool:
+        """Return whether the evaluator handles the rule type."""
+        return rule.rule_type is self.rule_type
+
     def evaluate(
         self,
         rule: Rule,
@@ -79,13 +83,31 @@ class EvaluatorRegistryTests(TestCase):
         self.assertIsInstance(context.exception.__cause__, AttributeError)
 
     def test_invalid_rule_type_is_rejected(self) -> None:
-        invalid = SimpleNamespace(rule_type="PRICE_DROP", evaluate=lambda: None)
+        invalid = SimpleNamespace(
+            rule_type="PRICE_DROP",
+            supports=lambda rule: True,
+            evaluate=lambda: None,
+        )
 
         with self.assertRaisesRegex(RuleError, "invalid evaluator"):
             self.registry.register(invalid)  # type: ignore[arg-type]
 
     def test_non_callable_evaluate_is_rejected(self) -> None:
-        invalid = SimpleNamespace(rule_type=RuleType.PRICE_DROP, evaluate=None)
+        invalid = SimpleNamespace(
+            rule_type=RuleType.PRICE_DROP,
+            supports=lambda rule: True,
+            evaluate=None,
+        )
+
+        with self.assertRaisesRegex(RuleError, "invalid evaluator"):
+            self.registry.register(invalid)  # type: ignore[arg-type]
+
+    def test_non_callable_supports_is_rejected(self) -> None:
+        invalid = SimpleNamespace(
+            rule_type=RuleType.PRICE_DROP,
+            supports=None,
+            evaluate=lambda: None,
+        )
 
         with self.assertRaisesRegex(RuleError, "invalid evaluator"):
             self.registry.register(invalid)  # type: ignore[arg-type]

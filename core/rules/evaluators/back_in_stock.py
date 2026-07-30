@@ -13,6 +13,10 @@ class BackInStockEvaluator:
 
     rule_type: RuleType = field(init=False, default=RuleType.BACK_IN_STOCK)
 
+    def supports(self, rule: Rule) -> bool:
+        """Return whether the rule is a back-in-stock rule."""
+        return rule.rule_type is self.rule_type
+
     def evaluate(
         self,
         rule: Rule,

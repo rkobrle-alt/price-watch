@@ -1,6 +1,5 @@
 """Structural contract for independent rule evaluators."""
 
-from collections.abc import Callable
 from datetime import datetime
 from typing import Protocol
 
@@ -12,7 +11,17 @@ class RuleEvaluator(Protocol):
     """Contract implemented by one RuleType-specific evaluator."""
 
     rule_type: RuleType
-    evaluate: Callable[
-        [Rule, Product | None, Product, datetime],
-        EvaluationResult,
-    ]
+
+    def supports(self, rule: Rule) -> bool:
+        """Return whether this evaluator handles the supplied rule."""
+        ...
+
+    def evaluate(
+        self,
+        rule: Rule,
+        previous: Product | None,
+        current: Product,
+        timestamp: datetime,
+    ) -> EvaluationResult:
+        """Evaluate a supported rule against immutable product states."""
+        ...

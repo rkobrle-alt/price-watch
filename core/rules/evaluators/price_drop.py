@@ -15,6 +15,10 @@ class PriceDropEvaluator:
 
     rule_type: RuleType = field(init=False, default=RuleType.PRICE_DROP)
 
+    def supports(self, rule: Rule) -> bool:
+        """Return whether the rule is a price-drop rule."""
+        return rule.rule_type is self.rule_type
+
     def evaluate(
         self,
         rule: Rule,
