@@ -20,7 +20,8 @@ Public method:
 evaluate(
     rule: Rule,
     previous: Product | None,
-    current: Product
+    current: Product,
+    timestamp: datetime
 ) -> EvaluationResult
 ```
 
@@ -98,9 +99,9 @@ Evaluators depend only on:
 
 - Domain
 
-Nothing depends on Notification.
+The Rule Engine does not depend on Notification.
 
-Nothing depends on Provider SDK.
+The Rule Engine does not depend on Provider SDK.
 
 ---
 

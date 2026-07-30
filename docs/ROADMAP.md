@@ -24,7 +24,65 @@ Deliverables:
 
 ---
 
-# v0.5.0 — CLI
+# v0.5.0 — Notification Engine
+
+Goal:
+
+Generate notifications from evaluation results.
+
+Initial channel:
+
+- Console
+
+Architecture prepared for:
+
+- Email
+- Telegram
+- Discord
+- Home Assistant
+
+---
+
+# v0.6.0 — First Provider
+
+Goal:
+
+Implement the first real provider.
+
+Candidate:
+
+- Alza.cz
+
+---
+
+# v0.7.0 — JSON Persistence
+
+Goal:
+
+Persist product state between executions.
+
+Initial implementation:
+
+- JSON
+
+---
+
+# v0.8.0 — Application Workflow
+
+Goal:
+
+Compose one complete synchronization cycle according to ADR-0005.
+
+The workflow connects:
+
+- Provider
+- State Store
+- Rule Engine
+- Notification Engine
+
+---
+
+# v0.9.0 — CLI
 
 Goal:
 
@@ -38,26 +96,7 @@ Commands:
 
 ---
 
-# v0.6.0 — Notification Engine
-
-Goal:
-
-Generate notifications from evaluation results.
-
-Initial channels:
-
-- Console
-
-Architecture prepared for:
-
-- Email
-- Telegram
-- Discord
-- Home Assistant
-
----
-
-# v0.7.0 — Scheduler
+# v0.10.0 — Scheduler
 
 Goal:
 
@@ -67,31 +106,6 @@ Initially:
 
 - Manual execution
 - Interval scheduling
-
----
-
-# v0.8.0 — Providers
-
-Goal:
-
-Implement the first real provider.
-
-Candidate:
-
-- Alza.cz
-
----
-
-# v0.9.0 — Persistence
-
-Goal:
-
-Persist state between executions.
-
-Candidate implementations:
-
-- JSON
-- SQLite
 
 ---
 

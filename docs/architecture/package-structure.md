@@ -46,6 +46,14 @@ For product state, `core.state` contains only:
 
 It contains no concrete State Store implementation.
 
+For notifications, `core.notifications` contains:
+
+- the deterministic `NotificationEngine`
+- the `NotificationChannel` Protocol
+- the `NotificationError` delivery-failure contract
+
+It contains no concrete notification channel.
+
 ---
 
 # Infrastructure
@@ -89,7 +97,12 @@ Infrastructure contains all external integrations and concrete implementations.
 `infrastructure.persistence.memory` contains the reference
 `InMemoryStateStore` implementation.
 
-It is responsible for:
+`infrastructure.notifications.console` contains the reference
+`ConsoleNotificationChannel` implementation.
+
+Concrete notification channels own delivery side effects.
+
+Infrastructure is responsible for:
 
 - persistence
 - network communication

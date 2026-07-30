@@ -43,6 +43,12 @@ Notification Engine
 
     ▼
 
+Notification Channel
+
+    │
+
+    ▼
+
 Delivery
 ```
 
@@ -58,15 +64,21 @@ The reference implementation is
 Snapshots are loaded and saved using `snapshot.product.id` as their unique
 storage key.
 
+Applications invoke `NotificationEngine.generate()` for every evaluation
+result. Only a generated `Notification` is passed to the injected
+`NotificationChannel`.
+
+Concrete notification channels belong to Infrastructure. Core performs no
+delivery side effects.
+
 ---
 
-Every stage consumes immutable input.
+Core stages consume immutable input and produce immutable output.
 
-Every stage produces immutable output.
+A `NotificationChannel` consumes an immutable `Notification` and performs a
+delivery side effect in Infrastructure.
 
-No stage skips another.
-
-The flow is always:
+Every synchronization cycle follows:
 
 Retrieve
 
@@ -80,4 +92,8 @@ Evaluate
 
 ↓
 
-Notify
+Generate Notification
+
+↓ when a Notification exists
+
+Deliver

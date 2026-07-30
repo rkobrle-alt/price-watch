@@ -34,5 +34,5 @@ Done when:
 - Products are retrieved.
 - Previous state is loaded.
 - Rules are evaluated.
-- Notifications are generated.
+- Notifications are generated and delivered.
 - Current state is stored.

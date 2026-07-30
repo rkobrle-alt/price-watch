@@ -47,6 +47,9 @@ Rule Engine
     │
     ▼
 Notification Engine
+    │
+    ▼
+Notification Channel
 ```
 
 ---
@@ -74,6 +77,10 @@ Rule Engine
 
 Notification Engine
 
+- generates notifications from evaluation results
+
+Notification Channel
+
 - delivers notifications
 
 ---
@@ -91,6 +98,12 @@ Concrete State Store implementations belong to Infrastructure.
 The reference implementation is located in
 `infrastructure.persistence.memory`.
 
+Core defines the deterministic `NotificationEngine` and the
+`NotificationChannel` Protocol.
+
+Concrete notification channels belong to Infrastructure.
+Applications compose notification generation and delivery.
+
 ---
 
 ## Error Handling
@@ -100,6 +113,9 @@ A failure in one provider must not stop the entire synchronization cycle.
 
 State Store implementations report persistence-related failures using
 `StateStoreError`.
+
+Concrete notification channels report operational delivery failures using
+`NotificationError`.
 
 Invalid public API argument types raise `TypeError`.
 
