@@ -2,9 +2,15 @@
 
 ## Goal
 
-Implement the Rule Engine according to ADR-0003 and the Rule Engine architecture document.
+Implement the Rule Engine according to:
 
-The engine evaluates business rules without side effects.
+- ADR-0003 Rule Engine
+- ADR-0004 Rule Model
+- Architecture Principles
+- Package Structure
+- Rule Engine Public API
+
+The Rule Engine evaluates business rules without side effects.
 
 ---
 
@@ -21,6 +27,7 @@ with:
 - registry.py
 - evaluation.py
 - evaluator.py
+- exceptions.py
 
 Create:
 
@@ -46,6 +53,19 @@ Public classes:
 - EvaluationResult
 - RuleEvaluator
 - EvaluatorRegistry
+- RuleError
+
+---
+
+## RuleError
+
+Create RuleError as the base exception for the Rule Engine.
+
+Raise RuleError for:
+
+- duplicate evaluator registration
+- unknown RuleType
+- invalid evaluator registration
 
 ---
 
@@ -53,14 +73,17 @@ Public classes:
 
 Use typing.Protocol.
 
-Required methods:
+Each evaluator exposes exactly one supported RuleType.
 
-supports(rule: Rule) -> bool
+Required members:
+
+rule_type: RuleType
 
 evaluate(
     rule: Rule,
     previous: Product | None,
-    current: Product
+    current: Product,
+    timestamp: datetime,
 ) -> EvaluationResult
 
 ---
@@ -75,7 +98,9 @@ Fields:
 - reason: str
 - timestamp: datetime
 
-Timestamp must be timezone-aware.
+Timestamp is supplied by the caller.
+
+EvaluationResult is immutable.
 
 ---
 
@@ -86,6 +111,11 @@ Responsibilities:
 - register()
 - unregister()
 - get()
+- list()
+
+The registry maps:
+
+RuleType → RuleEvaluator
 
 Duplicate registrations raise RuleError.
 
@@ -98,14 +128,19 @@ Unknown RuleType raises RuleError.
 Public method:
 
 evaluate(
-    rule,
-    previous,
-    current
-)
+    rule: Rule,
+    previous: Product | None,
+    current: Product,
+    timestamp: datetime,
+) -> EvaluationResult
 
-The engine MUST NOT contain business logic.
+Behavior:
 
-It only selects the proper evaluator.
+- disabled rules return a non-matching EvaluationResult
+- RuleEngine contains no business logic
+- RuleEngine delegates evaluation to the registered evaluator
+
+Dispatch occurs only through EvaluatorRegistry.
 
 ---
 
@@ -115,9 +150,13 @@ Supports:
 
 RuleType.PRICE_DROP
 
-Compare previous and current price.
+Behavior:
+
+Compare previous and current prices.
 
 Return EvaluationResult.
+
+Interpret rule.parameters.
 
 ---
 
@@ -127,23 +166,30 @@ Supports:
 
 RuleType.BACK_IN_STOCK
 
+Behavior:
+
 Detect transition:
 
-Unavailable → Available
+availability == False
+
+↓
+
+availability == True
 
 Return EvaluationResult.
 
 ---
 
-## Design Rules
+## Forbidden
 
-Forbidden:
+RuleEngine MUST NOT:
 
-if rule.type == ...
-
-inside RuleEngine.
-
-Dispatch must occur through EvaluatorRegistry.
+- compare prices
+- inspect availability
+- use if/elif chains based on RuleType
+- call datetime.now()
+- perform network requests
+- access databases
 
 ---
 
@@ -151,14 +197,15 @@ Dispatch must occur through EvaluatorRegistry.
 
 Allowed:
 
-Core Domain
+- Domain
+- Standard Library
 
 Forbidden:
 
-Provider SDK internals
-HTTP
-Database
-Home Assistant
+- Provider implementations
+- HTTP
+- Databases
+- Home Assistant
 
 ---
 
@@ -166,16 +213,17 @@ Home Assistant
 
 Provide complete unit tests.
 
-Test:
+Cover:
 
-- registry
+- evaluator registry
 - duplicate registration
-- unknown rule
+- unknown RuleType
+- disabled rules
 - engine dispatch
 - price drop
 - back in stock
+- immutable EvaluationResult
 - public exports
-- immutability
 
 Target:
 
