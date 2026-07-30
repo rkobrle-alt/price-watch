@@ -25,11 +25,29 @@ before preparing the implementation STORY. Ask the user only when a decision
 materially changes product scope, irreversible data behavior, security,
 external cost or compatibility.
 
+## Architecture Evolution
+
+Architecture is not immutable. Improve it when a concrete long-term benefit
+outweighs migration cost, added complexity and compatibility risk.
+
+Before changing architecture:
+
+- distinguish the architectural decision from implementation details
+- state the problem and supporting evidence
+- challenge assumptions that no longer fit the project
+- compare the status quo with materially different alternatives
+- explain trade-offs and affected public contracts
+- prefer the simplest extensible and testable design
+
+Propose alternatives only when they affect the decision materially.
+Do not create architecture churn, speculative abstractions or gold-plating.
+
 ## Architecture Workflow
 
 Architecture work follows this order:
 
-1. Inspect the current implementation and all authoritative documents.
+1. Inspect and critically review the current implementation and all
+   authoritative documents.
 2. Identify the decision and its constraints.
 3. Choose the smallest design consistent with Clean Architecture.
 4. Record significant decisions in an ADR before implementation.
@@ -47,6 +65,9 @@ Architecture decisions must preserve:
 - Application ownership of composition
 - explicit public APIs
 - backward compatibility unless an ADR approves a break
+
+Optimize for a codebase that remains understandable, extensible, testable and
+maintainable over many years, not merely for the next working increment.
 
 ## STORY Workflow
 
