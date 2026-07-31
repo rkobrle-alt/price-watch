@@ -30,27 +30,33 @@ Each cycle is independent.
 
 ## Workflow
 
-```
-Scheduler
-    │
-    ▼
+```text
+Scheduler or application entry point
+    |
+    v
 Provider
-    │
-    ▼
-Products
-    │
-    ▼
-State Store
-    │
-    ▼
+    |
+    v
+Current Products
+    |
+    v
+State Store load
+    |
+    v
 Rule Engine
-    │
-    ▼
+    |
+    v
 Notification Engine
-    │
-    ▼
+    |
+    v
 Notification Channel
+    |
+    v
+State Store save
 ```
+
+The concrete orchestration and delivery-before-persistence semantics are
+defined by ADR-0009.
 
 ---
 

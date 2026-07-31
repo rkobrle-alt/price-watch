@@ -79,10 +79,11 @@ Compose one complete synchronization cycle according to ADR-0005.
 
 The workflow connects:
 
-- Provider
-- State Store
-- Rule Engine
-- Notification Engine
+- multiple injected Providers with failure isolation
+- previous-state loading and current-state persistence
+- Rule Engine evaluation
+- Notification Engine generation and injected delivery
+- deterministic cycle timestamps and notification identifiers
 
 ---
 

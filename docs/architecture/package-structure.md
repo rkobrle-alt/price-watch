@@ -120,6 +120,8 @@ Infrastructure is responsible for:
 ```
 applications/
 
+    synchronization/
+
     cli/
 
     api/
@@ -130,6 +132,11 @@ applications/
 Applications compose the system.
 
 They configure dependencies and execute workflows.
+
+`applications.synchronization` contains the reusable synchronization
+orchestration defined by ADR-0009. It depends on public Core contracts and
+services, while concrete Infrastructure implementations are injected by outer
+application entry points.
 
 ---
 

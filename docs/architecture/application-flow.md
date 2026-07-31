@@ -1,103 +1,63 @@
 # Application Flow
 
-```
-Scheduler
-
-    │
-
-    ▼
-
-Provider
-
-    │
-
-    ▼
-
+```text
+Scheduler or application entry point
+    |
+    v
+SynchronizationWorkflow
+    |
+    v
+Provider.fetch
+    |
+    v
 Current Products
-
-    │
-
-    ▼
-
-State Store
-
-    │
-
-    ▼
-
-Rule Engine
-
-    │
-
-    ▼
-
-Evaluation Results
-
-    │
-
-    ▼
-
-Notification Engine
-
-    │
-
-    ▼
-
-Notification Channel
-
-    │
-
-    ▼
-
-Delivery
+    |
+    v
+StateStore.load
+    |
+    v
+RuleEngine.evaluate
+    |
+    v
+NotificationEngine.generate
+    |
+    +--> no notification
+    |
+    +--> NotificationChannel.send
+    |
+    v
+StateStore.save
 ```
 
 ---
 
-The workflow depends on the `StateStore` abstraction from `core.state`.
+The reusable orchestration belongs to `applications.synchronization` and
+follows ADR-0009.
 
-Applications inject a concrete implementation from Infrastructure.
+The workflow depends only on public Core contracts and services. Applications
+inject concrete providers, State Store implementations, notification channels
+and identifier generation.
 
-The reference implementation is
-`infrastructure.persistence.memory.InMemoryStateStore`.
-
-Durable execution may inject
-`infrastructure.persistence.json.JsonStateStore`. It preserves the latest
-snapshot between process executions without changing the Core workflow.
+The reference State Store is
+`infrastructure.persistence.memory.InMemoryStateStore`. Durable execution may
+inject `infrastructure.persistence.json.JsonStateStore`, which preserves the
+latest snapshot between process executions.
 
 Snapshots are loaded and saved using `snapshot.product.id` as their unique
 storage key.
 
-Applications invoke `NotificationEngine.generate()` for every evaluation
-result. Only a generated `Notification` is passed to the injected
-`NotificationChannel`.
+For every product, all configured rules are evaluated against the stored
+previous product and the current product. Applications invoke
+`NotificationEngine.generate()` for every evaluation result. Only a generated
+`Notification` is passed to the injected `NotificationChannel`.
 
-Concrete notification channels belong to Infrastructure. Core performs no
-delivery side effects.
+Notification delivery occurs before the current snapshot is saved. A failed
+delivery therefore does not advance comparison state. A retry after successful
+delivery but failed persistence may repeat the logical notification.
 
----
+Provider-reported failures are collected without preventing later configured
+providers from running. State Store, Rule Engine and notification failures
+retain their subsystem exception types and stop the remaining cycle.
 
-Core stages consume immutable input and produce immutable output.
-
-A `NotificationChannel` consumes an immutable `Notification` and performs a
-delivery side effect in Infrastructure.
-
-Every synchronization cycle follows:
-
-Retrieve
-
-↓
-
-Compare
-
-↓
-
-Evaluate
-
-↓
-
-Generate Notification
-
-↓ when a Notification exists
-
-Deliver
+Core stages consume immutable input and produce immutable output. Side effects
+remain behind injected Infrastructure boundaries.

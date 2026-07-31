@@ -32,6 +32,10 @@ Local durable synchronization uses
 
 Product snapshots are keyed by `snapshot.product.id`.
 
+Reusable orchestration belongs to `applications.synchronization` and follows
+ADR-0009. Notifications are delivered before the corresponding current
+snapshot is stored.
+
 Done when:
 
 - Products are retrieved.
