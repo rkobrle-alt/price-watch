@@ -86,6 +86,12 @@ Price Watch <version>
 The CLI package exposes one version constant. A test keeps it synchronized
 with project metadata.
 
+### watch
+
+Repeated interval execution is added by ADR-0011. `watch` reuses the `sync`
+configuration and composition; it does not introduce a second synchronization
+implementation.
+
 ### evaluate
 
 A standalone `evaluate` command is deferred. The project has no approved
@@ -110,6 +116,8 @@ run(
     stderr: TextIO,
     clock: Callable[[], datetime],
     notification_id_factory: Callable[[], UUID],
+    *,
+    delay: Delay | None = None,
 ) -> int
 ```
 
@@ -117,7 +125,9 @@ run(
 `sys.stderr`, a UTC system clock and `uuid4` to `run()`.
 
 `run()` is the deterministic programmatic boundary used by tests and future
-launchers. It does not read environment variables or global streams.
+launchers. It does not read environment variables or global streams. The
+optional delay dependency is used only by the `watch` extension in ADR-0011;
+existing `sync` and `version` callers remain compatible.
 
 ---
 

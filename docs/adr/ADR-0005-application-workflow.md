@@ -26,6 +26,9 @@ A scheduler triggers a synchronization cycle.
 
 Each cycle is independent.
 
+The concrete interval scheduler and its fixed-delay, non-overlapping execution
+semantics are defined by ADR-0011.
+
 ---
 
 ## Workflow

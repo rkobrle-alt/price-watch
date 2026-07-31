@@ -35,6 +35,17 @@ The first observation establishes the baseline. A later run uses the JSON
 state file to detect a price decrease or an unavailable-to-available
 transition.
 
+Run the same workflow repeatedly, with the first cycle starting immediately:
+
+```text
+python -m applications.cli watch \
+    --state-file data/price-watch-state.json \
+    --url https://www.lidl.cz/example-product/p100000000 \
+    --interval-seconds 300
+```
+
+Use `--max-cycles` for a finite run. Otherwise `watch` continues until Ctrl+C.
+
 ## Development
 
 The project requires Python 3.13 or newer.

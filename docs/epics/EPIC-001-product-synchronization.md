@@ -39,6 +39,10 @@ snapshot is stored.
 The first user-facing composition is `applications.cli sync` according to
 ADR-0010.
 
+Repeated execution is provided by `applications.scheduler` and the
+`applications.cli watch` composition according to ADR-0011. Scheduled cycles
+run serially and reuse the same durable workflow composition.
+
 Done when:
 
 - Products are retrieved.
@@ -46,3 +50,4 @@ Done when:
 - Rules are evaluated.
 - Notifications are generated and delivered.
 - Current state is stored.
+- The same workflow can be executed repeatedly without overlapping cycles.

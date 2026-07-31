@@ -106,12 +106,15 @@ input contract is approved. Practical evaluation is performed by `sync`.
 
 Goal:
 
-Execute synchronization cycles.
+Execute synchronization cycles repeatedly at an explicit interval.
 
-Initially:
+Deliverables:
 
-- Manual execution
-- Interval scheduling
+- reusable serial `IntervalScheduler`
+- Core delay abstraction and Infrastructure system-delay adapter
+- CLI `watch` command
+- immediate first cycle and fixed delay between completed cycles
+- optional finite cycle limit and graceful Ctrl+C handling
 
 ---
 

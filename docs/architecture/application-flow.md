@@ -38,6 +38,12 @@ The first executable composition root is `applications.cli`. Its `sync`
 command supplies the Lidl provider, JSON State Store, registered evaluators,
 console channel, UTC clock and UUID generation according to ADR-0010.
 
+Its `watch` command uses the same composition and delegates repeated execution
+to `applications.scheduler.IntervalScheduler` according to ADR-0011. The first
+cycle starts immediately. Later cycles start after a fixed delay following the
+previous completed cycle, so synchronization cycles never overlap. The delay
+side effect is supplied by `infrastructure.scheduler.SystemDelay`.
+
 The workflow depends only on public Core contracts and services. Applications
 inject concrete providers, State Store implementations, notification channels
 and identifier generation.

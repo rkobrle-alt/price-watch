@@ -54,6 +54,13 @@ For notifications, `core.notifications` contains:
 
 It contains no concrete notification channel.
 
+For scheduling, `core.scheduler` contains only:
+
+- the `Delay` Protocol
+- the `SchedulerError` operational-failure contract
+
+It does not read time, sleep, start threads or orchestrate applications.
+
 ---
 
 # Infrastructure
@@ -84,6 +91,8 @@ infrastructure/
         discord/
 
     http/
+
+    scheduler/
 ```
 
 Infrastructure contains all external integrations and concrete implementations.
@@ -105,6 +114,9 @@ standard-library reference implementation.
 
 Concrete notification channels own delivery side effects.
 
+`infrastructure.scheduler` contains `SystemDelay`, the standard-library
+implementation of the Core delay boundary.
+
 Infrastructure is responsible for:
 
 - persistence
@@ -122,6 +134,8 @@ applications/
 
     synchronization/
 
+    scheduler/
+
     cli/
 
     api/
@@ -138,9 +152,15 @@ orchestration defined by ADR-0009. It depends on public Core contracts and
 services, while concrete Infrastructure implementations are injected by outer
 application entry points.
 
+`applications.scheduler` contains the reusable fixed-delay interval
+orchestration defined by ADR-0011. It invokes an injected cycle serially and
+depends on the Core delay abstraction.
+
 `applications.cli` is the first executable composition root. It parses explicit
 process arguments, supplies clock and UUID generation, composes the Lidl/JSON/
 console stack and invokes `applications.synchronization` according to ADR-0010.
+Its `watch` command composes the interval scheduler and Infrastructure delay
+according to ADR-0011.
 
 ---
 
