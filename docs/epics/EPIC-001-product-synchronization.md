@@ -27,6 +27,9 @@ The workflow depends on the `core.state.StateStore` abstraction.
 
 Concrete State Store implementations are supplied by Infrastructure.
 
+Local durable synchronization uses
+`infrastructure.persistence.json.JsonStateStore`.
+
 Product snapshots are keyed by `snapshot.product.id`.
 
 Done when:

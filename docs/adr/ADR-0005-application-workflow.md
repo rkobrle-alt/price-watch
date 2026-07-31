@@ -98,6 +98,9 @@ Concrete State Store implementations belong to Infrastructure.
 The reference implementation is located in
 `infrastructure.persistence.memory`.
 
+The durable local implementation is located in
+`infrastructure.persistence.json` and follows ADR-0008.
+
 Core defines the deterministic `NotificationEngine` and the
 `NotificationChannel` Protocol.
 

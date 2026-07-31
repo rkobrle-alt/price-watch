@@ -61,6 +61,10 @@ Applications inject a concrete implementation from Infrastructure.
 The reference implementation is
 `infrastructure.persistence.memory.InMemoryStateStore`.
 
+Durable execution may inject
+`infrastructure.persistence.json.JsonStateStore`. It preserves the latest
+snapshot between process executions without changing the Core workflow.
+
 Snapshots are loaded and saved using `snapshot.product.id` as their unique
 storage key.
 

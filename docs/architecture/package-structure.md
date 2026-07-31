@@ -97,6 +97,9 @@ standard-library reference implementation.
 `infrastructure.persistence.memory` contains the reference
 `InMemoryStateStore` implementation.
 
+`infrastructure.persistence.json` contains the durable, versioned
+`JsonStateStore` implementation for local filesystem persistence.
+
 `infrastructure.notifications.console` contains the reference
 `ConsoleNotificationChannel` implementation.
 

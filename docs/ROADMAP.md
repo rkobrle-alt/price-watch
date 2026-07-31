@@ -65,7 +65,9 @@ Persist product state between executions.
 
 Initial implementation:
 
-- JSON
+- versioned JSON document
+- exact Domain snapshot round-trip
+- atomic file replacement
 
 ---
 
