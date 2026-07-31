@@ -1,4 +1,4 @@
-# Price Watch Roadmap
+﻿# Price Watch Roadmap
 
 ## Vision
 
@@ -8,7 +8,7 @@ The Core remains independent of providers, storage, notification channels and ap
 
 ---
 
-# v0.4.0 — State Store
+# v0.4.0 â€” State Store
 
 Goal:
 
@@ -24,7 +24,7 @@ Deliverables:
 
 ---
 
-# v0.5.0 — Notification Engine
+# v0.5.0 â€” Notification Engine
 
 Goal:
 
@@ -43,19 +43,21 @@ Architecture prepared for:
 
 ---
 
-# v0.6.0 — First Provider
+# v0.6.0 â€” First Provider
 
 Goal:
 
 Implement the first real provider.
 
-Candidate:
+Provider:
 
-- Alza.cz
+- Lidl Czech Republic
+- Parkside tools
+- Explicit product URL monitoring
 
 ---
 
-# v0.7.0 — JSON Persistence
+# v0.7.0 â€” JSON Persistence
 
 Goal:
 
@@ -67,7 +69,7 @@ Initial implementation:
 
 ---
 
-# v0.8.0 — Application Workflow
+# v0.8.0 â€” Application Workflow
 
 Goal:
 
@@ -82,7 +84,7 @@ The workflow connects:
 
 ---
 
-# v0.9.0 — CLI
+# v0.9.0 â€” CLI
 
 Goal:
 
@@ -96,7 +98,7 @@ Commands:
 
 ---
 
-# v0.10.0 — Scheduler
+# v0.10.0 â€” Scheduler
 
 Goal:
 

@@ -1,4 +1,4 @@
-# Package Structure
+﻿# Package Structure
 
 This document defines the long-term package organization of Price Watch.
 
@@ -63,12 +63,6 @@ infrastructure/
 
     providers/
 
-        alza/
-
-        datart/
-
-        amazon/
-
         lidl/
 
     persistence/
@@ -93,6 +87,12 @@ infrastructure/
 ```
 
 Infrastructure contains all external integrations and concrete implementations.
+
+`infrastructure.providers.lidl` contains the first provider implementation for
+explicitly configured Lidl Czech Republic Parkside product pages.
+
+`infrastructure.http` contains the injectable text HTTP boundary and its
+standard-library reference implementation.
 
 `infrastructure.persistence.memory` contains the reference
 `InMemoryStateStore` implementation.
@@ -158,7 +158,7 @@ Integration tests may access external systems.
 
 # Dependency Rules
 
-Applications → Infrastructure → Core
+Applications â†’ Infrastructure â†’ Core
 
 Dependencies always point toward the Core.
 
