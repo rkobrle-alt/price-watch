@@ -77,7 +77,46 @@ class WatchArguments:
                 raise ValueError("max_cycles must be positive")
 
 
-CliArguments: TypeAlias = SyncArguments | VersionArguments | WatchArguments
+@dataclass(frozen=True, slots=True)
+class SyncConfigurationArguments:
+    """Select one synchronization configured by an explicit file."""
+
+    config_file: Path
+
+    def __post_init__(self) -> None:
+        """Validate the explicit configuration path."""
+        if not isinstance(self.config_file, Path):
+            raise TypeError("config_file must be a Path")
+
+
+@dataclass(frozen=True, slots=True)
+class WatchConfigurationArguments:
+    """Select repeated configured synchronization with an optional bound."""
+
+    config_file: Path
+    max_cycles: int | None = None
+
+    def __post_init__(self) -> None:
+        """Validate the path and optional process-lifetime bound."""
+        if not isinstance(self.config_file, Path):
+            raise TypeError("config_file must be a Path")
+        if self.max_cycles is not None:
+            if isinstance(self.max_cycles, bool) or not isinstance(
+                self.max_cycles,
+                int,
+            ):
+                raise TypeError("max_cycles must be an int or None")
+            if self.max_cycles <= 0:
+                raise ValueError("max_cycles must be positive")
+
+
+CliArguments: TypeAlias = (
+    SyncArguments
+    | VersionArguments
+    | WatchArguments
+    | SyncConfigurationArguments
+    | WatchConfigurationArguments
+)
 
 
 def _validate_optional_decimal(

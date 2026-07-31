@@ -7,19 +7,23 @@ from typing import TextIO
 from uuid import UUID, uuid4
 
 from applications.cli.arguments import (
-    SyncArguments,
+    SyncConfigurationArguments,
     VersionArguments,
     WatchArguments,
+    WatchConfigurationArguments,
 )
 from applications.cli.composition import SyncComposition, compose_sync
+from applications.cli.configuration import resolve_configured_command
 from applications.cli.parser import ParserExit, parse_arguments
 from applications.cli.version import VERSION
 from applications.scheduler import IntervalScheduler
 from applications.synchronization import SynchronizationResult
+from core.configuration import ConfigurationError, ConfigurationLoader
 from core.notifications import NotificationError
 from core.rules import RuleError
 from core.scheduler import Delay, SchedulerError
 from core.state import StateStoreError
+from infrastructure.configuration.toml import TomlConfigurationLoader
 from infrastructure.scheduler import SystemDelay
 
 
@@ -31,6 +35,7 @@ def run(
     notification_id_factory: Callable[[], UUID],
     *,
     delay: Delay | None = None,
+    configuration_loader: ConfigurationLoader | None = None,
 ) -> int:
     """Execute a CLI command using explicitly supplied process dependencies."""
     _validate_run_dependencies(
@@ -40,6 +45,7 @@ def run(
         clock,
         notification_id_factory,
         delay,
+        configuration_loader,
     )
     try:
         command = parse_arguments(argv, stdout, stderr)
@@ -49,6 +55,18 @@ def run(
     if isinstance(command, VersionArguments):
         _write(stdout, f"Price Watch {VERSION}\n")
         return 0
+
+    if isinstance(
+        command,
+        (SyncConfigurationArguments, WatchConfigurationArguments),
+    ):
+        if configuration_loader is None:
+            raise TypeError("configuration_loader is required for --config")
+        try:
+            command = resolve_configured_command(command, configuration_loader)
+        except ConfigurationError as error:
+            _write(stderr, f"error: {error}\n")
+            return 2
 
     sync_arguments = command.sync if isinstance(command, WatchArguments) else command
     try:
@@ -78,6 +96,7 @@ def main() -> int:
         lambda: datetime.now(UTC),
         uuid4,
         delay=SystemDelay(),
+        configuration_loader=TomlConfigurationLoader(),
     )
 
 
@@ -168,6 +187,7 @@ def _validate_run_dependencies(
     clock: object,
     notification_id_factory: object,
     delay: object,
+    configuration_loader: object,
 ) -> None:
     if isinstance(argv, (str, bytes)) or not isinstance(argv, Sequence) or not all(
         isinstance(value, str) for value in argv
@@ -181,6 +201,12 @@ def _validate_run_dependencies(
         raise TypeError("notification_id_factory must be callable")
     if delay is not None and not callable(getattr(delay, "wait", None)):
         raise TypeError("delay must expose a callable wait method or be None")
+    if configuration_loader is not None and not callable(
+        getattr(configuration_loader, "load", None)
+    ):
+        raise TypeError(
+            "configuration_loader must expose a callable load method or be None"
+        )
 
 
 def _validate_stream(stream: object, name: str) -> None:

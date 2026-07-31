@@ -10,8 +10,10 @@ from typing import TextIO
 from applications.cli.arguments import (
     CliArguments,
     SyncArguments,
+    SyncConfigurationArguments,
     VersionArguments,
     WatchArguments,
+    WatchConfigurationArguments,
 )
 
 
@@ -64,10 +66,24 @@ def parse_arguments(
     namespace = parser.parse_args(argv)
     if namespace.command == "version":
         return VersionArguments()
+    if namespace.config_file is not None:
+        if _has_direct_configuration(namespace):
+            parser.error("--config cannot be combined with direct configuration options")
+        if namespace.command == "watch":
+            return WatchConfigurationArguments(
+                config_file=namespace.config_file,
+                max_cycles=namespace.max_cycles,
+            )
+        return SyncConfigurationArguments(config_file=namespace.config_file)
+
+    _require_direct_configuration(parser, namespace)
+    timeout_seconds = (
+        10 if namespace.timeout_seconds is None else namespace.timeout_seconds
+    )
     sync_arguments = SyncArguments(
         product_urls=tuple(namespace.product_urls),
         state_file=namespace.state_file,
-        timeout_seconds=namespace.timeout_seconds,
+        timeout_seconds=timeout_seconds,
         price_drop_percentage=namespace.price_drop_percentage,
         price_drop_amount=namespace.price_drop_amount,
     )
@@ -114,8 +130,8 @@ def _create_parser(stdout: TextIO, stderr: TextIO) -> _CliArgumentParser:
     _add_sync_arguments(watch_parser)
     watch_parser.add_argument(
         "--interval-seconds",
-        required=True,
         type=_positive_integer,
+        default=None,
         metavar="INTEGER",
     )
     watch_parser.add_argument(
@@ -128,23 +144,24 @@ def _create_parser(stdout: TextIO, stderr: TextIO) -> _CliArgumentParser:
 
 
 def _add_sync_arguments(parser: _CliArgumentParser) -> None:
+    parser.add_argument("--config", dest="config_file", type=Path, metavar="PATH")
     parser.add_argument(
         "--url",
         dest="product_urls",
         action="append",
-        required=True,
+        default=None,
         metavar="HTTPS_LIDL_PRODUCT_URL",
     )
     parser.add_argument(
         "--state-file",
-        required=True,
         type=Path,
+        default=None,
         metavar="PATH",
     )
     parser.add_argument(
         "--timeout-seconds",
         type=_positive_integer,
-        default=10,
+        default=None,
         metavar="INTEGER",
     )
     parser.add_argument(
@@ -159,6 +176,30 @@ def _add_sync_arguments(parser: _CliArgumentParser) -> None:
         default=None,
         metavar="DECIMAL",
     )
+
+
+def _has_direct_configuration(namespace: argparse.Namespace) -> bool:
+    values = (
+        namespace.product_urls,
+        namespace.state_file,
+        namespace.timeout_seconds,
+        namespace.price_drop_percentage,
+        namespace.price_drop_amount,
+        getattr(namespace, "interval_seconds", None),
+    )
+    return any(value is not None for value in values)
+
+
+def _require_direct_configuration(
+    parser: _CliArgumentParser,
+    namespace: argparse.Namespace,
+) -> None:
+    if namespace.product_urls is None:
+        parser.error("--url is required unless --config is used")
+    if namespace.state_file is None:
+        parser.error("--state-file is required unless --config is used")
+    if namespace.command == "watch" and namespace.interval_seconds is None:
+        parser.error("--interval-seconds is required unless --config is used")
 
 
 def _positive_integer(value: str) -> int:
