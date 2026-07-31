@@ -138,6 +138,10 @@ orchestration defined by ADR-0009. It depends on public Core contracts and
 services, while concrete Infrastructure implementations are injected by outer
 application entry points.
 
+`applications.cli` is the first executable composition root. It parses explicit
+process arguments, supplies clock and UUID generation, composes the Lidl/JSON/
+console stack and invokes `applications.synchronization` according to ADR-0010.
+
 ---
 
 # Tests

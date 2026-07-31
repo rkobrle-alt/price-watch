@@ -1,7 +1,7 @@
 # Application Flow
 
 ```text
-Scheduler or application entry point
+CLI, scheduler or another application entry point
     |
     v
 SynchronizationWorkflow
@@ -33,6 +33,10 @@ StateStore.save
 
 The reusable orchestration belongs to `applications.synchronization` and
 follows ADR-0009.
+
+The first executable composition root is `applications.cli`. Its `sync`
+command supplies the Lidl provider, JSON State Store, registered evaluators,
+console channel, UTC clock and UUID generation according to ADR-0010.
 
 The workflow depends only on public Core contracts and services. Applications
 inject concrete providers, State Store implementations, notification channels

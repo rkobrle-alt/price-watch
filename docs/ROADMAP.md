@@ -87,7 +87,7 @@ The workflow connects:
 
 ---
 
-# v0.9.0 â€” CLI
+# v0.9.0 — CLI
 
 Goal:
 
@@ -95,10 +95,11 @@ Allow the whole platform to be executed from the command line.
 
 Commands:
 
-- sync
-- evaluate
-- version
+- `sync` for one durable Lidl Parkside synchronization cycle
+- `version` for release identification
 
+A standalone `evaluate` command is deferred until an external Product and Rule
+input contract is approved. Practical evaluation is performed by `sync`.
 ---
 
 # v0.10.0 â€” Scheduler

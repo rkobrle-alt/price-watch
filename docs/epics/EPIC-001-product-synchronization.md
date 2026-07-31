@@ -36,6 +36,9 @@ Reusable orchestration belongs to `applications.synchronization` and follows
 ADR-0009. Notifications are delivered before the corresponding current
 snapshot is stored.
 
+The first user-facing composition is `applications.cli sync` according to
+ADR-0010.
+
 Done when:
 
 - Products are retrieved.
