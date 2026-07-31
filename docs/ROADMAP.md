@@ -1,4 +1,4 @@
-﻿# Price Watch Roadmap
+# Price Watch Roadmap
 
 ## Vision
 

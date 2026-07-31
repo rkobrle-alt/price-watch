@@ -1,4 +1,4 @@
-﻿# Package Structure
+# Package Structure
 
 This document defines the long-term package organization of Price Watch.
 
