@@ -2,6 +2,7 @@
 
 import argparse
 from collections.abc import Sequence
+from datetime import timedelta
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import TextIO
@@ -10,6 +11,7 @@ from applications.cli.arguments import (
     CliArguments,
     SyncArguments,
     VersionArguments,
+    WatchArguments,
 )
 
 
@@ -62,13 +64,20 @@ def parse_arguments(
     namespace = parser.parse_args(argv)
     if namespace.command == "version":
         return VersionArguments()
-    return SyncArguments(
+    sync_arguments = SyncArguments(
         product_urls=tuple(namespace.product_urls),
         state_file=namespace.state_file,
         timeout_seconds=namespace.timeout_seconds,
         price_drop_percentage=namespace.price_drop_percentage,
         price_drop_amount=namespace.price_drop_amount,
     )
+    if namespace.command == "watch":
+        return WatchArguments(
+            sync=sync_arguments,
+            interval=timedelta(seconds=namespace.interval_seconds),
+            max_cycles=namespace.max_cycles,
+        )
+    return sync_arguments
 
 
 def _create_parser(stdout: TextIO, stderr: TextIO) -> _CliArgumentParser:
@@ -94,38 +103,62 @@ def _create_parser(stdout: TextIO, stderr: TextIO) -> _CliArgumentParser:
         stdout=stdout,
         stderr=stderr,
     )
-    sync_parser.add_argument(
+    _add_sync_arguments(sync_parser)
+    watch_parser = subparsers.add_parser(
+        "watch",
+        help="run synchronization repeatedly",
+        allow_abbrev=False,
+        stdout=stdout,
+        stderr=stderr,
+    )
+    _add_sync_arguments(watch_parser)
+    watch_parser.add_argument(
+        "--interval-seconds",
+        required=True,
+        type=_positive_integer,
+        metavar="INTEGER",
+    )
+    watch_parser.add_argument(
+        "--max-cycles",
+        type=_positive_integer,
+        default=None,
+        metavar="INTEGER",
+    )
+    return parser
+
+
+def _add_sync_arguments(parser: _CliArgumentParser) -> None:
+    parser.add_argument(
         "--url",
         dest="product_urls",
         action="append",
         required=True,
         metavar="HTTPS_LIDL_PRODUCT_URL",
     )
-    sync_parser.add_argument(
+    parser.add_argument(
         "--state-file",
         required=True,
         type=Path,
         metavar="PATH",
     )
-    sync_parser.add_argument(
+    parser.add_argument(
         "--timeout-seconds",
         type=_positive_integer,
         default=10,
         metavar="INTEGER",
     )
-    sync_parser.add_argument(
+    parser.add_argument(
         "--price-drop-percentage",
         type=_percentage,
         default=None,
         metavar="DECIMAL",
     )
-    sync_parser.add_argument(
+    parser.add_argument(
         "--price-drop-amount",
         type=_non_negative_decimal,
         default=None,
         metavar="DECIMAL",
     )
-    return parser
 
 
 def _positive_integer(value: str) -> int:

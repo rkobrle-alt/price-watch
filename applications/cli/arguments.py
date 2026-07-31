@@ -1,6 +1,7 @@
 """Immutable command values produced by the CLI parser."""
 
 from dataclasses import dataclass
+from datetime import timedelta
 from decimal import Decimal
 from pathlib import Path
 from typing import TypeAlias
@@ -50,7 +51,33 @@ class VersionArguments:
     """Represent the argument-free version command."""
 
 
-CliArguments: TypeAlias = SyncArguments | VersionArguments
+@dataclass(frozen=True, slots=True)
+class WatchArguments:
+    """Validated configuration for repeated synchronization."""
+
+    sync: SyncArguments
+    interval: timedelta
+    max_cycles: int | None = None
+
+    def __post_init__(self) -> None:
+        """Validate scheduling arguments."""
+        if not isinstance(self.sync, SyncArguments):
+            raise TypeError("sync must be SyncArguments")
+        if not isinstance(self.interval, timedelta):
+            raise TypeError("interval must be a timedelta")
+        if self.interval <= timedelta(0):
+            raise ValueError("interval must be positive")
+        if self.max_cycles is not None:
+            if isinstance(self.max_cycles, bool) or not isinstance(
+                self.max_cycles,
+                int,
+            ):
+                raise TypeError("max_cycles must be an int or None")
+            if self.max_cycles <= 0:
+                raise ValueError("max_cycles must be positive")
+
+
+CliArguments: TypeAlias = SyncArguments | VersionArguments | WatchArguments
 
 
 def _validate_optional_decimal(
