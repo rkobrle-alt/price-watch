@@ -6,7 +6,7 @@ from typing import cast
 
 import pytest
 
-from applications.cli import run
+from applications.cli import VERSION, run
 from applications.cli.composition import SyncComposition
 from applications.synchronization import SynchronizationResult
 from core.notifications import NotificationError
@@ -78,7 +78,7 @@ def test_version_writes_exact_output_and_returns_success() -> None:
     )
 
     assert status == 0
-    assert stdout.text() == "Price Watch 0.9.0\n"
+    assert stdout.text() == f"Price Watch {VERSION}\n"
     assert stdout.flush_count == 1
     assert stderr.text() == ""
 
