@@ -10,6 +10,7 @@ from uuid import UUID
 import pytest
 
 import applications.cli as cli_package
+from infrastructure.configuration.toml import TomlConfigurationLoader
 from infrastructure.scheduler import SystemDelay
 from tests.unit.cli.helpers import RecordingStream
 
@@ -30,6 +31,7 @@ def test_main_supplies_real_process_dependencies(
         notification_id_factory: Callable[[], UUID],
         *,
         delay: object,
+        configuration_loader: object,
     ) -> int:
         captured.update(
             argv=argv,
@@ -38,6 +40,7 @@ def test_main_supplies_real_process_dependencies(
             timestamp=clock(),
             notification_id=notification_id_factory(),
             delay=delay,
+            configuration_loader=configuration_loader,
         )
         return 7
 
@@ -55,6 +58,7 @@ def test_main_supplies_real_process_dependencies(
     assert timestamp.tzinfo is not None
     assert isinstance(captured["notification_id"], UUID)
     assert isinstance(captured["delay"], SystemDelay)
+    assert isinstance(captured["configuration_loader"], TomlConfigurationLoader)
 
 
 def test_python_module_entrypoint_exits_with_main_status(
