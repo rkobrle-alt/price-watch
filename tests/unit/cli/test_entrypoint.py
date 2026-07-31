@@ -10,6 +10,7 @@ from uuid import UUID
 import pytest
 
 import applications.cli as cli_package
+from infrastructure.scheduler import SystemDelay
 from tests.unit.cli.helpers import RecordingStream
 
 
@@ -27,6 +28,8 @@ def test_main_supplies_real_process_dependencies(
         error_output: object,
         clock: Callable[[], datetime],
         notification_id_factory: Callable[[], UUID],
+        *,
+        delay: object,
     ) -> int:
         captured.update(
             argv=argv,
@@ -34,6 +37,7 @@ def test_main_supplies_real_process_dependencies(
             stderr=error_output,
             timestamp=clock(),
             notification_id=notification_id_factory(),
+            delay=delay,
         )
         return 7
 
@@ -50,6 +54,7 @@ def test_main_supplies_real_process_dependencies(
     assert isinstance(timestamp, datetime)
     assert timestamp.tzinfo is not None
     assert isinstance(captured["notification_id"], UUID)
+    assert isinstance(captured["delay"], SystemDelay)
 
 
 def test_python_module_entrypoint_exits_with_main_status(
