@@ -78,7 +78,7 @@ def test_version_writes_exact_output_and_returns_success() -> None:
     )
 
     assert status == 0
-    assert stdout.text() == "Price Watch 0.8.0\n"
+    assert stdout.text() == "Price Watch 0.9.0\n"
     assert stdout.flush_count == 1
     assert stderr.text() == ""
 
