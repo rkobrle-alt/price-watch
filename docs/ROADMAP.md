@@ -136,6 +136,23 @@ Deliverables:
 
 ---
 
+# v0.12.0 — Home Assistant Notifications
+
+Goal:
+
+Delegate actionable Price Watch notifications to an existing Home Assistant
+notify entity.
+
+Deliverables:
+
+- deterministic rich notification messages
+- Home Assistant service client contract and standard-library REST adapter
+- `HomeAssistantNotificationChannel`
+- reuse of Home Assistant SMTP without duplicated credentials
+- no App packaging or Supervisor-token discovery yet
+
+---
+
 # v1.0.0
 
 Stable public release.

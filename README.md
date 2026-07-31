@@ -68,6 +68,11 @@ interval_seconds = 300
 Run it with `python -m applications.cli watch --config price-watch.toml`.
 Relative state paths are interpreted from the configuration file directory.
 
+The Infrastructure notification boundary can also delegate actionable event
+messages to an existing Home Assistant notify entity, including an SMTP-backed
+entity. Home Assistant App packaging and runtime composition are the next
+milestone; the current CLI continues to use console delivery.
+
 ## Development
 
 The project requires Python 3.13 or newer.

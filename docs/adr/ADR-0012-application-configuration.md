@@ -196,6 +196,9 @@ programming failures propagate.
 Schema version 1 contains no credentials or secrets. Future notification
 credentials require a separate decision defining a secret source; this ADR
 does not authorize storing secrets in TOML or reading environment variables.
+ADR-0013 consequently requires an explicitly injected Home Assistant token;
+the future Home Assistant App process boundary will own Supervisor-token
+access.
 
 ---
 

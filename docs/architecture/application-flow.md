@@ -77,3 +77,8 @@ retain their subsystem exception types and stop the remaining cycle.
 
 Core stages consume immutable input and produce immutable output. Side effects
 remain behind injected Infrastructure boundaries.
+
+ADR-0013 adds a replaceable Home Assistant delivery edge. Future Home Assistant
+composition may inject `HomeAssistantNotificationChannel` in place of the
+Console channel without changing synchronization ordering. The channel invokes
+`notify.send_message`; Home Assistant remains responsible for SMTP delivery.

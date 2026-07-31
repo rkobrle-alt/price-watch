@@ -96,6 +96,10 @@ infrastructure/
 
         discord/
 
+        homeassistant/
+
+    homeassistant/
+
     http/
 
     scheduler/
@@ -123,6 +127,12 @@ standard-library reference implementation.
 `ConsoleNotificationChannel` implementation.
 
 Concrete notification channels own delivery side effects.
+`infrastructure.notifications.homeassistant` delegates notification delivery
+to an explicit Home Assistant notify entity according to ADR-0013.
+
+`infrastructure.homeassistant` contains the Home Assistant service-call
+contract, operational error and standard-library REST client. It stores no
+credentials and imports no Applications.
 
 `infrastructure.scheduler` contains `SystemDelay`, the standard-library
 implementation of the Core delay boundary.

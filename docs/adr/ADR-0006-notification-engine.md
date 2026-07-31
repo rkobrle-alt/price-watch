@@ -55,7 +55,8 @@ If `evaluation.matched` is `True`, the generated `Notification` uses:
 
 - `notification_id` as `Notification.id`
 - `product.id` as `Notification.product_id`
-- `evaluation.reason` as `Notification.message`
+- a deterministic product summary headed by `evaluation.reason` as
+  `Notification.message`, according to ADR-0013
 - `evaluation.timestamp` as `Notification.created_at`
 
 The caller supplies the identifier. Core does not generate UUIDs.
@@ -93,7 +94,9 @@ infrastructure.notifications.console.ConsoleNotificationChannel
 The output stream is injected explicitly. The implementation has no hidden
 dependency on global standard output.
 
-Each notification is written as one line:
+Each notification is written using the message unchanged. ADR-0013 enriches
+that deterministic message with product details, so one notification may span
+multiple text lines. The Console channel prefix remains:
 
 ```text
 {created_at.isoformat()} {product_id.value} {message}\n

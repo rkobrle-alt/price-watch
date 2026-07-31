@@ -24,6 +24,15 @@ infrastructure/notifications/
     console/
         __init__.py
         channel.py
+    homeassistant/
+        __init__.py
+        channel.py
+
+infrastructure/homeassistant/
+    __init__.py
+    client.py
+    exceptions.py
+    urllib_client.py
 ```
 
 Core contains the pure generation service and delivery abstraction.
@@ -63,7 +72,9 @@ generate(
 The method returns `None` for a non-matching evaluation.
 
 For a matching evaluation it creates a `Notification` from the supplied
-product, evaluation result and identifier.
+product, evaluation result and identifier. According to ADR-0013, its
+channel-neutral message contains the reason, product name, current price,
+availability and URL.
 
 The engine never reads time, generates identifiers or performs I/O.
 
@@ -90,13 +101,30 @@ The `infrastructure.notifications.console` package exports:
 
 - `ConsoleNotificationChannel`
 
-The channel receives an explicit text output stream during construction.
+The `infrastructure.notifications.homeassistant` package exports:
+
+- `HomeAssistantNotificationChannel`
+
+The `infrastructure.homeassistant` package exports:
+
+- `HomeAssistantClient`
+- `HomeAssistantError`
+- `UrllibHomeAssistantClient`
+
+The Console channel receives an explicit text output stream during
+construction.
 
 It writes and flushes one deterministic line per notification:
 
 ```text
 {created_at.isoformat()} {product_id.value} {message}\n
 ```
+
+The Home Assistant channel delegates the same immutable message to an injected
+Home Assistant service client using `notify.send_message`. It targets an
+explicit notify entity and translates Home Assistant operational failures to
+`NotificationError`. SMTP configuration and credentials remain owned by Home
+Assistant.
 
 ---
 
