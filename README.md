@@ -46,6 +46,28 @@ python -m applications.cli watch \
 
 Use `--max-cycles` for a finite run. Otherwise `watch` continues until Ctrl+C.
 
+The same settings may be stored in a strict TOML file:
+
+```toml
+schema_version = 1
+
+[provider.lidl]
+product_urls = ["https://www.lidl.cz/example-product/p100000000"]
+timeout_seconds = 10
+
+[state]
+file = "data/price-watch-state.json"
+
+[rules.price_drop]
+percentage = "10.00"
+
+[scheduler]
+interval_seconds = 300
+```
+
+Run it with `python -m applications.cli watch --config price-watch.toml`.
+Relative state paths are interpreted from the configuration file directory.
+
 ## Development
 
 The project requires Python 3.13 or newer.

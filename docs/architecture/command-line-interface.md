@@ -18,6 +18,7 @@ applications/cli/
     main.py
     parser.py
     version.py
+    configuration.py
 ```
 
 Responsibilities:
@@ -27,6 +28,8 @@ Responsibilities:
 - `composition.py` assembles the approved concrete synchronization stack
 - `main.py` dispatches commands and maps known outcomes to exit codes
 - `version.py` owns the CLI version constant
+- `configuration.py` resolves explicit configuration-file commands through
+  injected configuration contracts
 - `__main__.py` adapts the package to `python -m`
 - `__init__.py` exports the public API
 
@@ -37,7 +40,16 @@ Responsibilities:
 ```python
 VERSION: str
 main() -> int
-run(argv, stdout, stderr, clock, notification_id_factory) -> int
+run(
+    argv,
+    stdout,
+    stderr,
+    clock,
+    notification_id_factory,
+    *,
+    delay=None,
+    configuration_loader=None,
+) -> int
 ```
 
 `run()` receives every nondeterministic process dependency explicitly.
@@ -85,6 +97,10 @@ converters reject non-finite or out-of-range values before composition.
 Parsed commands are immutable and contain no `argparse.Namespace` outside the
 parser module.
 
+According to ADR-0012, `sync` and `watch` accept either their existing direct
+configuration arguments or one explicit `--config PATH`, never both. Configured
+`watch` may additionally use `--max-cycles` as a process-lifetime bound.
+
 ---
 
 ## Error Boundary
@@ -96,7 +112,8 @@ Known operational subsystem errors return `1`. Provider partial failures are
 already represented by `SynchronizationResult`; the CLI writes them and also
 returns `1`.
 
-Unexpected exceptions propagate for visibility.
+Configuration loading and schema errors return `2`. Unexpected exceptions
+propagate for visibility.
 
 ---
 

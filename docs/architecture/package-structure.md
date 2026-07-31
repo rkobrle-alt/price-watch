@@ -28,6 +28,8 @@ core/
     notifications/
 
     scheduler/
+
+    configuration/
 ```
 
 The Core contains only business logic.
@@ -61,6 +63,10 @@ For scheduling, `core.scheduler` contains only:
 
 It does not read time, sleep, start threads or orchestrate applications.
 
+For application configuration, `core.configuration` contains only the
+`ConfigurationLoader` Protocol and `ConfigurationError` contract defined by
+ADR-0012. It contains no file-format parser or filesystem access.
+
 ---
 
 # Infrastructure
@@ -93,6 +99,10 @@ infrastructure/
     http/
 
     scheduler/
+
+    configuration/
+
+        toml/
 ```
 
 Infrastructure contains all external integrations and concrete implementations.
@@ -117,6 +127,10 @@ Concrete notification channels own delivery side effects.
 `infrastructure.scheduler` contains `SystemDelay`, the standard-library
 implementation of the Core delay boundary.
 
+`infrastructure.configuration.toml` contains the explicit UTF-8 TOML file
+loader. It performs decoding only; application-schema validation remains in
+`applications.configuration`.
+
 Infrastructure is responsible for:
 
 - persistence
@@ -135,6 +149,8 @@ applications/
     synchronization/
 
     scheduler/
+
+    configuration/
 
     cli/
 
@@ -156,11 +172,15 @@ application entry points.
 orchestration defined by ADR-0011. It invokes an injected cycle serially and
 depends on the Core delay abstraction.
 
+`applications.configuration` contains the immutable application configuration
+and pure schema validation defined by ADR-0012. It performs no file I/O.
+
 `applications.cli` is the first executable composition root. It parses explicit
 process arguments, supplies clock and UUID generation, composes the Lidl/JSON/
 console stack and invokes `applications.synchronization` according to ADR-0010.
 Its `watch` command composes the interval scheduler and Infrastructure delay
-according to ADR-0011.
+according to ADR-0011. Configuration-file commands compose the pure
+Application parser with the Infrastructure TOML loader according to ADR-0012.
 
 ---
 

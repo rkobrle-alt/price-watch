@@ -90,7 +90,8 @@ conventional process exit code `130`.
 The existing `sync` command and its behavior remain unchanged. Its public
 `run()` boundary gains an optional keyword-only `delay` dependency. The process
 adapter always supplies `SystemDelay`; programmatic callers need it only for
-`watch`.
+`watch`. ADR-0012 later adds an explicit TOML source for the same immutable
+watch configuration without changing scheduler behavior.
 
 ---
 

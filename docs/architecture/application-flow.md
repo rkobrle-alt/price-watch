@@ -44,6 +44,12 @@ cycle starts immediately. Later cycles start after a fixed delay following the
 previous completed cycle, so synchronization cycles never overlap. The delay
 side effect is supplied by `infrastructure.scheduler.SystemDelay`.
 
+For configured execution, the CLI explicitly loads a versioned TOML document
+through `infrastructure.configuration.toml.TomlConfigurationLoader`, validates
+it through the pure `applications.configuration` parser and then enters the
+same existing `sync` or `watch` composition. Relative state paths are resolved
+against the TOML file directory. Configuration does not alter workflow stages.
+
 The workflow depends only on public Core contracts and services. Applications
 inject concrete providers, State Store implementations, notification channels
 and identifier generation.

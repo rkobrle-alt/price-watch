@@ -162,7 +162,9 @@ come from the injected factory. One caller-supplied clock provides the cycle
 timestamp and the Lidl provider timing values.
 
 No environment variable, implicit configuration file or default state path is
-used. Durable state location and monitored URLs remain explicit.
+used. Durable state location and monitored URLs remain explicit. ADR-0012 adds
+an explicitly selected TOML path while preserving the absence of discovery,
+environment configuration and default locations.
 
 ---
 

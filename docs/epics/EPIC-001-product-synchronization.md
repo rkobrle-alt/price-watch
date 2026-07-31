@@ -43,6 +43,9 @@ Repeated execution is provided by `applications.scheduler` and the
 `applications.cli watch` composition according to ADR-0011. Scheduled cycles
 run serially and reuse the same durable workflow composition.
 
+Repeatable startup configuration is supplied by the versioned TOML contract in
+ADR-0012. Configuration loading does not introduce another workflow path.
+
 Done when:
 
 - Products are retrieved.

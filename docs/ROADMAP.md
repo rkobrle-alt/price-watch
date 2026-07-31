@@ -118,6 +118,24 @@ Deliverables:
 
 ---
 
+# v0.11.0 — Application Configuration
+
+Goal:
+
+Start the existing synchronization commands from one repeatable, explicit
+configuration file.
+
+Deliverables:
+
+- versioned strict TOML schema
+- pure immutable Application configuration
+- Infrastructure TOML loader
+- `sync --config` and `watch --config`
+- exact Decimal thresholds and config-relative state paths
+- no environment discovery or secret storage
+
+---
+
 # v1.0.0
 
 Stable public release.
