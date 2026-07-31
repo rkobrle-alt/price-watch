@@ -3,6 +3,9 @@ name = "price-watch"
 version = "0.8.0"
 requires-python = ">=3.13"
 
+[project.scripts]
+price-watch = "applications.cli:main"
+
 [tool.pytest.ini_options]
 addopts = "--cov=core --cov=infrastructure --cov=applications --cov-branch --cov-report=term-missing --cov-fail-under=100"
 testpaths = ["tests"]
