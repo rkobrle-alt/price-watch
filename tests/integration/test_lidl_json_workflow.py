@@ -133,12 +133,24 @@ def test_second_process_detects_persisted_price_and_availability_changes(
     second_result = second_workflow.run(_rules(), TIMESTAMP)
 
     assert tuple(item.message for item in second_result.notifications) == (
-        "Product price decreased.",
-        "Product is back in stock.",
+        (
+            "Product price decreased.\n"
+            "Product: Parkside Test Tool\n"
+            "Current price: 80.00 CZK\n"
+            "Availability: available\n"
+            f"URL: {PRODUCT_URL}"
+        ),
+        (
+            "Product is back in stock.\n"
+            "Product: Parkside Test Tool\n"
+            "Current price: 80.00 CZK\n"
+            "Availability: available\n"
+            f"URL: {PRODUCT_URL}"
+        ),
     )
     persisted = JsonStateStore(state_path).load(second_result.snapshots[0].product.id)
     assert persisted is not None
     assert persisted == second_result.snapshots[0]
     assert persisted.product.current_price.amount.as_tuple().exponent == -2
     assert persisted.product.availability
-    assert output.getvalue().count("\n") == 2
+    assert output.getvalue().count("\n") == 10

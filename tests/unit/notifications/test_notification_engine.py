@@ -32,7 +32,14 @@ class NotificationEngineTests(TestCase):
         self.assertIsInstance(result, Notification)
         self.assertEqual(result.id, NOTIFICATION_ID)
         self.assertEqual(result.product_id, PRODUCT_ID)
-        self.assertEqual(result.message, self.evaluation.reason)
+        self.assertEqual(
+            result.message,
+            "Product price decreased.\n"
+            "Product: Coffee\n"
+            "Current price: 99.90 CZK\n"
+            "Availability: available\n"
+            "URL: https://example.test/product",
+        )
         self.assertEqual(result.created_at, TIMESTAMP)
 
     def test_non_matching_evaluation_returns_none(self) -> None:
