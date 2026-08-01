@@ -27,6 +27,18 @@ class NotificationEngine:
         return Notification(
             id=notification_id,
             product_id=product.id,
-            message=evaluation.reason,
+            message=_create_message(product, evaluation),
             created_at=evaluation.timestamp,
         )
+
+
+def _create_message(product: Product, evaluation: EvaluationResult) -> str:
+    availability = "available" if product.availability else "unavailable"
+    return (
+        f"{evaluation.reason}\n"
+        f"Product: {product.name}\n"
+        "Current price: "
+        f"{product.current_price.amount} {product.currency.value}\n"
+        f"Availability: {availability}\n"
+        f"URL: {product.url}"
+    )
