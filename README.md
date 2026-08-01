@@ -68,10 +68,11 @@ interval_seconds = 300
 Run it with `python -m applications.cli watch --config price-watch.toml`.
 Relative state paths are interpreted from the configuration file directory.
 
-The Infrastructure notification boundary can also delegate actionable event
-messages to an existing Home Assistant notify entity, including an SMTP-backed
-entity. Home Assistant App packaging and runtime composition are the next
-milestone; the current CLI continues to use console delivery.
+Price Watch is also packaged as a Home Assistant App. It runs the same durable
+workflow on a fixed interval and delegates actionable messages to an existing
+notify entity, including the SMTP-backed `notify.gmail_parkside`. Supervisor
+injects Home Assistant API access; Price Watch stores neither its token nor SMTP
+credentials. The CLI continues to use console delivery.
 
 ## Development
 

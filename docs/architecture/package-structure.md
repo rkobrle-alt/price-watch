@@ -107,6 +107,8 @@ infrastructure/
     configuration/
 
         toml/
+
+        json/
 ```
 
 Infrastructure contains all external integrations and concrete implementations.
@@ -138,8 +140,9 @@ credentials and imports no Applications.
 implementation of the Core delay boundary.
 
 `infrastructure.configuration.toml` contains the explicit UTF-8 TOML file
-loader. It performs decoding only; application-schema validation remains in
-`applications.configuration`.
+loader. `infrastructure.configuration.json` loads Home Assistant App options.
+Both perform decoding only; application-schema validation remains in
+Applications.
 
 Infrastructure is responsible for:
 
@@ -191,6 +194,10 @@ console stack and invokes `applications.synchronization` according to ADR-0010.
 Its `watch` command composes the interval scheduler and Infrastructure delay
 according to ADR-0011. Configuration-file commands compose the pure
 Application parser with the Infrastructure TOML loader according to ADR-0012.
+`applications.homeassistant` is the Supervisor-managed composition root defined
+by ADR-0014. It loads App options, injects Supervisor access at the process
+boundary, uses persistent `/data` state, composes Home Assistant notification
+delivery and runs the existing serial scheduler.
 
 ---
 

@@ -126,6 +126,10 @@ explicit notify entity and translates Home Assistant operational failures to
 `NotificationError`. SMTP configuration and credentials remain owned by Home
 Assistant.
 
+ADR-0014 composes this channel in `applications.homeassistant`. The process
+boundary injects Supervisor API access; notification generation and delivery
+contracts remain unchanged.
+
 ---
 
 ## Application Composition

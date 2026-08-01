@@ -49,7 +49,9 @@ ADR-0012. Configuration loading does not introduce another workflow path.
 Notification delivery may be delegated to an existing Home Assistant notify
 entity through ADR-0013. Home Assistant owns SMTP credentials and recipients;
 the synchronization workflow retains its existing channel contract and
-ordering.
+ordering. ADR-0014 packages that composition as a continuously running Home
+Assistant App with Supervisor-managed options, token access and persistent
+state.
 
 Done when:
 
