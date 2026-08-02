@@ -10,6 +10,8 @@ import infrastructure.notifications.homeassistant as notification_api
 from infrastructure.homeassistant import (
     HomeAssistantClient,
     HomeAssistantError,
+    HomeAssistantStateClient,
+    HomeAssistantStatusPublisher,
     UrllibHomeAssistantClient,
 )
 from infrastructure.notifications.homeassistant import (
@@ -17,8 +19,8 @@ from infrastructure.notifications.homeassistant import (
 )
 
 
-class FakeClient:
-    """Structurally implement the Home Assistant client contract."""
+class FakeServiceClient:
+    """Structurally implement the Home Assistant service client contract."""
 
     def call_service(
         self,
@@ -29,24 +31,49 @@ class FakeClient:
         """Accept one service call."""
 
 
+class FakeStateClient:
+    """Structurally implement the Home Assistant state client contract."""
+
+    def set_state(
+        self,
+        entity_id: str,
+        state: str,
+        attributes: Mapping[str, object],
+    ) -> None:
+        """Accept one state update."""
+
+
 def test_homeassistant_public_apis_are_explicit_and_documented() -> None:
     assert homeassistant_api.__all__ == [
         "HomeAssistantClient",
         "HomeAssistantError",
+        "HomeAssistantStateClient",
+        "HomeAssistantStatusPublisher",
         "UrllibHomeAssistantClient",
     ]
     assert notification_api.__all__ == ["HomeAssistantNotificationChannel"]
     assert homeassistant_api.HomeAssistantClient is HomeAssistantClient
     assert homeassistant_api.HomeAssistantError is HomeAssistantError
+    assert homeassistant_api.HomeAssistantStateClient is HomeAssistantStateClient
+    assert (
+        homeassistant_api.HomeAssistantStatusPublisher
+        is HomeAssistantStatusPublisher
+    )
     assert homeassistant_api.UrllibHomeAssistantClient is UrllibHomeAssistantClient
     assert (
         notification_api.HomeAssistantNotificationChannel
         is HomeAssistantNotificationChannel
     )
-    assert isinstance(FakeClient(), HomeAssistantClient)
+    assert isinstance(FakeServiceClient(), HomeAssistantClient)
+    assert isinstance(FakeStateClient(), HomeAssistantStateClient)
+    client = UrllibHomeAssistantClient("http://homeassistant.local/api", "token")
+    assert isinstance(client, HomeAssistantClient)
+    assert isinstance(client, HomeAssistantStateClient)
     for public_object in (
         HomeAssistantClient,
         HomeAssistantError,
+        HomeAssistantStateClient,
+        HomeAssistantStatusPublisher,
         UrllibHomeAssistantClient,
         HomeAssistantNotificationChannel,
     ):
@@ -61,7 +88,8 @@ def test_homeassistant_dependency_direction_and_secret_boundary() -> None:
     notification_imports = _package_imports(notification)
 
     assert not any(name.startswith("applications") for name in imports)
-    assert not any(name.startswith("core") for name in imports)
+    core_imports = {name for name in imports if name.startswith("core")}
+    assert core_imports == {"core.domain"}
     assert not any(name.startswith("applications") for name in notification_imports)
     for package in (homeassistant, notification):
         for module in package.rglob("*.py"):

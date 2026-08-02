@@ -21,6 +21,7 @@ from core.rules import RuleError
 from core.scheduler import Delay, SchedulerError
 from core.state import StateStoreError
 from infrastructure.configuration.json import JsonConfigurationLoader
+from infrastructure.homeassistant import HomeAssistantError
 from infrastructure.scheduler import SystemDelay
 
 _DATA_DIRECTORY = Path("/data")
@@ -68,13 +69,21 @@ def run(
 
     completed = 0
     provider_error_cycles = 0
+    status_error_cycles = 0
 
     def cycle() -> None:
-        nonlocal completed, provider_error_cycles
-        result = _execute_cycle(composition, stdout, stderr, clock())
+        nonlocal completed, provider_error_cycles, status_error_cycles
+        result, status_published = _execute_cycle(
+            composition,
+            stdout,
+            stderr,
+            clock(),
+        )
         completed += 1
         if result.provider_errors:
             provider_error_cycles += 1
+        if not status_published:
+            status_error_cycles += 1
 
     scheduler = IntervalScheduler(cycle, delay)
     try:
@@ -84,7 +93,8 @@ def run(
             stdout,
             "watch stopped: "
             f"cycles={completed} "
-            f"provider_error_cycles={provider_error_cycles}\n",
+            f"provider_error_cycles={provider_error_cycles} "
+            f"status_error_cycles={status_error_cycles}\n",
         )
         return 130
     except (StateStoreError, RuleError, NotificationError, SchedulerError) as error:
@@ -95,9 +105,10 @@ def run(
         stdout,
         "watch complete: "
         f"cycles={result.cycles_completed} "
-        f"provider_error_cycles={provider_error_cycles}\n",
+        f"provider_error_cycles={provider_error_cycles} "
+        f"status_error_cycles={status_error_cycles}\n",
     )
-    return 1 if provider_error_cycles else 0
+    return 1 if provider_error_cycles or status_error_cycles else 0
 
 
 def main() -> int:
@@ -128,23 +139,39 @@ def _execute_cycle(
     stdout: TextIO,
     stderr: TextIO,
     timestamp: datetime,
-) -> SynchronizationResult:
+) -> tuple[SynchronizationResult, bool]:
     result = composition.workflow.run(composition.rules, timestamp)
     for error in result.provider_errors:
         _write(stderr, f"provider error: {error}\n")
-    product_count = sum(
-        len(fetch_result.products) for fetch_result in result.fetch_results
+
+    products = tuple(
+        product
+        for fetch_result in result.fetch_results
+        for product in fetch_result.products
     )
+    status_published = True
+    try:
+        composition.status_publisher.publish_cycle(
+            products,
+            timestamp,
+            len(result.notifications),
+            len(result.provider_errors),
+        )
+    except HomeAssistantError as error:
+        status_published = False
+        _write(stderr, f"status error: {error}\n")
+
     _write(
         stdout,
         "sync complete: "
-        f"products={product_count} "
+        f"products={len(products)} "
         f"evaluations={len(result.evaluations)} "
         f"notifications={len(result.notifications)} "
         f"snapshots={len(result.snapshots)} "
-        f"provider_errors={len(result.provider_errors)}\n",
+        f"provider_errors={len(result.provider_errors)} "
+        f"status_published={str(status_published).lower()}\n",
     )
-    return result
+    return result, status_published
 
 
 def _validate_dependencies(

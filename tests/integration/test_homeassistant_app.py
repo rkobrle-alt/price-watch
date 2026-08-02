@@ -170,9 +170,15 @@ def test_app_persists_baseline_then_delivers_detected_changes(
     snapshot = next(iter(state["snapshots"].values()))
     assert snapshot["product"]["current_price"]["amount"] == "80.00"
     assert snapshot["product"]["availability"] is True
-    assert len(opener.requests) == 2
+    service_requests = [
+        item for item in opener.requests if "/services/" in item[0].full_url
+    ]
+    state_requests = [
+        item for item in opener.requests if "/states/" in item[0].full_url
+    ]
+    assert len(service_requests) == 2
     payloads = []
-    for request, timeout in opener.requests:
+    for request, timeout in service_requests:
         assert request.full_url == (
             "http://supervisor/core/api/services/notify/send_message"
         )
@@ -188,5 +194,31 @@ def test_app_persists_baseline_then_delivers_detected_changes(
         "Product price decreased.",
         "Product is back in stock.",
     ]
+
+    assert len(state_requests) == 4
+    state_urls = [request.full_url for request, _ in state_requests]
+    assert state_urls[0].startswith(
+        "http://supervisor/core/api/states/sensor.price_watch_product_"
+    )
+    assert state_urls[2] == state_urls[0]
+    assert state_urls[1::2] == [
+        "http://supervisor/core/api/states/sensor.price_watch_status",
+        "http://supervisor/core/api/states/sensor.price_watch_status",
+    ]
+    state_payloads = []
+    for request, timeout in state_requests:
+        assert request.get_header("Authorization") == "Bearer supervisor-token"
+        assert timeout == 8
+        assert request.data is not None
+        state_payloads.append(json.loads(request.data))
+    assert [state_payloads[index]["state"] for index in (0, 2)] == [
+        "100.00",
+        "80.00",
+    ]
+    assert [state_payloads[index]["attributes"]["available"] for index in (0, 2)] == [
+        False,
+        True,
+    ]
+    assert [state_payloads[index]["state"] for index in (1, 3)] == ["ok", "ok"]
     assert stdout.text.count("sync complete:") == 2
     assert stderr.text == ""

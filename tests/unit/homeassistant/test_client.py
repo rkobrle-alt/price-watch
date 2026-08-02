@@ -248,3 +248,97 @@ def test_client_propagates_unexpected_failure(stage: str) -> None:
         _client(opener).call_service("notify", "send_message", {})
 
     assert captured.value is failure
+
+
+def test_client_sends_exact_state_request_and_reads_response() -> None:
+    response = RecordingResponse()
+    opener = RecordingOpener(response)
+    client = _client(opener)
+
+    client.set_state(
+        "sensor.price_watch_status",
+        "ok",
+        {"product_count": 1, "friendly_name": "Price Watch"},
+    )
+
+    request, timeout = opener.calls[0]
+    assert request.full_url == (
+        "http://supervisor/core/api/states/sensor.price_watch_status"
+    )
+    assert request.method == "POST"
+    assert timeout == 7
+    assert request.get_header("Authorization") == "Bearer secret-token"
+    assert request.get_header("Content-type") == "application/json"
+    assert request.get_header("User-agent") == "PriceWatch/Test"
+    assert request.data is not None
+    assert request.data.decode("utf-8") == (
+        '{"attributes":{"friendly_name":"Price Watch","product_count":1},'
+        '"state":"ok"}'
+    )
+    assert response.entered
+    assert response.exited
+    assert response.read_count == 1
+
+
+@pytest.mark.parametrize(
+    ("entity_id", "state", "attributes", "exception_type"),
+    [
+        (1, "ok", {}, TypeError),
+        ("binary_sensor.price_watch", "ok", {}, ValueError),
+        ("sensor.PriceWatch", "ok", {}, ValueError),
+        ("sensor.price-watch", "ok", {}, ValueError),
+        ("sensor.price_watch", 1, {}, TypeError),
+        ("sensor.price_watch", " ", {}, ValueError),
+        ("sensor.price_watch", "ok", [], TypeError),
+        ("sensor.price_watch", "ok", {1: "bad"}, TypeError),
+    ],
+)
+def test_client_rejects_invalid_state_values(
+    entity_id: object,
+    state: object,
+    attributes: object,
+    exception_type: type[Exception],
+) -> None:
+    with pytest.raises(exception_type):
+        _client(RecordingOpener()).set_state(
+            cast(str, entity_id),
+            cast(str, state),
+            cast(Mapping[str, object], attributes),
+        )
+
+
+def test_client_propagates_state_json_serialization_failure() -> None:
+    with pytest.raises(TypeError):
+        _client(RecordingOpener()).set_state(
+            "sensor.price_watch",
+            "ok",
+            {"invalid": object()},
+        )
+
+
+@pytest.mark.parametrize(
+    "failure",
+    [
+        HTTPError("http://example", 500, "failed", None, None),
+        URLError("offline"),
+        OSError("socket failed"),
+    ],
+)
+def test_client_translates_operational_state_failures(
+    failure: Exception,
+) -> None:
+    client = _client(RecordingOpener(failure=failure))
+
+    with pytest.raises(HomeAssistantError) as captured:
+        client.set_state(
+            "sensor.price_watch_status",
+            "private state",
+            {"private": "payload"},
+        )
+
+    assert captured.value.__cause__ is failure
+    assert str(captured.value) == (
+        "Home Assistant state update failed: sensor.price_watch_status"
+    )
+    assert "secret-token" not in str(captured.value)
+    assert "private payload" not in str(captured.value)

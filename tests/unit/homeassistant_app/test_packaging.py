@@ -50,6 +50,10 @@ def test_repository_container_and_operator_documents_are_complete() -> None:
     assert 'CMD ["python", "-m", "applications.homeassistant"]' in dockerfile
     assert "SUPERVISOR_TOKEN" not in dockerfile
     assert "tests" in dockerignore
+    operator_docs = (APP / "DOCS.md").read_text(encoding="utf-8")
+    assert "sensor.price_watch_status" in operator_docs
+    assert "sensor.price_watch_product_<product UUID hex>" in operator_docs
+    assert "not entity-registry-backed" in operator_docs
     for document in ("README.md", "DOCS.md", "CHANGELOG.md"):
         content = (APP / document).read_text(encoding="utf-8")
         assert content.strip()

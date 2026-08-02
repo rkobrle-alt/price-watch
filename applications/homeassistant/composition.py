@@ -13,7 +13,10 @@ from core.domain import Rule, RuleType
 from core.notifications import NotificationEngine
 from core.rules import EvaluatorRegistry, RuleEngine
 from core.rules.evaluators import BackInStockEvaluator, PriceDropEvaluator
-from infrastructure.homeassistant import UrllibHomeAssistantClient
+from infrastructure.homeassistant import (
+    HomeAssistantStatusPublisher,
+    UrllibHomeAssistantClient,
+)
 from infrastructure.http import UrllibTextHttpClient
 from infrastructure.notifications.homeassistant import (
     HomeAssistantNotificationChannel,
@@ -31,6 +34,7 @@ class _HomeAssistantComposition:
     """Hold a composed workflow, rules and required interval."""
 
     workflow: SynchronizationWorkflow
+    status_publisher: HomeAssistantStatusPublisher
     rules: tuple[Rule, ...]
     interval: timedelta
 
@@ -71,6 +75,7 @@ def _compose_homeassistant(
         timeout_seconds=application.timeout_seconds,
         user_agent=f"PriceWatch/{VERSION}",
     )
+    status_publisher = HomeAssistantStatusPublisher(homeassistant_client, VERSION)
     registry = EvaluatorRegistry()
     registry.register(PriceDropEvaluator())
     registry.register(BackInStockEvaluator())
@@ -90,7 +95,12 @@ def _compose_homeassistant(
         ),
         notification_id_factory=notification_id_factory,
     )
-    return _HomeAssistantComposition(workflow, rules, interval)
+    return _HomeAssistantComposition(
+        workflow=workflow,
+        status_publisher=status_publisher,
+        rules=rules,
+        interval=interval,
+    )
 
 
 def _create_rules(

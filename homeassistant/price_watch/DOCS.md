@@ -28,3 +28,20 @@ are never stored by Price Watch.
 Start the App and inspect its log for cycle summaries and provider errors. A
 notification is sent only when an enabled rule matches a change from the
 stored baseline.
+
+## Home Assistant status
+
+After each completed cycle, the App updates `sensor.price_watch_status` and a
+monetary sensor for every successfully fetched product. Product entity IDs use
+`sensor.price_watch_product_<product UUID hex>` and remain stable for the same
+Lidl product.
+
+The status sensor reports `ok` or `provider_error` and exposes the last check
+time and cycle counts. Product sensors expose the exact current price, currency,
+availability, product URL and last check time. These REST-created states are
+not entity-registry-backed integration entities; the App republishes them on
+every cycle and after restart.
+
+Restarting the App triggers an immediate synchronization. To test email
+delivery independently, call `notify.send_message` for the configured notify
+entity in Home Assistant Developer Tools.

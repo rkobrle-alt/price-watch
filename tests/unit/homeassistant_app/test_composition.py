@@ -14,7 +14,10 @@ from applications.cli.composition import (
 from applications.homeassistant.composition import _compose_homeassistant
 from applications.version import VERSION
 from core.domain import RuleType
-from infrastructure.homeassistant import UrllibHomeAssistantClient
+from infrastructure.homeassistant import (
+    HomeAssistantStatusPublisher,
+    UrllibHomeAssistantClient,
+)
 from infrastructure.http import UrllibTextHttpClient
 from infrastructure.notifications.homeassistant import (
     HomeAssistantNotificationChannel,
@@ -66,6 +69,11 @@ def test_composition_assembles_exact_supervisor_stack() -> None:
     assert client._access_token == "injected-token"
     assert client._timeout_seconds == 12
     assert client._user_agent == f"PriceWatch/{VERSION}"
+    publisher = result.status_publisher
+    assert isinstance(publisher, HomeAssistantStatusPublisher)
+    assert publisher._client is client
+    assert publisher._version == VERSION
+    assert publisher._status_entity_id == "sensor.price_watch_status"
 
 
 def test_composition_supports_rules_without_thresholds() -> None:

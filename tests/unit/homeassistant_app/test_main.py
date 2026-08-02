@@ -1,7 +1,7 @@
 """Tests for the Home Assistant App process boundary."""
 
 import importlib
-from datetime import timedelta
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import cast
 from uuid import uuid4
@@ -11,11 +11,16 @@ import pytest
 from applications.homeassistant.composition import _HomeAssistantComposition
 from applications.homeassistant.main import run
 from applications.synchronization import SynchronizationResult, SynchronizationWorkflow
+from core.domain import Product
 from core.notifications import NotificationError
 from core.provider import FetchResult, ProviderError
 from core.rules import RuleError
 from core.scheduler import SchedulerError
 from core.state import StateStoreError
+from infrastructure.homeassistant import (
+    HomeAssistantError,
+    HomeAssistantStatusPublisher,
+)
 from tests.unit.homeassistant_app.helpers import (
     TIMESTAMP,
     RecordingDelay,
@@ -25,6 +30,29 @@ from tests.unit.homeassistant_app.helpers import (
 from tests.unit.notifications.helpers import create_product
 
 app_main = importlib.import_module("applications.homeassistant.main")
+
+
+class FakeStatusPublisher:
+    """Capture status publications or raise a configured failure."""
+
+    def __init__(self, failure: BaseException | None = None) -> None:
+        """Configure optional publication failure."""
+        self.failure = failure
+        self.calls: list[tuple[tuple[Product, ...], datetime, int, int]] = []
+
+    def publish_cycle(
+        self,
+        products: tuple[Product, ...],
+        timestamp: datetime,
+        notification_count: int,
+        provider_error_count: int,
+    ) -> None:
+        """Record the call before raising an optional failure."""
+        self.calls.append(
+            (products, timestamp, notification_count, provider_error_count)
+        )
+        if self.failure is not None:
+            raise self.failure
 
 
 class FakeWorkflow:
@@ -74,11 +102,16 @@ def _result(
     )
 
 
-def _composition(workflow: FakeWorkflow) -> _HomeAssistantComposition:
+def _composition(
+    workflow: FakeWorkflow,
+    status_publisher: FakeStatusPublisher | None = None,
+) -> _HomeAssistantComposition:
+    publisher = status_publisher or FakeStatusPublisher()
     return _HomeAssistantComposition(
-        cast(SynchronizationWorkflow, workflow),
-        (),
-        timedelta(seconds=300),
+        workflow=cast(SynchronizationWorkflow, workflow),
+        status_publisher=cast(HomeAssistantStatusPublisher, publisher),
+        rules=(),
+        interval=timedelta(seconds=300),
     )
 
 
@@ -88,11 +121,12 @@ def _run_with_workflow(
     *,
     delay: RecordingDelay | None = None,
     max_cycles: int = 1,
+    status_publisher: FakeStatusPublisher | None = None,
 ) -> tuple[int, RecordingStream, RecordingStream, RecordingDelay]:
     monkeypatch.setattr(
         app_main,
         "_compose_homeassistant",
-        lambda *arguments: _composition(workflow),
+        lambda *arguments: _composition(workflow, status_publisher),
     )
     stdout = RecordingStream()
     stderr = RecordingStream()
@@ -115,11 +149,13 @@ def test_run_executes_immediately_then_at_fixed_delay(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     workflow = FakeWorkflow((_result(product=True), _result()))
+    publisher = FakeStatusPublisher()
 
     status, stdout, stderr, delay = _run_with_workflow(
         monkeypatch,
         workflow,
         max_cycles=2,
+        status_publisher=publisher,
     )
 
     assert status == 0
@@ -127,7 +163,15 @@ def test_run_executes_immediately_then_at_fixed_delay(
     assert delay.durations == [timedelta(seconds=300)]
     assert stdout.text.count("sync complete:") == 2
     assert "products=1" in stdout.text
-    assert stdout.text.endswith("watch complete: cycles=2 provider_error_cycles=0\n")
+    assert "status_published=true" in stdout.text
+    assert publisher.calls == [
+        ((create_product(),), TIMESTAMP, 0, 0),
+        ((), TIMESTAMP, 0, 0),
+    ]
+    assert stdout.text.endswith(
+        "watch complete: cycles=2 provider_error_cycles=0 "
+        "status_error_cycles=0\n"
+    )
     assert stderr.text == ""
 
 
@@ -135,11 +179,13 @@ def test_provider_error_cycles_continue_and_return_failure(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     workflow = FakeWorkflow((_result(provider_error=True), _result()))
+    publisher = FakeStatusPublisher()
 
     status, stdout, stderr, delay = _run_with_workflow(
         monkeypatch,
         workflow,
         max_cycles=2,
+        status_publisher=publisher,
     )
 
     assert status == 1
@@ -147,6 +193,48 @@ def test_provider_error_cycles_continue_and_return_failure(
     assert len(delay.durations) == 1
     assert "provider error: Lidl failed" in stderr.text
     assert "provider_error_cycles=1" in stdout.text
+    assert publisher.calls[0][3] == 1
+
+
+def test_status_errors_continue_and_return_failure(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    publisher = FakeStatusPublisher(HomeAssistantError("state failed"))
+    workflow = FakeWorkflow((_result(product=True), _result()))
+
+    status, stdout, stderr, delay = _run_with_workflow(
+        monkeypatch,
+        workflow,
+        max_cycles=2,
+        status_publisher=publisher,
+    )
+
+    assert status == 1
+    assert workflow.calls == 2
+    assert len(delay.durations) == 1
+    assert len(publisher.calls) == 2
+    assert stderr.text.count("status error: state failed") == 2
+    assert stdout.text.count("status_published=false") == 2
+    assert stdout.text.endswith(
+        "watch complete: cycles=2 provider_error_cycles=0 "
+        "status_error_cycles=2\n"
+    )
+
+
+def test_unexpected_status_failure_propagates(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    failure = RuntimeError("publisher bug")
+    publisher = FakeStatusPublisher(failure)
+
+    with pytest.raises(RuntimeError) as captured:
+        _run_with_workflow(
+            monkeypatch,
+            FakeWorkflow((_result(),)),
+            status_publisher=publisher,
+        )
+
+    assert captured.value is failure
 
 
 @pytest.mark.parametrize(
@@ -186,7 +274,10 @@ def test_run_maps_interruption_after_completed_cycle(
     )
 
     assert status == 130
-    assert stdout.text.endswith("watch stopped: cycles=1 provider_error_cycles=0\n")
+    assert stdout.text.endswith(
+        "watch stopped: cycles=1 provider_error_cycles=0 "
+        "status_error_cycles=0\n"
+    )
     assert stderr.text == ""
 
 
