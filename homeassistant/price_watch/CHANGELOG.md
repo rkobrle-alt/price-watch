@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.14.0
+
+- Publish cycle health as `sensor.price_watch_status`.
+- Publish exact monetary product sensor states after completed cycles.
+- Continue monitoring when status publication alone fails.
 ## 0.13.1
 
 - Use the verified SMTP-backed Home Assistant notify entity by default.

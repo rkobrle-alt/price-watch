@@ -11,7 +11,7 @@ def test_app_manifest_has_exact_runtime_identity_and_defaults() -> None:
     manifest = (APP / "config.yaml").read_text(encoding="utf-8")
 
     for required in (
-        'version: "0.13.1"',
+        'version: "0.14.0"',
         "slug: price_watch",
         "  - aarch64",
         "  - amd64",
