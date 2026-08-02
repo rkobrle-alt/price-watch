@@ -1,3 +1,5 @@
-"""Version metadata for the Price Watch command-line application."""
+"""Backward-compatible CLI version export."""
 
-VERSION: str = "0.12.0"
+from applications.version import VERSION
+
+__all__ = ["VERSION"]
