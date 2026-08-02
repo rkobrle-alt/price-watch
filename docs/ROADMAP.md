@@ -170,6 +170,20 @@ Deliverables:
 
 ---
 
+# v0.13.1 — SMTP Entity Correction
+
+Goal:
+
+Use the verified SMTP-backed Home Assistant notify entity as the deployment default.
+
+Deliverables:
+
+- corrected App default and operator documentation
+- unchanged configurable notify-entity boundary
+- regression coverage for the packaged default
+
+---
+
 # v1.0.0
 
 Stable public release.
