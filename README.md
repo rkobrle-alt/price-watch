@@ -70,7 +70,7 @@ Relative state paths are interpreted from the configuration file directory.
 
 Price Watch is also packaged as a Home Assistant App. It runs the same durable
 workflow on a fixed interval and delegates actionable messages to an existing
-notify entity, including the SMTP-backed `notify.gmail_parkside`. Supervisor
+notify entity, including the SMTP-backed `notify.gmail_parkside_kobrle_fomei_com`. Supervisor
 injects Home Assistant API access; Price Watch stores neither its token nor SMTP
 credentials. The CLI continues to use console delivery.
 

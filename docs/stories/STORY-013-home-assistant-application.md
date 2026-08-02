@@ -4,7 +4,7 @@
 
 Package and execute Price Watch as a minimal Home Assistant App according to
 ADR-0014, using the existing Lidl workflow, durable state and SMTP-backed
-`notify.gmail_parkside` delivery.
+`notify.gmail_parkside_kobrle_fomei_com` delivery.
 
 ---
 
@@ -160,7 +160,7 @@ streams, then calls `run()`. It never prints the token.
 - enables `homeassistant_api: true`
 - starts automatically as an application
 - references `ghcr.io/rkobrle-alt/price-watch`
-- defines defaults including `notify.gmail_parkside`
+- defines defaults including `notify.gmail_parkside_kobrle_fomei_com`
 - exposes only the option schema in this story
 - requests no ingress, ports, host networking, devices, mounts, Docker API,
   Supervisor API or privileged access
@@ -224,7 +224,7 @@ No skipped tests are allowed.
 - ADR-0014 and every prior accepted ADR are followed.
 - the App starts from Supervisor options and injected token.
 - the first observation creates durable state in App storage.
-- a later cycle can notify `notify.gmail_parkside` about a detected change.
+- a later cycle can notify `notify.gmail_parkside_kobrle_fomei_com` about a detected change.
 - token and SMTP credentials are never persisted or logged.
 - Core, Domain and reusable workflow contracts remain unchanged.
 - CLI direct and TOML modes remain backward compatible.

@@ -163,7 +163,7 @@ Deliverables:
 
 - Supervisor-managed App options and persistent `/data` state
 - safe `SUPERVISOR_TOKEN` injection at the process boundary
-- `notify.gmail_parkside` as the default configurable delivery entity
+- `notify.gmail_parkside_kobrle_fomei_com` as the default configurable delivery entity
 - existing synchronization workflow and serial scheduler composition
 - minimal-permission amd64/aarch64 App packaging
 - GHCR image publishing workflow

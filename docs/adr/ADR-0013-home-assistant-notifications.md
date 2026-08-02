@@ -156,7 +156,7 @@ client.call_service(
 ```
 
 For the installation already in use, the intended entity is configured as
-`notify.gmail_parkside`. The implementation never hardcodes that deployment
+`notify.gmail_parkside_kobrle_fomei_com`. The implementation never hardcodes that deployment
 value.
 
 ---

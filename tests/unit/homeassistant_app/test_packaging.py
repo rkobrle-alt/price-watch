@@ -18,7 +18,7 @@ def test_app_manifest_has_exact_runtime_identity_and_defaults() -> None:
         "startup: application",
         "boot: auto",
         "homeassistant_api: true",
-        "notify_entity: notify.gmail_parkside",
+        "notify_entity: notify.gmail_parkside_kobrle_fomei_com",
         "interval_seconds: 300",
         "image: ghcr.io/rkobrle-alt/price-watch",
     ):

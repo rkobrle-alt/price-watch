@@ -14,7 +14,7 @@ homeassistant_api: true
 options:
   product_urls:
     - https://www.lidl.cz/p/parkside-performance-aku-kombinovane-kladivo-pkhap-2058-a1-bez-akumulatoru-a-nabijecky/p100382709
-  notify_entity: notify.gmail_parkside
+  notify_entity: notify.gmail_parkside_kobrle_fomei_com
   interval_seconds: 300
   timeout_seconds: 10
   price_drop_percentage: "10.00"

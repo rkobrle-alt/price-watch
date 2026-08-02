@@ -3,7 +3,7 @@
 ## Configuration
 
 Configure one or more Lidl Czech Republic Parkside product page URLs. The
-default notification entity is `notify.gmail_parkside`, matching the existing
+default notification entity is `notify.gmail_parkside_kobrle_fomei_com`, matching the existing
 SMTP integration. Change it if Home Assistant exposes the service under a
 different notify entity ID.
 

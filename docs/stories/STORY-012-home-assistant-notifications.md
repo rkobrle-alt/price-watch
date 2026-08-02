@@ -237,7 +237,7 @@ No skipped tests are allowed.
 - ADR-0013 and every earlier accepted ADR are followed.
 - notification messages contain actionable product information.
 - the HA channel targets any explicitly injected notify entity, including
-  `notify.gmail_parkside`.
+  `notify.gmail_parkside_kobrle_fomei_com`.
 - existing Home Assistant SMTP configuration can receive the service call.
 - no SMTP credential or recipient configuration is duplicated.
 - access tokens are injected and never persisted or exposed in errors.
