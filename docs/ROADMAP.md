@@ -8,7 +8,7 @@ The Core remains independent of providers, storage, notification channels and ap
 
 ---
 
-# v0.4.0 â€” State Store
+# v0.4.0 — State Store
 
 Goal:
 
@@ -24,7 +24,7 @@ Deliverables:
 
 ---
 
-# v0.5.0 â€” Notification Engine
+# v0.5.0 — Notification Engine
 
 Goal:
 
@@ -43,7 +43,7 @@ Architecture prepared for:
 
 ---
 
-# v0.6.0 â€” First Provider
+# v0.6.0 — First Provider
 
 Goal:
 
@@ -57,7 +57,7 @@ Provider:
 
 ---
 
-# v0.7.0 â€” JSON Persistence
+# v0.7.0 — JSON Persistence
 
 Goal:
 
@@ -71,7 +71,7 @@ Initial implementation:
 
 ---
 
-# v0.8.0 â€” Application Workflow
+# v0.8.0 — Application Workflow
 
 Goal:
 
@@ -102,7 +102,7 @@ A standalone `evaluate` command is deferred until an external Product and Rule
 input contract is approved. Practical evaluation is performed by `sync`.
 ---
 
-# v0.10.0 â€” Scheduler
+# v0.10.0 — Scheduler
 
 Goal:
 
@@ -181,6 +181,23 @@ Deliverables:
 - corrected App default and operator documentation
 - unchanged configurable notify-entity boundary
 - regression coverage for the packaged default
+
+---
+
+# v0.14.0 — Home Assistant Status Entities
+
+Goal:
+
+Make completed monitoring cycles and current product prices visible in Home
+Assistant without adding a separate UI or integration runtime.
+
+Deliverables:
+
+- cycle health state at `sensor.price_watch_status`
+- deterministic monetary product sensor states
+- existing Core API proxy and permission reuse
+- non-fatal observability failure handling
+- no Core, Domain or workflow contract changes
 
 ---
 

@@ -84,3 +84,9 @@ changing synchronization ordering. It reads non-secret App options, uses
 Supervisor-managed `/data/state.json`, starts immediately and delegates later
 cycles to the same interval scheduler. The channel invokes
 `notify.send_message`; Home Assistant remains responsible for SMTP delivery.
+
+After the reusable workflow has completed, the Home Assistant composition
+publishes read-only cycle and product state representations according to
+ADR-0015. This post-workflow Infrastructure side effect cannot change rule,
+notification or persistence results. A status-publication failure is reported
+and counted but does not stop later scheduled monitoring cycles.

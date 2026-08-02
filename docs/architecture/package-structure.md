@@ -134,7 +134,10 @@ to an explicit Home Assistant notify entity according to ADR-0013.
 
 `infrastructure.homeassistant` contains the Home Assistant service-call
 contract, operational error and standard-library REST client. It stores no
-credentials and imports no Applications.
+credentials and imports no Applications. It also contains the state-update
+contract and deterministic status publisher defined by ADR-0015. The publisher
+accepts Domain products and explicit cycle values; it does not own monitoring
+business logic.
 
 `infrastructure.scheduler` contains `SystemDelay`, the standard-library
 implementation of the Core delay boundary.
@@ -197,7 +200,9 @@ Application parser with the Infrastructure TOML loader according to ADR-0012.
 `applications.homeassistant` is the Supervisor-managed composition root defined
 by ADR-0014. It loads App options, injects Supervisor access at the process
 boundary, uses persistent `/data` state, composes Home Assistant notification
-delivery and runs the existing serial scheduler.
+delivery and runs the existing serial scheduler. According to ADR-0015 it also
+publishes completed-cycle and product state representations through the same
+injected Home Assistant REST client.
 
 ---
 

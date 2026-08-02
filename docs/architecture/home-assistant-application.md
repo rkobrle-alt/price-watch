@@ -22,10 +22,16 @@ applications.homeassistant
     +--> HomeAssistantNotificationChannel
     +--> SynchronizationWorkflow
     +--> IntervalScheduler
+    +--> HomeAssistantStatusPublisher
 ```
 
 The first cycle starts immediately. Later cycles use fixed delay and never
 overlap.
+
+After a workflow cycle completes, `HomeAssistantStatusPublisher` writes one
+cycle status and one monetary sensor state for every successfully fetched
+product. Product entity IDs derive from stable Product UUIDs. Status
+publication is best-effort observability and cannot prevent later cycles.
 
 ---
 
@@ -35,8 +41,14 @@ The JSON loader performs file I/O in Infrastructure. App-option conversion is
 pure Application logic. Only the process adapter reads `SUPERVISOR_TOKEN`.
 The fixed internal REST root is `http://supervisor/core/api`.
 
+The same `UrllibHomeAssistantClient` instance supplies notification service
+calls and state updates. State publication uses `POST /states/<entity_id>` and
+does not create registry-backed integration entities.
+
 The Core, Domain and reusable workflow are unaware of Home Assistant. The CLI
 continues using console notification delivery.
+
+The App publishes no token, credential or SMTP configuration in entity state.
 
 ---
 
