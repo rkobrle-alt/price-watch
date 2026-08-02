@@ -1,0 +1,31 @@
+name: Price Watch
+version: "0.13.0"
+slug: price_watch
+description: Monitor Lidl Parkside prices and availability
+url: https://github.com/rkobrle-alt/price-watch/tree/main/homeassistant/price_watch
+arch:
+  - aarch64
+  - amd64
+init: false
+startup: application
+boot: auto
+stage: experimental
+homeassistant_api: true
+options:
+  product_urls:
+    - https://www.lidl.cz/p/parkside-performance-aku-kombinovane-kladivo-pkhap-2058-a1-bez-akumulatoru-a-nabijecky/p100382709
+  notify_entity: notify.gmail_parkside
+  interval_seconds: 300
+  timeout_seconds: 10
+  price_drop_percentage: "10.00"
+  notification_title: Parkside Price Watch
+schema:
+  product_urls:
+    - url
+  notify_entity: str
+  interval_seconds: int(1,)
+  timeout_seconds: int(1,)
+  price_drop_percentage: str?
+  price_drop_amount: str?
+  notification_title: str
+image: ghcr.io/rkobrle-alt/price-watch
