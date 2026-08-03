@@ -11,13 +11,17 @@ def test_app_manifest_has_exact_runtime_identity_and_defaults() -> None:
     manifest = (APP / "config.yaml").read_text(encoding="utf-8")
 
     for required in (
-        'version: "0.14.0"',
+        'version: "0.17.0"',
         "slug: price_watch",
         "  - aarch64",
         "  - amd64",
         "startup: application",
         "boot: auto",
         "homeassistant_api: true",
+        "catalog_enabled: true",
+        "catalog_batch_size: 25",
+        "catalog_discovery_interval_cycles: 288",
+        "product_urls: []",
         "notify_entity: notify.gmail_parkside_kobrle_fomei_com",
         "interval_seconds: 300",
         "image: ghcr.io/rkobrle-alt/price-watch",
@@ -54,6 +58,8 @@ def test_repository_container_and_operator_documents_are_complete() -> None:
     assert "sensor.price_watch_status" in operator_docs
     assert "sensor.price_watch_product_<product UUID hex>" in operator_docs
     assert "not entity-registry-backed" in operator_docs
+    assert "/data/catalog.sqlite3" in operator_docs
+    assert "catalog_batch_size" in operator_docs
     for document in ("README.md", "DOCS.md", "CHANGELOG.md"):
         content = (APP / document).read_text(encoding="utf-8")
         assert content.strip()

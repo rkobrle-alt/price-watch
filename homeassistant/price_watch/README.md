@@ -1,7 +1,8 @@
 # Price Watch
 
-Price Watch monitors explicitly configured Lidl Czech Republic Parkside
-products, persists their previous state and sends detected price or
-availability changes through a Home Assistant notify entity.
+Price Watch automatically discovers Lidl Czech Republic Parkside catalog
+candidates, refreshes products in durable bounded batches and delegates
+notifications to a Home Assistant notify entity.
 
-See `DOCS.md` for installation and configuration.
+Existing explicit product URL monitoring remains supported. See `DOCS.md` for
+catalog, compatibility, persistence and operation details.

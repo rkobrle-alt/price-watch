@@ -4,25 +4,36 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from decimal import Decimal
+from typing import cast
 from uuid import UUID
 
+from applications.catalog_monitoring import (
+    CatalogMonitoringWorkflow,
+    CatalogMonitoringConfig,
+)
 from applications.homeassistant.configuration import HomeAssistantConfig
-from applications.synchronization import SynchronizationWorkflow
+from applications.configuration import ApplicationConfig
+from applications.synchronization import SynchronizationResult, SynchronizationWorkflow
 from applications.version import VERSION
+from core.catalog import ProductReference
 from core.domain import Rule, RuleType
-from core.notifications import NotificationEngine
+from core.notifications import NotificationChannel, NotificationEngine
 from core.rules import EvaluatorRegistry, RuleEngine
 from core.rules.evaluators import BackInStockEvaluator, PriceDropEvaluator
+from core.state import StateStore
 from infrastructure.homeassistant import (
     HomeAssistantStatusPublisher,
     UrllibHomeAssistantClient,
 )
-from infrastructure.http import UrllibTextHttpClient
-from infrastructure.notifications.homeassistant import (
-    HomeAssistantNotificationChannel,
+from infrastructure.http import (
+    TextHttpClient,
+    UrllibBinaryHttpClient,
+    UrllibTextHttpClient,
 )
+from infrastructure.notifications.homeassistant import HomeAssistantNotificationChannel
 from infrastructure.persistence.json import JsonStateStore
-from infrastructure.providers.lidl import LidlParksideProvider
+from infrastructure.persistence.sqlite import SqliteCatalogStore, SqliteStateStore
+from infrastructure.providers.lidl import LidlParksideCatalog, LidlParksideProvider
 
 _SUPERVISOR_CORE_API = "http://supervisor/core/api"
 _PRICE_DROP_RULE_ID = UUID("70000000-0000-4000-8000-000000000001")
@@ -31,12 +42,62 @@ _BACK_IN_STOCK_RULE_ID = UUID("70000000-0000-4000-8000-000000000002")
 
 @dataclass(frozen=True, slots=True)
 class _HomeAssistantComposition:
-    """Hold a composed workflow, rules and required interval."""
+    """Hold one explicit or catalog monitoring composition."""
 
-    workflow: SynchronizationWorkflow
+    workflow: SynchronizationWorkflow | None
     status_publisher: HomeAssistantStatusPublisher
     rules: tuple[Rule, ...]
     interval: timedelta
+    catalog_workflow: CatalogMonitoringWorkflow | None = None
+    discovery_interval_cycles: int = 1
+
+    def __post_init__(self) -> None:
+        if (self.workflow is None) == (self.catalog_workflow is None):
+            raise ValueError("composition must contain exactly one workflow")
+
+
+class _LidlCatalogBatchSynchronizer:
+    """Adapt selected Lidl references to the existing synchronization workflow."""
+
+    def __init__(
+        self,
+        http_client: TextHttpClient,
+        clock: Callable[[], datetime],
+        state_store: StateStore,
+        rule_engine: RuleEngine,
+        notification_engine: NotificationEngine,
+        notification_channel: NotificationChannel,
+        notification_id_factory: Callable[[], UUID],
+    ) -> None:
+        self._http_client = http_client
+        self._clock = clock
+        self._state_store = state_store
+        self._rule_engine = rule_engine
+        self._notification_engine = notification_engine
+        self._notification_channel = notification_channel
+        self._notification_id_factory = notification_id_factory
+
+    def synchronize(
+        self,
+        references: tuple[ProductReference, ...],
+        rules: tuple[Rule, ...],
+        timestamp: datetime,
+    ) -> SynchronizationResult:
+        """Create one standard Lidl provider and synchronize its selected URLs."""
+        provider = LidlParksideProvider(
+            tuple(reference.url for reference in references),
+            self._http_client,
+            self._clock,
+        )
+        workflow = SynchronizationWorkflow(
+            providers=(provider,),
+            state_store=self._state_store,
+            rule_engine=self._rule_engine,
+            notification_engine=self._notification_engine,
+            notification_channel=self._notification_channel,
+            notification_id_factory=self._notification_id_factory,
+        )
+        return workflow.run(rules, timestamp)
 
 
 def _compose_homeassistant(
@@ -46,6 +107,137 @@ def _compose_homeassistant(
     notification_id_factory: Callable[[], UUID],
 ) -> _HomeAssistantComposition:
     """Compose the concrete Supervisor-hosted monitoring stack."""
+    _validate_composition_arguments(
+        config,
+        access_token,
+        clock,
+        notification_id_factory,
+    )
+    timeout_seconds = _timeout_seconds(config)
+    homeassistant_client = UrllibHomeAssistantClient(
+        _SUPERVISOR_CORE_API,
+        access_token,
+        timeout_seconds=timeout_seconds,
+        user_agent=f"PriceWatch/{VERSION}",
+    )
+    status_publisher = HomeAssistantStatusPublisher(homeassistant_client, VERSION)
+    notification_channel = HomeAssistantNotificationChannel(
+        homeassistant_client,
+        config.notify_entity,
+        config.notification_title,
+    )
+    registry = EvaluatorRegistry()
+    registry.register(PriceDropEvaluator())
+    registry.register(BackInStockEvaluator())
+    rule_engine = RuleEngine(registry)
+    notification_engine = NotificationEngine()
+
+    if config.catalog is not None:
+        return _compose_catalog(
+            config.catalog,
+            status_publisher,
+            notification_channel,
+            rule_engine,
+            notification_engine,
+            clock,
+            notification_id_factory,
+        )
+    application = cast(ApplicationConfig, config.application)
+    provider = LidlParksideProvider(
+        application.product_urls,
+        UrllibTextHttpClient(
+            timeout_seconds=application.timeout_seconds,
+            user_agent=f"PriceWatch/{VERSION}",
+        ),
+        clock,
+    )
+    rules = _create_rules(
+        application.price_drop_percentage,
+        application.price_drop_amount,
+    )
+    workflow = SynchronizationWorkflow(
+        providers=(provider,),
+        state_store=JsonStateStore(application.state_file),
+        rule_engine=rule_engine,
+        notification_engine=notification_engine,
+        notification_channel=notification_channel,
+        notification_id_factory=notification_id_factory,
+    )
+    interval = application.interval
+    if interval is None:
+        raise ValueError("application interval is required")
+    return _HomeAssistantComposition(
+        workflow=workflow,
+        status_publisher=status_publisher,
+        rules=rules,
+        interval=interval,
+    )
+
+
+def _compose_catalog(
+    catalog_config: CatalogMonitoringConfig,
+    status_publisher: HomeAssistantStatusPublisher,
+    notification_channel: NotificationChannel,
+    rule_engine: RuleEngine,
+    notification_engine: NotificationEngine,
+    clock: Callable[[], datetime],
+    notification_id_factory: Callable[[], UUID],
+) -> _HomeAssistantComposition:
+    text_client = UrllibTextHttpClient(
+        timeout_seconds=catalog_config.timeout_seconds,
+        user_agent=f"PriceWatch/{VERSION}",
+    )
+    binary_client = UrllibBinaryHttpClient(
+        timeout_seconds=catalog_config.timeout_seconds,
+        user_agent=f"PriceWatch/{VERSION}",
+    )
+    catalog = LidlParksideCatalog(binary_client)
+    catalog_store = SqliteCatalogStore(catalog_config.database_file)
+    state_store = SqliteStateStore(catalog_config.database_file)
+    batch_synchronizer = _LidlCatalogBatchSynchronizer(
+        text_client,
+        clock,
+        state_store,
+        rule_engine,
+        notification_engine,
+        notification_channel,
+        notification_id_factory,
+    )
+    catalog_workflow = CatalogMonitoringWorkflow(
+        catalog,
+        catalog_store,
+        catalog_store,
+        batch_synchronizer,
+        LidlParksideCatalog.id,
+        catalog_config.batch_size,
+    )
+    return _HomeAssistantComposition(
+        workflow=None,
+        catalog_workflow=catalog_workflow,
+        status_publisher=status_publisher,
+        rules=_create_rules(
+            catalog_config.price_drop_percentage,
+            catalog_config.price_drop_amount,
+        ),
+        interval=catalog_config.interval,
+        discovery_interval_cycles=catalog_config.discovery_interval_cycles,
+    )
+
+
+def _timeout_seconds(config: HomeAssistantConfig) -> int:
+    if config.catalog is not None:
+        return config.catalog.timeout_seconds
+    if config.application is None:
+        raise ValueError("monitoring configuration is required")
+    return config.application.timeout_seconds
+
+
+def _validate_composition_arguments(
+    config: object,
+    access_token: object,
+    clock: object,
+    notification_id_factory: object,
+) -> None:
     if not isinstance(config, HomeAssistantConfig):
         raise TypeError("config must be a HomeAssistantConfig")
     if not isinstance(access_token, str):
@@ -56,51 +248,6 @@ def _compose_homeassistant(
         raise TypeError("clock must be callable")
     if not callable(notification_id_factory):
         raise TypeError("notification_id_factory must be callable")
-
-    application = config.application
-    interval = application.interval
-    if interval is None:
-        raise ValueError("application interval is required")
-    provider = LidlParksideProvider(
-        application.product_urls,
-        UrllibTextHttpClient(
-            timeout_seconds=application.timeout_seconds,
-            user_agent=f"PriceWatch/{VERSION}",
-        ),
-        clock,
-    )
-    homeassistant_client = UrllibHomeAssistantClient(
-        _SUPERVISOR_CORE_API,
-        access_token,
-        timeout_seconds=application.timeout_seconds,
-        user_agent=f"PriceWatch/{VERSION}",
-    )
-    status_publisher = HomeAssistantStatusPublisher(homeassistant_client, VERSION)
-    registry = EvaluatorRegistry()
-    registry.register(PriceDropEvaluator())
-    registry.register(BackInStockEvaluator())
-    rules = _create_rules(
-        application.price_drop_percentage,
-        application.price_drop_amount,
-    )
-    workflow = SynchronizationWorkflow(
-        providers=(provider,),
-        state_store=JsonStateStore(application.state_file),
-        rule_engine=RuleEngine(registry),
-        notification_engine=NotificationEngine(),
-        notification_channel=HomeAssistantNotificationChannel(
-            homeassistant_client,
-            config.notify_entity,
-            config.notification_title,
-        ),
-        notification_id_factory=notification_id_factory,
-    )
-    return _HomeAssistantComposition(
-        workflow=workflow,
-        status_publisher=status_publisher,
-        rules=rules,
-        interval=interval,
-    )
 
 
 def _create_rules(

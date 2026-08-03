@@ -9,6 +9,7 @@ import core.catalog as catalog_api
 from core.catalog import (
     CatalogEntry,
     CatalogError,
+    CatalogRefreshStore,
     CatalogStore,
     CatalogStoreError,
     ProductCatalog,
@@ -30,6 +31,7 @@ def test_catalog_public_api_is_explicit() -> None:
     assert catalog_api.__all__ == [
         "CatalogEntry",
         "CatalogError",
+        "CatalogRefreshStore",
         "CatalogStore",
         "CatalogStoreError",
         "ProductCatalog",
@@ -37,6 +39,7 @@ def test_catalog_public_api_is_explicit() -> None:
     ]
     assert catalog_api.CatalogEntry is CatalogEntry
     assert catalog_api.CatalogError is CatalogError
+    assert catalog_api.CatalogRefreshStore is CatalogRefreshStore
     assert catalog_api.CatalogStore is CatalogStore
     assert catalog_api.CatalogStoreError is CatalogStoreError
     assert catalog_api.ProductCatalog is ProductCatalog

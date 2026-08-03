@@ -5,11 +5,7 @@ from datetime import datetime
 from pathlib import Path
 from uuid import UUID
 
-from core.catalog import (
-    CatalogEntry,
-    CatalogStoreError,
-    ProductReference,
-)
+from core.catalog import CatalogEntry, CatalogStoreError, ProductReference
 from core.domain import ProviderId
 from infrastructure.persistence.sqlite.database import (
     SqliteDatabase,
@@ -19,7 +15,7 @@ from infrastructure.persistence.sqlite.database import (
 
 
 class SqliteCatalogStore:
-    """Persist atomic catalog discoveries in a versioned SQLite database."""
+    """Persist catalog discoveries and durable refresh ordering."""
 
     def __init__(self, path: Path, timeout_seconds: int = 5) -> None:
         """Validate configuration without opening or creating the database."""
@@ -32,7 +28,8 @@ class SqliteCatalogStore:
         discovered_at: datetime,
     ) -> tuple[ProductReference, ...]:
         """Persist one discovery atomically and return new references."""
-        _validate_discovery(references, discovered_at)
+        _validate_references(references)
+        _validate_timestamp(discovered_at, "discovered_at")
         connection: sqlite3.Connection | None = None
         try:
             connection = self._database.open()
@@ -42,7 +39,7 @@ class SqliteCatalogStore:
                     existing = connection.execute(
                         "SELECT last_seen_at FROM catalog_entries "
                         "WHERE provider_id = ? AND external_id = ?",
-                        (str(reference.provider_id.value), reference.external_id),
+                        _identity_parameters(reference),
                     ).fetchone()
                     if existing is None:
                         connection.execute(
@@ -86,8 +83,7 @@ class SqliteCatalogStore:
 
     def list_entries(self, provider_id: ProviderId) -> tuple[CatalogEntry, ...]:
         """Return provider entries in stable first insertion order."""
-        if not isinstance(provider_id, ProviderId):
-            raise TypeError("provider_id must be a ProviderId")
+        _validate_provider_id(provider_id)
         connection: sqlite3.Connection | None = None
         try:
             connection = self._database.open()
@@ -110,15 +106,84 @@ class SqliteCatalogStore:
             if connection is not None:
                 _close_catalog_connection(self._database, connection)
 
+    def list_refresh_batch(
+        self,
+        provider_id: ProviderId,
+        limit: int,
+    ) -> tuple[ProductReference, ...]:
+        """Return a bounded never-first and oldest-attempt-first batch."""
+        _validate_provider_id(provider_id)
+        _validate_limit(limit)
+        connection: sqlite3.Connection | None = None
+        try:
+            connection = self._database.open()
+            rows = connection.execute(
+                "SELECT provider_id, external_id, url, "
+                "last_refresh_attempt_at FROM catalog_entries "
+                "WHERE provider_id = ? "
+                "ORDER BY last_refresh_attempt_at IS NOT NULL, "
+                "last_refresh_attempt_at, sequence LIMIT ?",
+                (str(provider_id.value), limit),
+            ).fetchall()
+            return tuple(_decode_refresh_reference(row) for row in rows)
+        except (_CatalogDataError, TypeError, ValueError) as error:
+            raise CatalogStoreError("invalid persisted catalog data") from error
+        except (sqlite3.Error, SqlitePersistenceError) as error:
+            raise CatalogStoreError("failed to list catalog refresh batch") from error
+        finally:
+            if connection is not None:
+                _close_catalog_connection(self._database, connection)
+
+    def record_refresh_attempt(
+        self,
+        references: tuple[ProductReference, ...],
+        attempted_at: datetime,
+    ) -> None:
+        """Record one atomic refresh attempt for retained references."""
+        _validate_references(references)
+        _validate_timestamp(attempted_at, "attempted_at")
+        try:
+            connection = self._database.open()
+        except (sqlite3.Error, SqlitePersistenceError) as error:
+            raise CatalogStoreError("failed to record catalog refresh") from error
+        try:
+            with connection:
+                for reference in references:
+                    existing = connection.execute(
+                        "SELECT last_refresh_attempt_at FROM catalog_entries "
+                        "WHERE provider_id = ? AND external_id = ?",
+                        _identity_parameters(reference),
+                    ).fetchone()
+                    if existing is None:
+                        raise ValueError("refresh reference must exist in catalog")
+                    previous = existing[0]
+                    if previous is not None:
+                        previous_at = _decode_datetime(
+                            previous,
+                            "last_refresh_attempt_at",
+                        )
+                        if attempted_at < previous_at:
+                            raise ValueError(
+                                "attempted_at cannot precede an existing attempt"
+                            )
+                    connection.execute(
+                        "UPDATE catalog_entries "
+                        "SET last_refresh_attempt_at = ? "
+                        "WHERE provider_id = ? AND external_id = ?",
+                        (attempted_at.isoformat(), *_identity_parameters(reference)),
+                    )
+        except _CatalogDataError as error:
+            raise CatalogStoreError("invalid persisted catalog data") from error
+        except (sqlite3.Error, SqlitePersistenceError) as error:
+            raise CatalogStoreError("failed to record catalog refresh") from error
+        finally:
+            _close_catalog_connection(self._database, connection)
 
 class _CatalogDataError(ValueError):
     """Report invalid SQLite catalog row data."""
 
 
-def _validate_discovery(
-    references: object,
-    discovered_at: object,
-) -> None:
+def _validate_references(references: object) -> None:
     if not isinstance(references, tuple) or not all(
         isinstance(reference, ProductReference) for reference in references
     ):
@@ -128,10 +193,29 @@ def _validate_discovery(
     ]
     if len(set(identities)) != len(identities):
         raise ValueError("references must have unique provider and external IDs")
-    if not isinstance(discovered_at, datetime):
-        raise TypeError("discovered_at must be a datetime")
-    if discovered_at.tzinfo is None or discovered_at.utcoffset() is None:
-        raise ValueError("discovered_at must be timezone-aware")
+
+
+def _validate_provider_id(provider_id: object) -> None:
+    if not isinstance(provider_id, ProviderId):
+        raise TypeError("provider_id must be a ProviderId")
+
+
+def _validate_limit(limit: object) -> None:
+    if isinstance(limit, bool) or not isinstance(limit, int):
+        raise TypeError("limit must be an int")
+    if limit <= 0:
+        raise ValueError("limit must be greater than zero")
+
+
+def _validate_timestamp(value: object, name: str) -> None:
+    if not isinstance(value, datetime):
+        raise TypeError(f"{name} must be a datetime")
+    if value.tzinfo is None or value.utcoffset() is None:
+        raise ValueError(f"{name} must be timezone-aware")
+
+
+def _identity_parameters(reference: ProductReference) -> tuple[str, str]:
+    return str(reference.provider_id.value), reference.external_id
 
 
 def _decode_entry(row: tuple[object, ...]) -> CatalogEntry:
@@ -143,6 +227,16 @@ def _decode_entry(row: tuple[object, ...]) -> CatalogEntry:
             _decode_datetime(row[3], "first_seen_at"),
             _decode_datetime(row[4], "last_seen_at"),
         )
+    except (TypeError, ValueError) as error:
+        raise _CatalogDataError("catalog row violates Core invariants") from error
+
+
+def _decode_refresh_reference(row: tuple[object, ...]) -> ProductReference:
+    provider_id = ProviderId(_decode_uuid(row[0], "provider_id"))
+    if row[3] is not None:
+        _decode_datetime(row[3], "last_refresh_attempt_at")
+    try:
+        return ProductReference(provider_id, row[1], row[2])
     except (TypeError, ValueError) as error:
         raise _CatalogDataError("catalog row violates Core invariants") from error
 

@@ -3,9 +3,9 @@
 import sqlite3
 from pathlib import Path
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 
-_CATALOG_COLUMNS = (
+_CATALOG_COLUMNS_V1 = (
     "sequence",
     "provider_id",
     "external_id",
@@ -13,7 +13,9 @@ _CATALOG_COLUMNS = (
     "first_seen_at",
     "last_seen_at",
 )
+_CATALOG_COLUMNS = _CATALOG_COLUMNS_V1 + ("last_refresh_attempt_at",)
 _OBSERVATION_COLUMNS = ("sequence", "product_id", "snapshot")
+_REQUIRED_TABLES = {"catalog_entries", "observations"}
 
 
 class SqlitePersistenceError(Exception):
@@ -21,7 +23,7 @@ class SqlitePersistenceError(Exception):
 
 
 class SqliteDatabase:
-    """Open, initialize, validate and close one Price Watch database."""
+    """Open, initialize, migrate, validate and close one Price Watch database."""
 
     def __init__(self, path: Path, timeout_seconds: int) -> None:
         """Retain already validated connection configuration."""
@@ -62,6 +64,9 @@ class SqliteDatabase:
                     "unversioned SQLite database contains user tables"
                 )
             _create_schema(connection)
+        elif version == 1:
+            _validate_schema_columns(connection, _CATALOG_COLUMNS_V1)
+            _migrate_version_one(connection)
         elif version != SCHEMA_VERSION:
             raise SqlitePersistenceError(
                 f"unsupported SQLite schema version: {version}"
@@ -106,6 +111,7 @@ def _create_schema(connection: sqlite3.Connection) -> None:
                 "url TEXT NOT NULL, "
                 "first_seen_at TEXT NOT NULL, "
                 "last_seen_at TEXT NOT NULL, "
+                "last_refresh_attempt_at TEXT, "
                 "UNIQUE(provider_id, external_id)"
                 ")"
             )
@@ -120,16 +126,46 @@ def _create_schema(connection: sqlite3.Connection) -> None:
                 "CREATE INDEX observations_product_sequence "
                 "ON observations(product_id, sequence)"
             )
+            _create_refresh_index(connection)
             connection.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
     except sqlite3.Error as error:
         raise SqlitePersistenceError("failed to initialize SQLite schema") from error
 
 
+def _migrate_version_one(connection: sqlite3.Connection) -> None:
+    try:
+        with connection:
+            connection.execute("BEGIN IMMEDIATE")
+            connection.execute(
+                "ALTER TABLE catalog_entries "
+                "ADD COLUMN last_refresh_attempt_at TEXT"
+            )
+            _create_refresh_index(connection)
+            connection.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
+    except sqlite3.Error as error:
+        raise SqlitePersistenceError("failed to migrate SQLite schema") from error
+
+
+def _create_refresh_index(connection: sqlite3.Connection) -> None:
+    connection.execute(
+        "CREATE INDEX catalog_refresh_order ON catalog_entries("
+        "provider_id, last_refresh_attempt_at, sequence"
+        ")"
+    )
+
+
 def _validate_schema(connection: sqlite3.Connection) -> None:
+    _validate_schema_columns(connection, _CATALOG_COLUMNS)
+
+
+def _validate_schema_columns(
+    connection: sqlite3.Connection,
+    catalog_columns: tuple[str, ...],
+) -> None:
     tables = _user_tables(connection)
-    if not {"catalog_entries", "observations"}.issubset(tables):
+    if not _REQUIRED_TABLES.issubset(tables):
         raise SqlitePersistenceError("SQLite schema is missing required tables")
-    if _table_columns(connection, "catalog_entries") != _CATALOG_COLUMNS:
+    if _table_columns(connection, "catalog_entries") != catalog_columns:
         raise SqlitePersistenceError("catalog_entries schema is incompatible")
     if _table_columns(connection, "observations") != _OBSERVATION_COLUMNS:
         raise SqlitePersistenceError("observations schema is incompatible")

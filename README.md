@@ -68,12 +68,16 @@ interval_seconds = 300
 Run it with `python -m applications.cli watch --config price-watch.toml`.
 Relative state paths are interpreted from the configuration file directory.
 
-Price Watch is also packaged as a Home Assistant App. It runs the same durable
-workflow on a fixed interval and delegates actionable messages to an existing
-notify entity, including the SMTP-backed `notify.gmail_parkside_kobrle_fomei_com`. Supervisor
-injects Home Assistant API access; Price Watch stores neither its token nor SMTP
-credentials. Completed cycles also publish Home Assistant status and monetary
-product sensor states. The CLI continues to use console delivery.
+Price Watch is also packaged as a Home Assistant App. Its catalog mode
+automatically discovers Parkside candidates from the published Lidl sitemap
+and refreshes a durable, bounded product batch every cycle. Catalog membership,
+refresh order and exact observations are retained in SQLite. Existing App
+option documents without `catalog_enabled` keep explicit URL monitoring and
+JSON state. Actionable messages are delegated to an existing notify entity,
+including the SMTP-backed `notify.gmail_parkside_kobrle_fomei_com`; Price Watch
+stores neither its Supervisor token nor SMTP credentials. Completed cycles also
+publish Home Assistant status and monetary product sensor states. The CLI
+continues to use explicit URLs and console delivery.
 
 ## Development
 

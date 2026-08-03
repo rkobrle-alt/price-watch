@@ -13,15 +13,18 @@ from applications.homeassistant.composition import (
     _compose_homeassistant,
 )
 from applications.homeassistant.configuration import parse_homeassistant_options
+from applications.homeassistant.cycle import (
+    execute_catalog_cycle as _execute_catalog_cycle,
+    execute_explicit_cycle as _execute_cycle,
+)
 from applications.scheduler import IntervalScheduler
-from applications.synchronization import SynchronizationResult
+from core.catalog import CatalogStoreError
 from core.configuration import ConfigurationError
 from core.notifications import NotificationError
 from core.rules import RuleError
 from core.scheduler import Delay, SchedulerError
 from core.state import StateStoreError
 from infrastructure.configuration.json import JsonConfigurationLoader
-from infrastructure.homeassistant import HomeAssistantError
 from infrastructure.scheduler import SystemDelay
 
 _DATA_DIRECTORY = Path("/data")
@@ -69,19 +72,39 @@ def run(
 
     completed = 0
     provider_error_cycles = 0
+    catalog_error_cycles = 0
     status_error_cycles = 0
 
     def cycle() -> None:
-        nonlocal completed, provider_error_cycles, status_error_cycles
-        result, status_published = _execute_cycle(
-            composition,
-            stdout,
-            stderr,
-            clock(),
-        )
+        nonlocal completed, provider_error_cycles
+        nonlocal catalog_error_cycles, status_error_cycles
+        if composition.catalog_workflow is None:
+            result, status_published = _execute_cycle(
+                composition,
+                stdout,
+                stderr,
+                clock(),
+            )
+            has_provider_errors = bool(result.provider_errors)
+            has_catalog_error = False
+        else:
+            catalog_result, status_published = _execute_catalog_cycle(
+                composition,
+                stdout,
+                stderr,
+                clock(),
+                completed % composition.discovery_interval_cycles == 0,
+            )
+            synchronization = catalog_result.synchronization
+            has_provider_errors = bool(
+                synchronization is not None and synchronization.provider_errors
+            )
+            has_catalog_error = catalog_result.catalog_error is not None
         completed += 1
-        if result.provider_errors:
+        if has_provider_errors:
             provider_error_cycles += 1
+        if has_catalog_error:
+            catalog_error_cycles += 1
         if not status_published:
             status_error_cycles += 1
 
@@ -89,26 +112,38 @@ def run(
     try:
         result = scheduler.run(composition.interval, max_cycles)
     except KeyboardInterrupt:
-        _write(
+        _write_watch_outcome(
             stdout,
-            "watch stopped: "
-            f"cycles={completed} "
-            f"provider_error_cycles={provider_error_cycles} "
-            f"status_error_cycles={status_error_cycles}\n",
+            "watch stopped",
+            completed,
+            provider_error_cycles,
+            catalog_error_cycles,
+            status_error_cycles,
+            composition.catalog_workflow is not None,
         )
         return 130
-    except (StateStoreError, RuleError, NotificationError, SchedulerError) as error:
+    except (
+        CatalogStoreError,
+        StateStoreError,
+        RuleError,
+        NotificationError,
+        SchedulerError,
+    ) as error:
         _write(stderr, f"error: {error}\n")
         return 1
 
-    _write(
+    _write_watch_outcome(
         stdout,
-        "watch complete: "
-        f"cycles={result.cycles_completed} "
-        f"provider_error_cycles={provider_error_cycles} "
-        f"status_error_cycles={status_error_cycles}\n",
+        "watch complete",
+        result.cycles_completed,
+        provider_error_cycles,
+        catalog_error_cycles,
+        status_error_cycles,
+        composition.catalog_workflow is not None,
     )
-    return 1 if provider_error_cycles or status_error_cycles else 0
+    return 1 if (
+        provider_error_cycles or catalog_error_cycles or status_error_cycles
+    ) else 0
 
 
 def main() -> int:
@@ -134,44 +169,25 @@ def main() -> int:
     )
 
 
-def _execute_cycle(
-    composition: _HomeAssistantComposition,
-    stdout: TextIO,
-    stderr: TextIO,
-    timestamp: datetime,
-) -> tuple[SynchronizationResult, bool]:
-    result = composition.workflow.run(composition.rules, timestamp)
-    for error in result.provider_errors:
-        _write(stderr, f"provider error: {error}\n")
-
-    products = tuple(
-        product
-        for fetch_result in result.fetch_results
-        for product in fetch_result.products
+def _write_watch_outcome(
+    stream: TextIO,
+    label: str,
+    cycles: int,
+    provider_error_cycles: int,
+    catalog_error_cycles: int,
+    status_error_cycles: int,
+    catalog_mode: bool,
+) -> None:
+    catalog_text = (
+        f"catalog_error_cycles={catalog_error_cycles} " if catalog_mode else ""
     )
-    status_published = True
-    try:
-        composition.status_publisher.publish_cycle(
-            products,
-            timestamp,
-            len(result.notifications),
-            len(result.provider_errors),
-        )
-    except HomeAssistantError as error:
-        status_published = False
-        _write(stderr, f"status error: {error}\n")
-
     _write(
-        stdout,
-        "sync complete: "
-        f"products={len(products)} "
-        f"evaluations={len(result.evaluations)} "
-        f"notifications={len(result.notifications)} "
-        f"snapshots={len(result.snapshots)} "
-        f"provider_errors={len(result.provider_errors)} "
-        f"status_published={str(status_published).lower()}\n",
+        stream,
+        f"{label}: cycles={cycles} "
+        f"provider_error_cycles={provider_error_cycles} "
+        f"{catalog_text}"
+        f"status_error_cycles={status_error_cycles}\n",
     )
-    return result, status_published
 
 
 def _validate_dependencies(

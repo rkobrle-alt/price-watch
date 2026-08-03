@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.17.0
+
+- Discover Parkside catalog candidates from the published Lidl sitemap.
+- Refresh one durable, fairly ordered product batch per cycle.
+- Store catalog membership and exact observation history in SQLite.
+- Migrate valid catalog schema version 1 databases transactionally to version 2.
+- Preserve the existing explicit URL and JSON persistence mode.
 ## 0.14.0
 
 - Publish cycle health as `sensor.price_watch_status`.
