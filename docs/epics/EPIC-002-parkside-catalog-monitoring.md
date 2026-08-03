@@ -41,6 +41,10 @@ digest summarizes currently discounted available products.
 Each step requires its own accepted ADR when it introduces a new persistence,
 workflow, rule or scheduling contract.
 
+ADR-0016 and STORY-015 define and implement step 1. ADR-0017 and STORY-016
+define step 2 using durable catalog membership and exact SQLite observation
+history while leaving workflow composition unchanged.
+
 ## Discount Semantics
 
 The target policy is a current price at most 80 percent of its reference

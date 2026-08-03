@@ -59,6 +59,12 @@ The reference State Store is
 inject `infrastructure.persistence.json.JsonStateStore`, which preserves the
 latest snapshot between process executions.
 
+ADR-0017 adds `infrastructure.persistence.sqlite.SqliteStateStore` as a
+catalog-scale alternative which preserves the same latest-snapshot contract
+and also exposes ordered observation history. It is not selected by the
+current CLI or Home Assistant composition; adoption belongs to the catalog
+monitoring workflow milestone.
+
 Snapshots are loaded and saved using `snapshot.product.id` as their unique
 storage key.
 

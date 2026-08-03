@@ -222,8 +222,17 @@ Deliverables:
 Goal:
 
 Persist catalog membership and exact price and availability observations at
-practical catalog scale. A separate ADR will define SQLite schema, migrations,
-retention and compatibility with the latest-snapshot State Store contract.
+practical catalog scale.
+
+Deliverables:
+
+- provider-neutral catalog-entry and catalog-store Core contracts
+- read-only observation-history Core contract
+- shared lossless snapshot codec for durable stores
+- versioned `SqliteCatalogStore` and `SqliteStateStore`
+- atomic catalog batches and exact append-only observation history
+- compatibility with the existing latest-snapshot State Store contract
+- explicit schema initialization and no automatic data deletion
 
 ---
 

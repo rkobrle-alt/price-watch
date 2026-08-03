@@ -44,13 +44,16 @@ Concrete implementations belong to Infrastructure.
 
 For discovery, `core.catalog` contains only the immutable `ProductReference`,
 `ProductCatalog` Protocol and `CatalogError` contract from ADR-0016. It
-contains no HTTP, XML, gzip or Lidl-specific code.
+contains no HTTP, XML, gzip or Lidl-specific code. ADR-0017 adds the immutable
+`CatalogEntry`, `CatalogStore` Protocol and `CatalogStoreError` persistence
+boundary without adding a concrete store to Core.
 
 For product state, `core.state` contains only:
 
 - the `StateStore` Protocol
 - the immutable `StateSnapshot`
 - the `StateStoreError` persistence-failure contract
+- the read-only `ObservationHistory` Protocol
 
 It contains no concrete State Store implementation.
 
@@ -133,6 +136,16 @@ bounded binary HTTP boundary for compressed sitemap retrieval.
 
 `infrastructure.persistence.json` contains the durable, versioned
 `JsonStateStore` implementation for local filesystem persistence.
+
+`infrastructure.persistence.sqlite` contains the versioned catalog-scale
+`SqliteCatalogStore` and `SqliteStateStore` implementations from ADR-0017.
+They may share one database while satisfying separate Core contracts. The
+SQLite State Store appends exact observations and remains compatible with the
+latest-snapshot `StateStore` contract. No retention deletion is automatic.
+
+`infrastructure.persistence.snapshot_codec` is a private shared codec used by
+JSON and SQLite persistence. It preserves exact Domain values and is not a
+public package API.
 
 `infrastructure.notifications.console` contains the reference
 `ConsoleNotificationChannel` implementation.
