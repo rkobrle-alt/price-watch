@@ -138,6 +138,35 @@ dependency.
 
 ---
 
+## Catalog Discovery
+
+ADR-0016 adds a separate `LidlParksideCatalog` in the same Infrastructure
+package. It implements `core.catalog.ProductCatalog` and reads only the
+robots-advertised Lidl sitemap index and Czech product sitemap.
+
+```text
+Published sitemap index
+        |
+        v
+Bounded binary HTTP
+        |
+        v
+Gzip/XML sitemap parser
+        |
+        v
+Immutable ProductReference candidates
+```
+
+The catalog does not fetch product pages, persist references or invoke the
+existing provider. A later Application workflow will coordinate discovered
+references with product retrieval and persistence.
+
+`LidlParksideProvider` remains authoritative for JSON-LD mapping and actual
+brand validation. Explicitly configured URL monitoring remains backward
+compatible.
+
+---
+
 ## Determinism
 
 Provider and product identifiers are stable.

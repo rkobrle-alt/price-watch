@@ -19,6 +19,8 @@ core/
 
     domain/
 
+    catalog/
+
     provider/
 
     rules/
@@ -39,6 +41,10 @@ The Core must not perform I/O.
 The Core defines public abstractions (Protocols), domain models and business services.
 
 Concrete implementations belong to Infrastructure.
+
+For discovery, `core.catalog` contains only the immutable `ProductReference`,
+`ProductCatalog` Protocol and `CatalogError` contract from ADR-0016. It
+contains no HTTP, XML, gzip or Lidl-specific code.
 
 For product state, `core.state` contains only:
 
@@ -114,10 +120,13 @@ infrastructure/
 Infrastructure contains all external integrations and concrete implementations.
 
 `infrastructure.providers.lidl` contains the first provider implementation for
-explicitly configured Lidl Czech Republic Parkside product pages.
+explicitly configured Lidl Czech Republic Parkside product pages. ADR-0016
+adds a separate sitemap catalog implementation which discovers references
+without changing the existing product provider.
 
 `infrastructure.http` contains the injectable text HTTP boundary and its
-standard-library reference implementation.
+standard-library reference implementation. ADR-0016 adds an independently
+bounded binary HTTP boundary for compressed sitemap retrieval.
 
 `infrastructure.persistence.memory` contains the reference
 `InMemoryStateStore` implementation.

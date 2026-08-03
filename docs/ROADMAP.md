@@ -201,6 +201,67 @@ Deliverables:
 
 ---
 
+# v0.15.0 — Parkside Catalog Discovery
+
+Goal:
+
+Discover Parkside and Parkside Performance candidates from the
+robots-advertised Lidl Czech Republic product sitemap.
+
+Deliverables:
+
+- provider-neutral catalog contract and immutable references
+- bounded binary HTTP adapter
+- sitemap-only Lidl catalog implementation
+- no search, pagination, product-page retrieval or persistence
+
+---
+
+# v0.16.0 — Catalog and Observation History
+
+Goal:
+
+Persist catalog membership and exact price and availability observations at
+practical catalog scale. A separate ADR will define SQLite schema, migrations,
+retention and compatibility with the latest-snapshot State Store contract.
+
+---
+
+# v0.17.0 — Catalog Monitoring Workflow
+
+Goal:
+
+Refresh new products immediately and existing products in bounded, serial
+batches without overlapping cycles or prohibited crawling.
+
+---
+
+# v0.18.0 — Twenty-Percent Alerts
+
+Goal:
+
+Send one notification when a current price is at most 80 percent of its
+approved reference price, with durable deduplication.
+
+---
+
+# v0.19.0 — Daily Discount Digest
+
+Goal:
+
+Optionally send one Europe/Prague calendar-based daily summary of currently
+available Parkside products discounted by at least 20 percent.
+
+---
+
+# v0.20.0 — Home Assistant Catalog Status
+
+Goal:
+
+Expose catalog health, product counts, qualifying discounts and last discovery
+and refresh times without creating thousands of mandatory dashboard cards.
+
+---
 # v1.0.0
 
 Stable public release.
