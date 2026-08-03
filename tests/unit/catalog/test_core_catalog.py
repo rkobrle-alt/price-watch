@@ -6,7 +6,14 @@ from uuid import uuid4
 import pytest
 
 import core.catalog as catalog_api
-from core.catalog import CatalogError, ProductCatalog, ProductReference
+from core.catalog import (
+    CatalogEntry,
+    CatalogError,
+    CatalogStore,
+    CatalogStoreError,
+    ProductCatalog,
+    ProductReference,
+)
 from core.domain import ProviderId
 
 
@@ -21,11 +28,17 @@ def _as_catalog(catalog: ProductCatalog) -> ProductCatalog:
 
 def test_catalog_public_api_is_explicit() -> None:
     assert catalog_api.__all__ == [
+        "CatalogEntry",
         "CatalogError",
+        "CatalogStore",
+        "CatalogStoreError",
         "ProductCatalog",
         "ProductReference",
     ]
+    assert catalog_api.CatalogEntry is CatalogEntry
     assert catalog_api.CatalogError is CatalogError
+    assert catalog_api.CatalogStore is CatalogStore
+    assert catalog_api.CatalogStoreError is CatalogStoreError
     assert catalog_api.ProductCatalog is ProductCatalog
     assert catalog_api.ProductReference is ProductReference
 

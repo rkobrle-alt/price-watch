@@ -1,7 +1,16 @@
 """Public API for provider-neutral product catalog discovery."""
 
 from core.catalog.contract import ProductCatalog
-from core.catalog.exceptions import CatalogError
+from core.catalog.entry import CatalogEntry
+from core.catalog.exceptions import CatalogError, CatalogStoreError
 from core.catalog.reference import ProductReference
+from core.catalog.store import CatalogStore
 
-__all__ = ["CatalogError", "ProductCatalog", "ProductReference"]
+__all__ = [
+    "CatalogEntry",
+    "CatalogError",
+    "CatalogStore",
+    "CatalogStoreError",
+    "ProductCatalog",
+    "ProductReference",
+]

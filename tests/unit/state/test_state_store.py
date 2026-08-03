@@ -89,7 +89,12 @@ class StateStorePublicApiTests(TestCase):
     """Verify Core and Infrastructure public exports."""
 
     def test_core_state_exports(self) -> None:
-        expected = {"StateSnapshot", "StateStore", "StateStoreError"}
+        expected = {
+            "ObservationHistory",
+            "StateSnapshot",
+            "StateStore",
+            "StateStoreError",
+        }
 
         self.assertEqual(set(state_api.__all__), expected)
         for name in expected:
