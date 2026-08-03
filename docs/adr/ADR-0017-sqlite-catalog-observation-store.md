@@ -4,6 +4,10 @@
 
 Accepted
 
+Schema version 1 remains the historical base schema. ADR-0018 defines the
+accepted transactional migration to current schema version 2 and supersedes
+only the earlier rejection of every version other than 1.
+
 ---
 
 ## Context

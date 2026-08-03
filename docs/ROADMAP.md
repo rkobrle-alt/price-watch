@@ -243,6 +243,15 @@ Goal:
 Refresh new products immediately and existing products in bounded, serial
 batches without overlapping cycles or prohibited crawling.
 
+Deliverables:
+
+- durable never-refreshed-first and oldest-attempt-first batch ordering
+- transactional SQLite schema 1 to 2 migration
+- reusable `applications.catalog_monitoring` orchestration
+- sitemap-discovery failure isolation with retained-catalog refresh
+- opt-in Home Assistant catalog mode using shared SQLite persistence
+- backward-compatible explicit URL mode and unchanged CLI
+
 ---
 
 # v0.18.0 — Twenty-Percent Alerts

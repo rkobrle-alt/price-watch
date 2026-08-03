@@ -16,8 +16,9 @@ entity.
     v
 applications.homeassistant
     |
-    +--> LidlParksideProvider
-    +--> JsonStateStore(/data/state.json)
+    +--> explicit mode: LidlParksideProvider + JsonStateStore(/data/state.json)
+    +--> catalog mode: LidlParksideCatalog + bounded product batches
+    |                  + shared SQLite(/data/catalog.sqlite3)
     +--> RuleEngine + NotificationEngine
     +--> HomeAssistantNotificationChannel
     +--> SynchronizationWorkflow
@@ -27,6 +28,11 @@ applications.homeassistant
 
 The first cycle starts immediately. Later cycles use fixed delay and never
 overlap.
+
+Existing option documents without `catalog_enabled` remain in explicit mode.
+New packaged defaults enable catalog mode. The first catalog cycle discovers
+the sitemap; later discovery follows the configured cycle cadence while every
+cycle refreshes one persisted, fairly ordered batch.
 
 After a workflow cycle completes, `HomeAssistantStatusPublisher` writes one
 cycle status and one monetary sensor state for every successfully fetched
@@ -54,9 +60,11 @@ The App publishes no token, credential or SMTP configuration in entity state.
 
 ## Persistence and Security
 
-The App stores snapshots at `/data/state.json`, inside Supervisor-managed
-persistent App storage. It neither mounts Home Assistant configuration nor
-requests host access.
+Explicit mode stores snapshots at `/data/state.json`. Catalog mode stores
+catalog membership, refresh ordering and append-only observations at
+`/data/catalog.sqlite3`. Both paths are inside Supervisor-managed persistent
+App storage. The App neither mounts Home Assistant configuration nor requests
+host access.
 
 The Supervisor token is constructor input to the REST client only. It is not
 part of `HomeAssistantConfig`, TOML, App options, logs or errors.

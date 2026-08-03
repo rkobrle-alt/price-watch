@@ -141,7 +141,9 @@ bounded binary HTTP boundary for compressed sitemap retrieval.
 `SqliteCatalogStore` and `SqliteStateStore` implementations from ADR-0017.
 They may share one database while satisfying separate Core contracts. The
 SQLite State Store appends exact observations and remains compatible with the
-latest-snapshot `StateStore` contract. No retention deletion is automatic.
+latest-snapshot `StateStore` contract. ADR-0018 extends the catalog adapter
+with durable refresh ordering and migrates valid schema version 1 databases to
+version 2. No retention deletion is automatic.
 
 `infrastructure.persistence.snapshot_codec` is a private shared codec used by
 JSON and SQLite persistence. It preserves exact Domain values and is not a
@@ -184,6 +186,8 @@ Infrastructure is responsible for:
 ```
 applications/
 
+    catalog_monitoring/
+
     synchronization/
 
     scheduler/
@@ -200,6 +204,11 @@ applications/
 Applications compose the system.
 
 They configure dependencies and execute workflows.
+
+`applications.catalog_monitoring` contains the bounded discovery and refresh
+orchestration from ADR-0018. It depends on public catalog contracts and an
+injected batch synchronizer which reuses `applications.synchronization`. It
+does not construct Lidl, SQLite or Home Assistant implementations.
 
 `applications.synchronization` contains the reusable synchronization
 orchestration defined by ADR-0009. It depends on public Core contracts and
@@ -224,7 +233,9 @@ by ADR-0014. It loads App options, injects Supervisor access at the process
 boundary, uses persistent `/data` state, composes Home Assistant notification
 delivery and runs the existing serial scheduler. According to ADR-0015 it also
 publishes completed-cycle and product state representations through the same
-injected Home Assistant REST client.
+injected Home Assistant REST client. ADR-0018 adds an opt-in catalog mode that
+composes sitemap discovery and shared SQLite persistence while preserving the
+explicit URL/JSON mode for existing option documents.
 
 ---
 

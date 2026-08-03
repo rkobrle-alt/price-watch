@@ -43,7 +43,9 @@ workflow, rule or scheduling contract.
 
 ADR-0016 and STORY-015 define and implement step 1. ADR-0017 and STORY-016
 define step 2 using durable catalog membership and exact SQLite observation
-history while leaving workflow composition unchanged.
+history while leaving workflow composition unchanged. ADR-0018 and STORY-017
+define step 3 using durable refresh-attempt ordering, bounded Application
+orchestration and an opt-in Home Assistant catalog mode.
 
 ## Discount Semantics
 

@@ -62,8 +62,32 @@ latest snapshot between process executions.
 ADR-0017 adds `infrastructure.persistence.sqlite.SqliteStateStore` as a
 catalog-scale alternative which preserves the same latest-snapshot contract
 and also exposes ordered observation history. It is not selected by the
-current CLI or Home Assistant composition; adoption belongs to the catalog
-monitoring workflow milestone.
+current CLI. ADR-0018 selects it together with `SqliteCatalogStore` for the
+opt-in Home Assistant catalog mode.
+
+Catalog monitoring adds an outer serial flow without replacing the existing
+synchronization sequence:
+
+```text
+ProductCatalog.discover (on scheduled discovery cycles)
+    |
+    v
+CatalogStore.record_discovery
+    |
+    v
+CatalogRefreshStore.list_refresh_batch
+    |
+    v
+SynchronizationWorkflow for selected URLs
+    |
+    v
+CatalogRefreshStore.record_refresh_attempt
+```
+
+New or never-refreshed references have priority and the configured batch limit
+also applies to first bootstrap. A sitemap failure is retained in the cycle
+result while already known entries may still be refreshed. A propagated
+synchronization failure leaves the batch unmarked for retry.
 
 Snapshots are loaded and saved using `snapshot.product.id` as their unique
 storage key.
