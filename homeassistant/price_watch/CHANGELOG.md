@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.19.1
+
+- Treat Lidl schema.org `OnlineOnly` offers as available products.
+
 ## 0.19.0
 
 - Add an optional daily digest of currently available qualifying discounts.

@@ -89,6 +89,8 @@ def test_fetch_maps_lidl_json_ld_to_domain_product() -> None:
         ("array", "SoldOut", "https://image.test/tool.jpg", False, "https://image.test/tool.jpg"),
         ("graph", "http://schema.org/OutOfStock", [], False, None),
         ("direct", "InStock", "  ", True, None),
+        ("direct", "OnlineOnly", None, True, None),
+        ("direct", "https://schema.org/OnlineOnly", None, True, None),
     ],
 )
 def test_parser_supports_document_shapes_and_optional_images(

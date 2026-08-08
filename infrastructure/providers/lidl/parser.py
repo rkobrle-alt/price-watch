@@ -179,7 +179,7 @@ def _price(value: object) -> Decimal:
 def _availability(value: object) -> bool:
     text = _required_text(value, "availability")
     name = text.rsplit("/", 1)[-1].rsplit("#", 1)[-1]
-    if name == "InStock":
+    if name in {"InStock", "OnlineOnly"}:
         return True
     if name in {"OutOfStock", "SoldOut"}:
         return False
