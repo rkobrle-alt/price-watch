@@ -1,5 +1,5 @@
 name: Price Watch
-version: "0.20.0"
+version: "0.21.0"
 slug: price_watch
 description: Monitor Lidl Parkside prices and availability
 url: https://github.com/rkobrle-alt/price-watch/tree/main/homeassistant/price_watch

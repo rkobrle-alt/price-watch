@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.21.0
+
+- Publish a numeric count of currently qualifying discounted Parkside products.
+- Publish current catalog/provider error count and latest completed check time.
+- Expose delivered and suppressed individual-alert diagnostics.
+- Preserve the existing `sensor.price_watch_catalog` health state contract.
+
 ## 0.20.0
 
 - Publish one aggregate `sensor.price_watch_catalog` health representation.
