@@ -8,7 +8,8 @@ from applications.daily_digest import DailyDigestResult
 from applications.homeassistant.composition import _HomeAssistantComposition
 from applications.synchronization import SynchronizationResult
 from core.domain import Product
-from infrastructure.homeassistant import HomeAssistantError
+from core.notifications import DailyDiscountDigestEngine
+from infrastructure.homeassistant import CatalogStatus, HomeAssistantError
 
 
 def execute_explicit_cycle(
@@ -47,6 +48,52 @@ def execute_explicit_cycle(
     return result, status_published
 
 
+def _publish_catalog_status(
+    composition: _HomeAssistantComposition,
+    timestamp: datetime,
+    provider_error_count: int,
+    catalog_error_count: int,
+    stderr: TextIO,
+) -> bool:
+    context = composition.catalog_status
+    if context is None:
+        raise ValueError("catalog status composition is required")
+    statistics = context.statistics_reader.catalog_statistics(context.provider_id)
+    snapshots = tuple(
+        snapshot
+        for snapshot in context.snapshot_reader.latest_snapshots()
+        if snapshot.product.provider_id == context.provider_id
+    )
+    available_count = sum(snapshot.product.availability for snapshot in snapshots)
+    qualifying_count = 0
+    if context.minimum_discount is not None:
+        digest = DailyDiscountDigestEngine().generate(
+            snapshots,
+            context.minimum_discount,
+            timestamp.date(),
+            timestamp,
+        )
+        qualifying_count = len(digest.products)
+    status = CatalogStatus(
+        timestamp=timestamp,
+        reference_count=statistics.reference_count,
+        observed_product_count=len(snapshots),
+        available_product_count=available_count,
+        qualifying_discount_count=qualifying_count,
+        minimum_discount=context.minimum_discount,
+        last_discovered_at=statistics.last_discovered_at,
+        last_refresh_attempt_at=statistics.last_refresh_attempt_at,
+        provider_error_count=provider_error_count,
+        catalog_error_count=catalog_error_count,
+    )
+    try:
+        context.publisher.publish(status)
+    except HomeAssistantError as error:
+        _write(stderr, f"catalog status error: {error}\n")
+        return False
+    return True
+
+
 def execute_catalog_cycle(
     composition: _HomeAssistantComposition,
     stdout: TextIO,
@@ -77,7 +124,7 @@ def execute_catalog_cycle(
         snapshot_count = 0
         provider_error_count = 0
     catalog_error_count = int(result.catalog_error is not None)
-    status_published = _publish_status(
+    cycle_status_published = _publish_status(
         composition,
         products,
         timestamp,
@@ -85,6 +132,14 @@ def execute_catalog_cycle(
         provider_error_count + catalog_error_count,
         stderr,
     )
+    catalog_status_published = _publish_catalog_status(
+        composition,
+        timestamp,
+        provider_error_count,
+        catalog_error_count,
+        stderr,
+    )
+    status_published = cycle_status_published and catalog_status_published
     digest_result = _run_daily_digest(composition, timestamp)
     digest_text = _digest_summary(digest_result)
     _write(

@@ -6,7 +6,13 @@ from pathlib import Path
 
 import pytest
 
-from core.catalog import CatalogStore, CatalogStoreError, ProductReference
+from core.catalog import (
+    CatalogStatistics,
+    CatalogStatisticsReader,
+    CatalogStore,
+    CatalogStoreError,
+    ProductReference,
+)
 from infrastructure.persistence.sqlite import SqliteCatalogStore
 from tests.unit.persistence.sqlite_helpers import (
     CATALOG_PROVIDER_ID,
@@ -124,6 +130,82 @@ def test_unknown_provider_returns_empty_tuple(tmp_path: Path) -> None:
     store.record_discovery((create_reference("p1"),), _FIRST)
 
     assert store.list_entries(OTHER_PROVIDER_ID) == ()
+
+
+def test_catalog_statistics_are_durable_and_provider_isolated(
+    tmp_path: Path,
+) -> None:
+    path = tmp_path / "catalog.sqlite3"
+    store = SqliteCatalogStore(path)
+    first = create_reference("p1")
+    second = create_reference("p2")
+    other = create_reference("other", provider_id=OTHER_PROVIDER_ID)
+    store.record_discovery((first, second, other), _FIRST)
+    store.record_discovery((second,), _LATER)
+    store.record_refresh_attempt((first,), _FIRST)
+    store.record_refresh_attempt((second,), _LATER)
+
+    reader: CatalogStatisticsReader = SqliteCatalogStore(path)
+
+    assert reader.catalog_statistics(CATALOG_PROVIDER_ID) == CatalogStatistics(
+        reference_count=2,
+        last_discovered_at=_LATER,
+        last_refresh_attempt_at=_LATER,
+    )
+    assert reader.catalog_statistics(OTHER_PROVIDER_ID) == CatalogStatistics(
+        reference_count=1,
+        last_discovered_at=_FIRST,
+        last_refresh_attempt_at=None,
+    )
+
+
+def test_empty_catalog_statistics_initialize_schema(tmp_path: Path) -> None:
+    statistics = SqliteCatalogStore(
+        tmp_path / "catalog.sqlite3"
+    ).catalog_statistics(CATALOG_PROVIDER_ID)
+
+    assert statistics == CatalogStatistics(0, None, None)
+
+
+def test_catalog_statistics_validate_provider_before_io(tmp_path: Path) -> None:
+    path = tmp_path / "catalog.sqlite3"
+
+    with pytest.raises(TypeError, match="provider_id"):
+        SqliteCatalogStore(path).catalog_statistics("provider")  # type: ignore[arg-type]
+
+    assert not path.exists()
+
+
+def test_catalog_statistics_wrap_malformed_timestamp(tmp_path: Path) -> None:
+    path = tmp_path / "catalog.sqlite3"
+    store = SqliteCatalogStore(path)
+    store.record_discovery((create_reference("p1"),), _FIRST)
+    with open_database(path) as connection:
+        connection.execute("UPDATE catalog_entries SET last_seen_at = 'invalid'")
+        connection.commit()
+
+    with pytest.raises(CatalogStoreError, match="invalid persisted") as captured:
+        store.catalog_statistics(CATALOG_PROVIDER_ID)
+
+    assert captured.value.__cause__ is not None
+
+
+def test_catalog_statistics_wrap_database_failure(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    store = SqliteCatalogStore(tmp_path / "catalog.sqlite3")
+    failure = sqlite3.OperationalError("query failed")
+
+    def fail_open() -> None:
+        raise failure
+
+    monkeypatch.setattr(store._database, "open", fail_open)
+
+    with pytest.raises(CatalogStoreError, match="read catalog statistics") as captured:
+        store.catalog_statistics(CATALOG_PROVIDER_ID)
+
+    assert captured.value.__cause__ is failure
 
 
 @pytest.mark.parametrize("references", [[], (object(),)])

@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.20.0
+
+- Publish one aggregate `sensor.price_watch_catalog` health representation.
+- Report retained, observed, available and qualifying-discount product counts.
+- Expose durable last discovery and refresh-attempt timestamps.
+- Preserve fixed-amount-only catalog configurations and explicit mode.
+
 ## 0.19.1
 
 - Treat Lidl schema.org `OnlineOnly` offers as available products.

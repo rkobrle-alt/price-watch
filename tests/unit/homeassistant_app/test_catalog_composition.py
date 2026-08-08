@@ -30,6 +30,7 @@ from infrastructure.notifications.homeassistant import (
     HomeAssistantDailyDiscountDigestChannel,
     HomeAssistantNotificationChannel,
 )
+from infrastructure.homeassistant import HomeAssistantCatalogStatusPublisher
 from infrastructure.persistence.memory import InMemoryStateStore
 from infrastructure.persistence.sqlite import (
     SqliteCatalogStore,
@@ -122,6 +123,15 @@ def test_catalog_composition_assembles_shared_sqlite_stack() -> None:
     assert channel._entity_id == "notify.gmail_parkside"
     assert channel._title == "Parkside Catalog"
     assert result.daily_digest_workflow is None
+    assert result.catalog_status is not None
+    assert isinstance(
+        result.catalog_status.publisher,
+        HomeAssistantCatalogStatusPublisher,
+    )
+    assert result.catalog_status.statistics_reader is workflow._catalog_store
+    assert result.catalog_status.snapshot_reader is synchronizer._state_store
+    assert result.catalog_status.provider_id == LidlParksideCatalog.id
+    assert result.catalog_status.minimum_discount == Percentage(Decimal("20.00"))
 
 
 def test_catalog_composition_assembles_optional_daily_digest() -> None:
@@ -146,6 +156,24 @@ def test_catalog_composition_assembles_optional_daily_digest() -> None:
     assert workflow._digest_channel._entity_id == "notify.gmail_parkside"
     assert workflow._digest_channel._title == "Parkside Catalog Daily Digest"
     assert str(workflow._timezone) == "Europe/Prague"
+
+
+def test_catalog_composition_preserves_disabled_percentage_status() -> None:
+    config = HomeAssistantConfig(
+        application=None,
+        catalog=CatalogMonitoringConfig(
+            Path("/data/catalog.sqlite3"),
+            timedelta(minutes=5),
+            price_drop_percentage=None,
+            price_drop_amount=Decimal("500"),
+        ),
+        notify_entity="notify.gmail_parkside",
+    )
+
+    result = _compose_homeassistant(config, "token", lambda: TIMESTAMP, uuid4)
+
+    assert result.catalog_status is not None
+    assert result.catalog_status.minimum_discount is None
 
 
 def test_batch_synchronizer_reuses_standard_workflow() -> None:
@@ -228,6 +256,16 @@ def test_composition_dataclass_requires_exactly_one_workflow() -> None:
             rules=explicit.rules,
             interval=explicit.interval,
             daily_digest_workflow=cast(DailyDigestWorkflow, object()),
+        )
+
+    with pytest.raises(ValueError, match="catalog status"):
+        _HomeAssistantComposition(
+            workflow=cast(object, object()),
+            catalog_workflow=None,
+            status_publisher=explicit.status_publisher,
+            rules=explicit.rules,
+            interval=explicit.interval,
+            catalog_status=explicit.catalog_status,
         )
 
 

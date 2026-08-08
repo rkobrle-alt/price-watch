@@ -17,8 +17,8 @@ from applications.homeassistant.configuration import HomeAssistantConfig
 from applications.configuration import ApplicationConfig
 from applications.synchronization import SynchronizationResult, SynchronizationWorkflow
 from applications.version import VERSION
-from core.catalog import ProductReference
-from core.domain import Rule, RuleType
+from core.catalog import CatalogStatisticsReader, ProductReference
+from core.domain import Percentage, ProviderId, Rule, RuleType
 from core.notifications import (
     NotificationChannel,
     NotificationEngine,
@@ -27,8 +27,9 @@ from core.notifications import (
 )
 from core.rules import EvaluatorRegistry, PriceReferencePolicy, RuleEngine
 from core.rules.evaluators import BackInStockEvaluator, PriceDropEvaluator
-from core.state import ObservationHistory, StateStore
+from core.state import LatestSnapshotReader, ObservationHistory, StateStore
 from infrastructure.homeassistant import (
+    HomeAssistantCatalogStatusPublisher,
     HomeAssistantStatusPublisher,
     UrllibHomeAssistantClient,
 )
@@ -62,12 +63,26 @@ class _HomeAssistantComposition:
     catalog_workflow: CatalogMonitoringWorkflow | None = None
     discovery_interval_cycles: int = 1
     daily_digest_workflow: DailyDigestWorkflow | None = None
+    catalog_status: "_CatalogStatusComposition | None" = None
 
     def __post_init__(self) -> None:
         if (self.workflow is None) == (self.catalog_workflow is None):
             raise ValueError("composition must contain exactly one workflow")
         if self.daily_digest_workflow is not None and self.catalog_workflow is None:
             raise ValueError("daily digest requires catalog workflow")
+        if (self.catalog_status is None) != (self.catalog_workflow is None):
+            raise ValueError("catalog status requires catalog workflow")
+
+
+@dataclass(frozen=True, slots=True)
+class _CatalogStatusComposition:
+    """Hold collaborators for aggregate catalog status publication."""
+
+    publisher: HomeAssistantCatalogStatusPublisher
+    statistics_reader: CatalogStatisticsReader
+    snapshot_reader: LatestSnapshotReader
+    provider_id: ProviderId
+    minimum_discount: Percentage | None
 
 
 class _LidlCatalogBatchSynchronizer:
@@ -270,6 +285,20 @@ def _compose_catalog(
             homeassistant_client,
             notify_entity,
             notification_title,
+        ),
+        catalog_status=_CatalogStatusComposition(
+            publisher=HomeAssistantCatalogStatusPublisher(
+                homeassistant_client,
+                VERSION,
+            ),
+            statistics_reader=catalog_store,
+            snapshot_reader=state_store,
+            provider_id=LidlParksideCatalog.id,
+            minimum_discount=(
+                None
+                if catalog_config.price_drop_percentage is None
+                else Percentage(catalog_config.price_drop_percentage)
+            ),
         ),
     )
 

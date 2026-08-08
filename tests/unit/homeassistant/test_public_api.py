@@ -8,6 +8,8 @@ from pathlib import Path
 import infrastructure.homeassistant as homeassistant_api
 import infrastructure.notifications.homeassistant as notification_api
 from infrastructure.homeassistant import (
+    CatalogStatus,
+    HomeAssistantCatalogStatusPublisher,
     HomeAssistantClient,
     HomeAssistantError,
     HomeAssistantStateClient,
@@ -46,7 +48,9 @@ class FakeStateClient:
 
 def test_homeassistant_public_apis_are_explicit_and_documented() -> None:
     assert homeassistant_api.__all__ == [
+        "CatalogStatus",
         "HomeAssistantClient",
+        "HomeAssistantCatalogStatusPublisher",
         "HomeAssistantError",
         "HomeAssistantStateClient",
         "HomeAssistantStatusPublisher",
@@ -59,6 +63,13 @@ def test_homeassistant_public_apis_are_explicit_and_documented() -> None:
     assert homeassistant_api.HomeAssistantClient is HomeAssistantClient
     assert homeassistant_api.HomeAssistantError is HomeAssistantError
     assert homeassistant_api.HomeAssistantStateClient is HomeAssistantStateClient
+    assert (
+        homeassistant_api.CatalogStatus is CatalogStatus
+    )
+    assert (
+        homeassistant_api.HomeAssistantCatalogStatusPublisher
+        is HomeAssistantCatalogStatusPublisher
+    )
     assert (
         homeassistant_api.HomeAssistantStatusPublisher
         is HomeAssistantStatusPublisher
@@ -78,7 +89,9 @@ def test_homeassistant_public_apis_are_explicit_and_documented() -> None:
     assert isinstance(client, HomeAssistantClient)
     assert isinstance(client, HomeAssistantStateClient)
     for public_object in (
+        CatalogStatus,
         HomeAssistantClient,
+        HomeAssistantCatalogStatusPublisher,
         HomeAssistantError,
         HomeAssistantStateClient,
         HomeAssistantStatusPublisher,

@@ -12,6 +12,8 @@ from core.catalog import (
     CatalogRefreshStore,
     CatalogStore,
     CatalogStoreError,
+    CatalogStatistics,
+    CatalogStatisticsReader,
     ProductCatalog,
     ProductReference,
 )
@@ -34,6 +36,8 @@ def test_catalog_public_api_is_explicit() -> None:
         "CatalogRefreshStore",
         "CatalogStore",
         "CatalogStoreError",
+        "CatalogStatistics",
+        "CatalogStatisticsReader",
         "ProductCatalog",
         "ProductReference",
     ]
@@ -42,6 +46,8 @@ def test_catalog_public_api_is_explicit() -> None:
     assert catalog_api.CatalogRefreshStore is CatalogRefreshStore
     assert catalog_api.CatalogStore is CatalogStore
     assert catalog_api.CatalogStoreError is CatalogStoreError
+    assert catalog_api.CatalogStatistics is CatalogStatistics
+    assert catalog_api.CatalogStatisticsReader is CatalogStatisticsReader
     assert catalog_api.ProductCatalog is ProductCatalog
     assert catalog_api.ProductReference is ProductReference
 

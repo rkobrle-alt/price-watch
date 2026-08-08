@@ -79,6 +79,10 @@ stores neither its Supervisor token nor SMTP credentials. Completed cycles also
 publish Home Assistant status and monetary product sensor states. The CLI
 continues to use explicit URLs and console delivery.
 
+Catalog installations additionally publish one aggregate catalog-health state
+with retained, observed, available and qualifying-discount counts plus durable
+last discovery and refresh-attempt times.
+
 Catalog mode uses a 20-percent default alert threshold. A provider original
 price is preferred as the reference; otherwise the highest prior
 same-currency observation is used. Durable SQLite reservations prevent an

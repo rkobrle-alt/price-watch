@@ -2,7 +2,9 @@
 
 import importlib
 from dataclasses import dataclass, field
+from dataclasses import replace
 from datetime import date, timedelta
+from decimal import Decimal
 from typing import TextIO, cast
 from uuid import uuid4
 
@@ -11,19 +13,25 @@ import pytest
 from applications.catalog_monitoring import CatalogMonitoringResult
 from applications.daily_digest import DailyDigestResult, DailyDigestStatus
 from applications.homeassistant.composition import _HomeAssistantComposition
+from applications.homeassistant.composition import _CatalogStatusComposition
 from applications.homeassistant.main import (
     _execute_catalog_cycle,
     _execute_cycle,
     run,
 )
 from applications.synchronization import SynchronizationResult
-from core.catalog import CatalogError, CatalogStoreError
+from core.catalog import CatalogError, CatalogStatistics, CatalogStoreError
+from core.domain import Money, Percentage
+from core.state import StateSnapshot
+from infrastructure.homeassistant import CatalogStatus, HomeAssistantError
+from infrastructure.providers.lidl import LidlParksideCatalog
 from core.provider import ProviderError
 from tests.unit.homeassistant_app.helpers import (
     RecordingDelay,
     RecordingStream,
     TIMESTAMP,
 )
+from tests.unit.notifications.helpers import create_product
 
 _homeassistant_main = importlib.import_module("applications.homeassistant.main")
 
@@ -62,6 +70,34 @@ class _StatusPublisher:
 
 
 @dataclass(slots=True)
+class _CatalogStatusPublisher:
+    calls: list[CatalogStatus] = field(default_factory=list)
+    failure: HomeAssistantError | None = None
+
+    def publish(self, status: CatalogStatus) -> None:
+        if self.failure is not None:
+            raise self.failure
+        self.calls.append(status)
+
+
+@dataclass(slots=True)
+class _StatisticsReader:
+    statistics: CatalogStatistics = CatalogStatistics(10, TIMESTAMP, TIMESTAMP)
+
+    def catalog_statistics(self, provider_id: object) -> CatalogStatistics:
+        assert provider_id == LidlParksideCatalog.id
+        return self.statistics
+
+
+@dataclass(slots=True)
+class _SnapshotReader:
+    snapshots: tuple[StateSnapshot, ...] = ()
+
+    def latest_snapshots(self) -> tuple[StateSnapshot, ...]:
+        return self.snapshots
+
+
+@dataclass(slots=True)
 class _DigestWorkflow:
     result: DailyDigestResult
     timestamps: list[object] = field(default_factory=list)
@@ -96,7 +132,12 @@ def _result(
 def _composition(
     workflow: _CatalogWorkflow,
     digest_workflow: _DigestWorkflow | None = None,
+    *,
+    catalog_publisher: _CatalogStatusPublisher | None = None,
+    snapshots: tuple[StateSnapshot, ...] = (),
+    minimum_discount: Percentage | None = Percentage(Decimal("20.00")),
 ) -> _HomeAssistantComposition:
+    aggregate_publisher = catalog_publisher or _CatalogStatusPublisher()
     return _HomeAssistantComposition(
         workflow=None,
         catalog_workflow=cast(object, workflow),
@@ -105,6 +146,13 @@ def _composition(
         interval=timedelta(seconds=300),
         discovery_interval_cycles=2,
         daily_digest_workflow=cast(object, digest_workflow),
+        catalog_status=_CatalogStatusComposition(
+            publisher=cast(object, aggregate_publisher),
+            statistics_reader=cast(object, _StatisticsReader()),
+            snapshot_reader=cast(object, _SnapshotReader(snapshots)),
+            provider_id=LidlParksideCatalog.id,
+            minimum_discount=minimum_discount,
+        ),
     )
 
 
@@ -225,6 +273,71 @@ def test_catalog_summary_reports_suppressed_notifications() -> None:
     assert "suppressed_notifications=2" in stdout.text
 
 
+def test_catalog_cycle_publishes_complete_aggregate_status() -> None:
+    product = replace(
+        create_product(),
+        provider_id=LidlParksideCatalog.id,
+        original_price=Money(Decimal("200"), create_product().currency),
+        discount_percent=Percentage(Decimal("50")),
+    )
+    other_provider_product = create_product()
+    publisher = _CatalogStatusPublisher()
+    composition = _composition(
+        _CatalogWorkflow([_result()]),
+        catalog_publisher=publisher,
+        snapshots=(
+            StateSnapshot(product, TIMESTAMP),
+            StateSnapshot(other_provider_product, TIMESTAMP),
+        ),
+    )
+
+    _, published = _execute_catalog_cycle(
+        composition,
+        cast(TextIO, RecordingStream()),
+        cast(TextIO, RecordingStream()),
+        TIMESTAMP,
+        False,
+    )
+
+    assert published is True
+    assert publisher.calls == [
+        CatalogStatus(
+            timestamp=TIMESTAMP,
+            reference_count=10,
+            observed_product_count=1,
+            available_product_count=1,
+            qualifying_discount_count=1,
+            minimum_discount=Percentage(Decimal("20.00")),
+            last_discovered_at=TIMESTAMP,
+            last_refresh_attempt_at=TIMESTAMP,
+            provider_error_count=0,
+            catalog_error_count=0,
+        )
+    ]
+
+
+def test_disabled_percentage_and_catalog_status_failure_are_reported() -> None:
+    failure = HomeAssistantError("aggregate failed")
+    publisher = _CatalogStatusPublisher(failure=failure)
+    composition = _composition(
+        _CatalogWorkflow([_result()]),
+        catalog_publisher=publisher,
+        minimum_discount=None,
+    )
+    stderr = RecordingStream()
+
+    _, published = _execute_catalog_cycle(
+        composition,
+        cast(TextIO, RecordingStream()),
+        cast(TextIO, stderr),
+        TIMESTAMP,
+        False,
+    )
+
+    assert published is False
+    assert stderr.text == "catalog status error: aggregate failed\n"
+
+
 def test_enabled_digest_runs_after_status_and_is_reported() -> None:
     workflow = _CatalogWorkflow([_result()])
     digest = _DigestWorkflow(
@@ -300,6 +413,16 @@ def test_cycle_helpers_reject_wrong_composition_mode() -> None:
     with pytest.raises(ValueError, match="catalog monitoring"):
         _execute_catalog_cycle(
             explicit_composition,
+            cast(TextIO, RecordingStream()),
+            cast(TextIO, RecordingStream()),
+            TIMESTAMP,
+            True,
+        )
+
+    object.__setattr__(catalog_composition, "catalog_status", None)
+    with pytest.raises(ValueError, match="catalog status composition"):
+        _execute_catalog_cycle(
+            catalog_composition,
             cast(TextIO, RecordingStream()),
             cast(TextIO, RecordingStream()),
             TIMESTAMP,

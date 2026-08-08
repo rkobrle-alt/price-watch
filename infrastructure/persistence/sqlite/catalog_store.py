@@ -5,7 +5,12 @@ from datetime import datetime
 from pathlib import Path
 from uuid import UUID
 
-from core.catalog import CatalogEntry, CatalogStoreError, ProductReference
+from core.catalog import (
+    CatalogEntry,
+    CatalogStatistics,
+    CatalogStoreError,
+    ProductReference,
+)
 from core.domain import ProviderId
 from infrastructure.persistence.sqlite.database import (
     SqliteDatabase,
@@ -130,6 +135,37 @@ class SqliteCatalogStore:
             raise CatalogStoreError("invalid persisted catalog data") from error
         except (sqlite3.Error, SqlitePersistenceError) as error:
             raise CatalogStoreError("failed to list catalog refresh batch") from error
+        finally:
+            if connection is not None:
+                _close_catalog_connection(self._database, connection)
+
+    def catalog_statistics(self, provider_id: ProviderId) -> CatalogStatistics:
+        """Return durable aggregate catalog statistics for one provider."""
+        _validate_provider_id(provider_id)
+        connection: sqlite3.Connection | None = None
+        try:
+            connection = self._database.open()
+            row = connection.execute(
+                "SELECT COUNT(*), MAX(last_seen_at), "
+                "MAX(last_refresh_attempt_at) FROM catalog_entries "
+                "WHERE provider_id = ?",
+                (str(provider_id.value),),
+            ).fetchone()
+            return CatalogStatistics(
+                reference_count=row[0],
+                last_discovered_at=_decode_optional_datetime(
+                    row[1],
+                    "last_discovered_at",
+                ),
+                last_refresh_attempt_at=_decode_optional_datetime(
+                    row[2],
+                    "last_refresh_attempt_at",
+                ),
+            )
+        except (_CatalogDataError, TypeError, ValueError) as error:
+            raise CatalogStoreError("invalid persisted catalog data") from error
+        except (sqlite3.Error, SqlitePersistenceError) as error:
+            raise CatalogStoreError("failed to read catalog statistics") from error
         finally:
             if connection is not None:
                 _close_catalog_connection(self._database, connection)
@@ -263,6 +299,12 @@ def _decode_datetime(value: object, name: str) -> datetime:
     if timestamp.tzinfo is None or timestamp.utcoffset() is None:
         raise _CatalogDataError(f"{name} must be timezone-aware")
     return timestamp
+
+
+def _decode_optional_datetime(value: object, name: str) -> datetime | None:
+    if value is None:
+        return None
+    return _decode_datetime(value, name)
 
 
 def _close_catalog_connection(

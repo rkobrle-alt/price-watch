@@ -84,6 +84,18 @@ monetary sensor for every successfully refreshed product. Product entity IDs
 use `sensor.price_watch_product_<product UUID hex>` and remain stable for the
 same Lidl product.
 
+Catalog mode also updates one aggregate `sensor.price_watch_catalog`. Its state
+is `ok` when the current cycle has no catalog or provider errors and `degraded`
+otherwise. Its attributes show the total retained catalog references, observed
+products, currently available products, products meeting the configured
+percentage discount, the exact percentage threshold, and the durable times of
+the last successful discovery and refresh attempt. This single summary can be
+added to a dashboard without adding every product sensor.
+
+If percentage monitoring is disabled in favor of a fixed price amount, the
+percentage threshold is unavailable and the qualifying percentage count is
+zero.
+
 The REST-created product states are not entity-registry-backed. To test email
 delivery independently, call `notify.send_message` for the configured notify
 entity in Home Assistant Developer Tools.
