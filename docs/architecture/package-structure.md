@@ -62,6 +62,9 @@ For notifications, `core.notifications` contains:
 - the deterministic `NotificationEngine`
 - the `NotificationChannel` Protocol
 - the `NotificationError` delivery-failure contract
+- the immutable notification reservation identity
+- the reservation-store Protocol and persistence-error contract
+- the deterministic price-drop reservation policy
 
 It contains no concrete notification channel.
 
@@ -144,6 +147,9 @@ SQLite State Store appends exact observations and remains compatible with the
 latest-snapshot `StateStore` contract. ADR-0018 extends the catalog adapter
 with durable refresh ordering and migrates valid schema version 1 databases to
 version 2. No retention deletion is automatic.
+ADR-0019 adds `SqliteNotificationReservationStore` and migrates valid schema
+version 2 databases to version 3 while preserving catalog and observation
+data. Valid version 1 databases migrate sequentially through both steps.
 
 `infrastructure.persistence.snapshot_codec` is a private shared codec used by
 JSON and SQLite persistence. It preserves exact Domain values and is not a
@@ -213,7 +219,8 @@ does not construct Lidl, SQLite or Home Assistant implementations.
 `applications.synchronization` contains the reusable synchronization
 orchestration defined by ADR-0009. It depends on public Core contracts and
 services, while concrete Infrastructure implementations are injected by outer
-application entry points.
+application entry points. ADR-0019 adds optional observation enrichment and
+logical price-alert reservation collaborators without changing default callers.
 
 `applications.scheduler` contains the reusable fixed-delay interval
 orchestration defined by ADR-0011. It invokes an injected cycle serially and
@@ -236,6 +243,8 @@ publishes completed-cycle and product state representations through the same
 injected Home Assistant REST client. ADR-0018 adds an opt-in catalog mode that
 composes sitemap discovery and shared SQLite persistence while preserving the
 explicit URL/JSON mode for existing option documents.
+ADR-0019 enables historical 20-percent evaluation and durable alert
+reservations only in that catalog composition.
 
 ---
 

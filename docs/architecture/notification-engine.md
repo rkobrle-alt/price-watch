@@ -18,6 +18,8 @@ core/notifications/
     channel.py
     engine.py
     exceptions.py
+    reservation.py
+    reservation_policy.py
 
 infrastructure/notifications/
     __init__.py
@@ -50,6 +52,10 @@ The `core.notifications` package exports:
 - `NotificationEngine`
 - `NotificationChannel`
 - `NotificationError`
+- `NotificationReservation`
+- `NotificationReservationStore`
+- `NotificationReservationError`
+- `PriceDropReservationPolicy`
 
 ### NotificationEngine
 
@@ -74,7 +80,8 @@ The method returns `None` for a non-matching evaluation.
 For a matching evaluation it creates a `Notification` from the supplied
 product, evaluation result and identifier. According to ADR-0013, its
 channel-neutral message contains the reason, product name, current price,
-availability and URL.
+availability and URL. When a reference price exists, the message also contains
+its exact amount and exact discount percentage according to ADR-0019.
 
 The engine never reads time, generates identifiers or performs I/O.
 
@@ -92,6 +99,14 @@ send(notification: Notification) -> None
 concrete notification channels.
 
 Invalid argument types use `TypeError`.
+
+### Price alert reservations
+
+`NotificationReservation` identifies one logical price alert by product, rule
+type, currency and current price. `NotificationReservationStore` is a Protocol
+for atomic reservation and idempotent release. `PriceDropReservationPolicy`
+deterministically creates identities only for matching price-drop evaluations.
+Core does not persist reservations.
 
 ---
 
@@ -138,6 +153,11 @@ Applications perform the sequence:
 
 ```text
 EvaluationResult
+    |
+    v
+optional durable price reservation
+    |
+    +--> existing reservation: suppress
     |
     v
 NotificationEngine.generate

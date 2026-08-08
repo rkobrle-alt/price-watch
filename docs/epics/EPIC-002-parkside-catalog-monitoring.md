@@ -46,15 +46,19 @@ define step 2 using durable catalog membership and exact SQLite observation
 history while leaving workflow composition unchanged. ADR-0018 and STORY-017
 define step 3 using durable refresh-attempt ordering, bounded Application
 orchestration and an opt-in Home Assistant catalog mode.
+ADR-0019 and STORY-018 define step 4 using original-price then historical-high
+reference selection and durable logical-price reservations.
 
 ## Discount Semantics
 
 The target policy is a current price at most 80 percent of its reference
-price. A later rule ADR must define the durable reference and fallback order.
-The intended order is the reliable Lidl original price when available,
-otherwise a historical price derived from stored observations.
+price. ADR-0019 defines the durable order as the reliable current original
+price when available, otherwise the highest prior same-currency observed
+price.
 
-The same logical product price must not generate repeated alert emails.
+The same logical product price and currency must not generate repeated alert
+emails during normal operation. ADR-0019 documents the unavoidable crash
+boundary between durable reservation and Home Assistant delivery.
 
 ## Done When
 

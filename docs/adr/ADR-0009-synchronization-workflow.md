@@ -108,6 +108,10 @@ notification. A retry after delivery succeeded but persistence failed may
 deliver the same logical notification again. Delivery is therefore
 at-least-once for this version; deduplication is outside its scope.
 
+ADR-0019 adds optional price-reference and durable reservation collaborators
+without changing this default behavior. Catalog-mode price-drop alerts use the
+more specific reservation-before-delivery semantics from that decision.
+
 Any completed side effects from earlier products or providers remain
 completed when a later operation fails.
 
@@ -183,4 +187,3 @@ Costs:
 - retries may duplicate a notification after a persistence failure
 - rules currently apply to every fetched product
 - a non-provider failure stops the remaining cycle without compensation
-

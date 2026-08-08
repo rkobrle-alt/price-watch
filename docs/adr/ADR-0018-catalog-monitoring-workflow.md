@@ -4,6 +4,10 @@
 
 Accepted
 
+ADR-0019 extends catalog-mode batch synchronization with reference-price
+enrichment and durable price-alert reservations. Discovery, refresh selection
+and attempt-recording semantics in this decision remain unchanged.
+
 ---
 
 ## Context

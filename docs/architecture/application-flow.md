@@ -13,6 +13,9 @@ Provider.fetch
 Current Products
     |
     v
+ObservationHistory.history + PriceReferencePolicy (catalog alerts)
+    |
+    v
 StateStore.load
     |
     v
@@ -65,6 +68,11 @@ and also exposes ordered observation history. It is not selected by the
 current CLI. ADR-0018 selects it together with `SqliteCatalogStore` for the
 opt-in Home Assistant catalog mode.
 
+ADR-0019 uses the same history in catalog mode to enrich each immutable
+product with the approved reference price before evaluation. A provider
+original price wins; otherwise the highest prior same-currency observation is
+used. Explicit mode does not inject this policy.
+
 Catalog monitoring adds an outer serial flow without replacing the existing
 synchronization sequence:
 
@@ -99,7 +107,11 @@ previous product and the current product. Applications invoke
 
 Notification delivery occurs before the current snapshot is saved. A failed
 delivery therefore does not advance comparison state. A retry after successful
-delivery but failed persistence may repeat the logical notification.
+delivery but failed persistence may repeat an unreserved notification.
+Catalog price alerts reserve product, rule type, currency and current amount
+in SQLite before delivery. A prior reservation suppresses generation; ordinary
+delivery failures release a new reservation for retry. ADR-0019 documents the
+hard-process-crash boundary where SQLite and Home Assistant cannot be atomic.
 
 Provider-reported failures are collected without preventing later configured
 providers from running. State Store, Rule Engine and notification failures

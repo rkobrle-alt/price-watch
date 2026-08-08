@@ -5,8 +5,12 @@
 Accepted
 
 Schema version 1 remains the historical base schema. ADR-0018 defines the
-accepted transactional migration to current schema version 2 and supersedes
+accepted transactional migration to schema version 2 and supersedes
 only the earlier rejection of every version other than 1.
+
+ADR-0019 defines schema version 3 and sequential migration for durable price-
+alert reservations. It does not change the catalog or observation contracts
+defined here.
 
 ---
 

@@ -39,6 +39,11 @@ SynchronizationWorkflow(
     notification_engine: NotificationEngine,
     notification_channel: NotificationChannel,
     notification_id_factory: Callable[[], UUID],
+    *,
+    observation_history: ObservationHistory | None = None,
+    price_reference_policy: PriceReferencePolicy | None = None,
+    notification_reservation_store: NotificationReservationStore | None = None,
+    price_drop_reservation_policy: PriceDropReservationPolicy | None = None,
 )
 ```
 
@@ -58,6 +63,9 @@ Provider.fetch
     |
     v
 Product
+    |
+    v
+optional history enrichment
     |
     v
 StateStore.load(product.id)
@@ -90,6 +98,7 @@ retains that order.
 - `notifications`
 - `snapshots`
 - `provider_errors`
+- `suppressed_notification_count`
 
 It reports completed work only. If a non-provider operation raises, the
 exception propagates and no result is returned.
@@ -107,6 +116,13 @@ existing subsystem types and propagate unchanged.
 Delivery occurs before persistence. This provides at-least-once notification
 behavior and protects transition detection from permanent loss after a failed
 delivery.
+
+ADR-0019 optional collaborators enrich catalog products from observation
+history and reserve matching logical price alerts before generation. Equal
+reservations increase `suppressed_notification_count`. A successful
+reservation survives later snapshot failure; an ordinary generation or
+delivery failure releases it for retry. Omitting the collaborators preserves
+the original behavior and identifier consumption exactly.
 
 ---
 
@@ -134,4 +150,3 @@ The application service reads neither clock, randomness nor environment.
 Callers supply the cycle timestamp and notification ID factory.
 
 HTTP, filesystem and delivery effects remain behind injected boundaries.
-

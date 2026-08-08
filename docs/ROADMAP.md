@@ -261,6 +261,15 @@ Goal:
 Send one notification when a current price is at most 80 percent of its
 approved reference price, with durable deduplication.
 
+Deliverables:
+
+- reliable original-price then historical-high reference selection
+- available-only catalog price alerts with a 20-percent packaged default
+- structured price-alert identity and durable SQLite reservations
+- transactional SQLite schema 2 to 3 migration
+- suppression count in catalog cycle output
+- unchanged explicit URL and CLI behavior
+
 ---
 
 # v0.19.0 — Daily Discount Digest

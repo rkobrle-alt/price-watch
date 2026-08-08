@@ -18,7 +18,8 @@ applications.homeassistant
     |
     +--> explicit mode: LidlParksideProvider + JsonStateStore(/data/state.json)
     +--> catalog mode: LidlParksideCatalog + bounded product batches
-    |                  + shared SQLite(/data/catalog.sqlite3)
+    |                  + reference-price enrichment
+    |                  + shared SQLite history and alert reservations
     +--> RuleEngine + NotificationEngine
     +--> HomeAssistantNotificationChannel
     +--> SynchronizationWorkflow
@@ -62,9 +63,11 @@ The App publishes no token, credential or SMTP configuration in entity state.
 
 Explicit mode stores snapshots at `/data/state.json`. Catalog mode stores
 catalog membership, refresh ordering and append-only observations at
-`/data/catalog.sqlite3`. Both paths are inside Supervisor-managed persistent
-App storage. The App neither mounts Home Assistant configuration nor requests
-host access.
+`/data/catalog.sqlite3`. ADR-0019 also stores durable logical-price
+reservations there. Catalog price alerts use a 20-percent packaged default,
+historical-high fallback and available-only matching. Both paths are inside
+Supervisor-managed persistent App storage. The App neither mounts Home
+Assistant configuration nor requests host access.
 
 The Supervisor token is constructor input to the REST client only. It is not
 part of `HomeAssistantConfig`, TOML, App options, logs or errors.

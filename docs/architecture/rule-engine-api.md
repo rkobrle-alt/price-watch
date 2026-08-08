@@ -18,6 +18,8 @@ EvaluatorRegistry
 
 RuleError
 
+PriceReferencePolicy
+
 ---
 
 ## RuleEngine
@@ -78,3 +80,18 @@ Raised for:
 - duplicate registration
 - missing evaluator
 - invalid evaluator
+
+---
+
+## PriceReferencePolicy
+
+Deterministic method:
+
+```python
+enrich(
+    current: Product,
+    history: tuple[StateSnapshot, ...],
+) -> Product
+```
+
+The caller supplies already loaded history. The policy performs no I/O.
