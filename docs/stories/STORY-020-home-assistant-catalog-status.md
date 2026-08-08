@@ -32,7 +32,7 @@ class CatalogStatus:
     observed_product_count: int
     available_product_count: int
     qualifying_discount_count: int
-    minimum_discount: Percentage
+    minimum_discount: Percentage | None
     last_discovered_at: datetime | None
     last_refresh_attempt_at: datetime | None
     provider_error_count: int
@@ -59,6 +59,8 @@ names are `friendly_name`, `last_checked`, `reference_count`,
 `catalog_error_count` and `version`.
 
 Optional timestamps are represented by `None` when unknown.
+When `minimum_discount` is `None`, `minimum_discount_percentage` is also `None`
+and `qualifying_discount_count` must be zero.
 
 ## Validation and Errors
 
@@ -88,6 +90,8 @@ skipped tests or warnings.
 - aggregate counts describe complete retained/latest durable state, not only
   the current refresh batch;
 - discount qualification reuses existing Core behavior;
+- fixed-amount-only catalog configurations remain valid and report no
+  percentage-qualified products;
 - last discovery and refresh-attempt times survive restart;
 - a cycle with a catalog or provider error publishes `degraded`;
 - explicit mode behavior remains unchanged;

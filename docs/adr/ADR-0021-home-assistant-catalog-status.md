@@ -66,15 +66,16 @@ and greatest non-null `last_refresh_attempt_at` for the requested provider.
 - observed product count
 - available product count
 - qualifying discount count
-- configured minimum discount percentage
+- configured minimum discount percentage, when enabled
 - last successful discovery timestamp, when known
 - last refresh-attempt timestamp, when known
 - provider and catalog error counts for the current cycle
 
 The entity state is `ok` when both error counts are zero and `degraded`
 otherwise. Attributes use exact strings for `Decimal`-backed percentage values
-and ISO 8601 timestamps. They include `friendly_name` and the application
-version.
+and ISO 8601 timestamps. A disabled percentage rule produces zero qualifying
+discounts and a null percentage attribute, preserving fixed-amount-only catalog
+configurations. Attributes include `friendly_name` and the application version.
 
 The publisher validates the complete value before calling the injected
 `HomeAssistantStateClient`.
