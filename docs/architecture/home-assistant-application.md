@@ -20,6 +20,7 @@ applications.homeassistant
     +--> catalog mode: LidlParksideCatalog + bounded product batches
     |                  + reference-price enrichment
     |                  + shared SQLite history and alert reservations
+    |                  + optional Europe/Prague daily discount digest
     +--> RuleEngine + NotificationEngine
     +--> HomeAssistantNotificationChannel
     +--> SynchronizationWorkflow
@@ -68,6 +69,11 @@ reservations there. Catalog price alerts use a 20-percent packaged default,
 historical-high fallback and available-only matching. Both paths are inside
 Supervisor-managed persistent App storage. The App neither mounts Home
 Assistant configuration nor requests host access.
+
+ADR-0020 optionally composes one daily digest after a completed catalog cycle.
+The digest reuses the configured price threshold and notify entity, reads the
+latest SQLite state for every observed product and reserves one Europe/Prague
+calendar date before delivery. It is unavailable in explicit mode.
 
 The Supervisor token is constructor input to the REST client only. It is not
 part of `HomeAssistantConfig`, TOML, App options, logs or errors.

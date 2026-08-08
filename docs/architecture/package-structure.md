@@ -150,6 +150,8 @@ version 2. No retention deletion is automatic.
 ADR-0019 adds `SqliteNotificationReservationStore` and migrates valid schema
 version 2 databases to version 3 while preserving catalog and observation
 data. Valid version 1 databases migrate sequentially through both steps.
+ADR-0020 adds `SqliteDailyDigestReservationStore`, latest-snapshot collection
+queries and the sequential schema version 3 to 4 migration.
 
 `infrastructure.persistence.snapshot_codec` is a private shared codec used by
 JSON and SQLite persistence. It preserves exact Domain values and is not a
@@ -193,6 +195,8 @@ Infrastructure is responsible for:
 applications/
 
     catalog_monitoring/
+
+    daily_digest/
 
     synchronization/
 
@@ -245,6 +249,9 @@ composes sitemap discovery and shared SQLite persistence while preserving the
 explicit URL/JSON mode for existing option documents.
 ADR-0019 enables historical 20-percent evaluation and durable alert
 reservations only in that catalog composition.
+`applications.daily_digest` contains deterministic calendar eligibility and
+orchestration over injected Core contracts. ADR-0020 composes it only in Home
+Assistant catalog mode when explicitly enabled.
 
 ---
 

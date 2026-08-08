@@ -132,3 +132,11 @@ publishes read-only cycle and product state representations according to
 ADR-0015. This post-workflow Infrastructure side effect cannot change rule,
 notification or persistence results. A status-publication failure is reported
 and counted but does not stop later scheduled monitoring cycles.
+
+When enabled in catalog mode, ADR-0020 then invokes the reusable daily-digest
+workflow with the same cycle timestamp. Before the configured Europe/Prague
+wall-clock time it performs no persistence. At or after that time it reserves
+the local date, reads the latest persisted snapshot for every product and
+delivers one deterministic summary through the configured Home Assistant
+notify entity. The durable date prevents a restart or later cycle from
+repeating the same day's digest.

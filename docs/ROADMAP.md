@@ -279,6 +279,15 @@ Goal:
 Optionally send one Europe/Prague calendar-based daily summary of currently
 available Parkside products discounted by at least 20 percent.
 
+Deliverables:
+
+- deterministic digest selection and channel-neutral content
+- configurable `HH:MM` delivery time with Europe/Prague calendar semantics
+- restart-safe one-per-local-date SQLite reservation
+- transactional SQLite schema 3 to 4 migration
+- Home Assistant notify delivery in catalog mode
+- disabled-by-default backward-compatible option parsing
+
 ---
 
 # v0.20.0 — Home Assistant Catalog Status

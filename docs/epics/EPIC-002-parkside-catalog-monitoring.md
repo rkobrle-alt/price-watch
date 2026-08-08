@@ -48,6 +48,8 @@ define step 3 using durable refresh-attempt ordering, bounded Application
 orchestration and an opt-in Home Assistant catalog mode.
 ADR-0019 and STORY-018 define step 4 using original-price then historical-high
 reference selection and durable logical-price reservations.
+ADR-0020 and STORY-019 define step 5 using latest persisted product states,
+Europe/Prague calendar eligibility and one durable reservation per local date.
 
 ## Discount Semantics
 

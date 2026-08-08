@@ -20,6 +20,9 @@ core/notifications/
     exceptions.py
     reservation.py
     reservation_policy.py
+    daily_digest.py
+    digest_channel.py
+    digest_reservation.py
 
 infrastructure/notifications/
     __init__.py
@@ -56,6 +59,11 @@ The `core.notifications` package exports:
 - `NotificationReservationStore`
 - `NotificationReservationError`
 - `PriceDropReservationPolicy`
+- `DailyDiscountDigest`
+- `DailyDiscountDigestEngine`
+- `DailyDiscountDigestChannel`
+- `DailyDigestReservationStore`
+- `DailyDigestReservationError`
 
 ### NotificationEngine
 
@@ -107,6 +115,15 @@ type, currency and current price. `NotificationReservationStore` is a Protocol
 for atomic reservation and idempotent release. `PriceDropReservationPolicy`
 deterministically creates identities only for matching price-drop evaluations.
 Core does not persist reservations.
+
+### Daily discount digest
+
+`DailyDiscountDigestEngine` deterministically selects available products with
+an approved reference and sufficient discount from caller-supplied latest
+snapshots. It creates one immutable, channel-neutral daily message, including
+an explicit empty state. `DailyDiscountDigestChannel` and
+`DailyDigestReservationStore` are Protocols; Core performs neither delivery nor
+persistence.
 
 ---
 
