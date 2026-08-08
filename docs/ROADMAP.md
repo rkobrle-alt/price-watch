@@ -297,6 +297,15 @@ Goal:
 Expose catalog health, product counts, qualifying discounts and last discovery
 and refresh times without creating thousands of mandatory dashboard cards.
 
+Deliverables:
+
+- provider-neutral durable catalog statistics contract
+- one aggregate `sensor.price_watch_catalog` state representation
+- retained, observed, available and qualifying-discount counts
+- restart-safe last discovery and refresh-attempt timestamps
+- healthy/degraded current-cycle status
+- unchanged explicit-URL mode and existing status entities
+
 ---
 # v1.0.0
 

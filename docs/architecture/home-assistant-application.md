@@ -26,6 +26,7 @@ applications.homeassistant
     +--> SynchronizationWorkflow
     +--> IntervalScheduler
     +--> HomeAssistantStatusPublisher
+    +--> HomeAssistantCatalogStatusPublisher (catalog mode only)
 ```
 
 The first cycle starts immediately. Later cycles use fixed delay and never
@@ -40,6 +41,12 @@ After a workflow cycle completes, `HomeAssistantStatusPublisher` writes one
 cycle status and one monetary sensor state for every successfully fetched
 product. Product entity IDs derive from stable Product UUIDs. Status
 publication is best-effort observability and cannot prevent later cycles.
+
+Catalog mode additionally publishes one aggregate
+`sensor.price_watch_catalog`. Its health, retained/observed/available and
+qualifying-discount counts, configured threshold and durable last discovery and
+refresh-attempt times summarize the complete catalog without requiring product
+cards. Discount qualification reuses the deterministic Core digest engine.
 
 ---
 

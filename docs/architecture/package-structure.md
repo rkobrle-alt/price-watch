@@ -170,6 +170,9 @@ credentials and imports no Applications. It also contains the state-update
 contract and deterministic status publisher defined by ADR-0015. The publisher
 accepts Domain products and explicit cycle values; it does not own monitoring
 business logic.
+ADR-0021 adds the aggregate catalog-status publisher. It accepts one fully
+validated Home Assistant representation and performs no catalog queries or
+discount business logic.
 
 `infrastructure.scheduler` contains `SystemDelay`, the standard-library
 implementation of the Core delay boundary.
@@ -252,6 +255,9 @@ reservations only in that catalog composition.
 `applications.daily_digest` contains deterministic calendar eligibility and
 orchestration over injected Core contracts. ADR-0020 composes it only in Home
 Assistant catalog mode when explicitly enabled.
+ADR-0021 additionally composes durable catalog statistics, latest snapshots,
+the existing discount engine and aggregate Home Assistant publication in
+catalog mode.
 
 ---
 

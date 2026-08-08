@@ -50,6 +50,8 @@ ADR-0019 and STORY-018 define step 4 using original-price then historical-high
 reference selection and durable logical-price reservations.
 ADR-0020 and STORY-019 define step 5 using latest persisted product states,
 Europe/Prague calendar eligibility and one durable reservation per local date.
+ADR-0021 and STORY-020 define step 6 using durable provider-neutral catalog
+statistics and one aggregate Home Assistant catalog-health representation.
 
 ## Discount Semantics
 
