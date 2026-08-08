@@ -22,11 +22,16 @@ from applications.homeassistant.composition import (
 from core.catalog import ProductReference
 from core.domain import ProviderId, Rule, RuleType
 from core.notifications import NotificationEngine
-from core.rules import EvaluatorRegistry, RuleEngine
+from core.notifications import PriceDropReservationPolicy
+from core.rules import EvaluatorRegistry, PriceReferencePolicy, RuleEngine
 from core.rules.evaluators import BackInStockEvaluator
 from infrastructure.notifications.homeassistant import HomeAssistantNotificationChannel
 from infrastructure.persistence.memory import InMemoryStateStore
-from infrastructure.persistence.sqlite import SqliteCatalogStore, SqliteStateStore
+from infrastructure.persistence.sqlite import (
+    SqliteCatalogStore,
+    SqliteNotificationReservationStore,
+    SqliteStateStore,
+)
 from infrastructure.providers.lidl import LidlParksideCatalog
 from tests.unit.homeassistant_app.helpers import TIMESTAMP
 
@@ -79,7 +84,10 @@ def test_catalog_composition_assembles_shared_sqlite_stack() -> None:
     assert isinstance(result.catalog_workflow, CatalogMonitoringWorkflow)
     assert result.interval == timedelta(seconds=300)
     assert result.discovery_interval_cycles == 48
-    assert dict(result.rules[0].parameters) == {"percentage": Decimal("20.00")}
+    assert dict(result.rules[0].parameters) == {
+        "percentage": Decimal("20.00"),
+        "available_only": True,
+    }
     workflow = result.catalog_workflow
     assert isinstance(workflow._catalog, LidlParksideCatalog)
     assert isinstance(workflow._catalog_store, SqliteCatalogStore)
@@ -91,6 +99,10 @@ def test_catalog_composition_assembles_shared_sqlite_stack() -> None:
     synchronizer = workflow._batch_synchronizer
     assert isinstance(synchronizer, _LidlCatalogBatchSynchronizer)
     assert isinstance(synchronizer._state_store, SqliteStateStore)
+    assert isinstance(
+        synchronizer._notification_reservation_store,
+        SqliteNotificationReservationStore,
+    )
     assert synchronizer._state_store._database._path == Path(
         "/data/catalog.sqlite3"
     )
@@ -105,6 +117,18 @@ def test_batch_synchronizer_reuses_standard_workflow() -> None:
     registry = EvaluatorRegistry()
     registry.register(BackInStockEvaluator())
     store = InMemoryStateStore()
+    reservations = cast(object, type(
+        "Reservations",
+        (),
+        {
+            "reserve": lambda self, reservation, timestamp: True,
+            "release": lambda self, reservation: None,
+        },
+    )())
+    history = cast(
+        object,
+        type("History", (), {"history": lambda self, product_id: ()})(),
+    )
     synchronizer = _LidlCatalogBatchSynchronizer(
         cast(object, _TextClient()),
         lambda: TIMESTAMP,
@@ -113,6 +137,10 @@ def test_batch_synchronizer_reuses_standard_workflow() -> None:
         NotificationEngine(),
         cast(object, _Channel()),
         lambda: UUID("90000000-0000-4000-8000-000000000001"),
+        history,
+        PriceReferencePolicy(),
+        reservations,
+        PriceDropReservationPolicy(),
     )
     reference = ProductReference(
         ProviderId(UUID("018f0000-0000-7000-8000-000000000020")),

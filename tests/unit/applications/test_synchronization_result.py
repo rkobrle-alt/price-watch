@@ -44,6 +44,7 @@ def test_result_retains_typed_values_and_is_immutable() -> None:
     assert result.evaluations[0].matched
     assert result.notifications[0].message == "matched"
     assert str(result.provider_errors[0]) == "provider failed"
+    assert result.suppressed_notification_count == 0
     with pytest.raises(FrozenInstanceError):
         result.snapshots = ()
 
@@ -78,3 +79,15 @@ def test_result_rejects_invalid_collections(
 
     with pytest.raises(TypeError, match=field_name):
         SynchronizationResult(**values)
+
+
+@pytest.mark.parametrize(
+    ("value", "exception"),
+    [(True, TypeError), (1.5, TypeError), (-1, ValueError)],
+)
+def test_result_rejects_invalid_suppressed_notification_count(
+    value: object,
+    exception: type[Exception],
+) -> None:
+    with pytest.raises(exception, match="suppressed_notification_count"):
+        SynchronizationResult((), (), (), (), (), value)  # type: ignore[arg-type]

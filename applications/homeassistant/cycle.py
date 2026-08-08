@@ -93,6 +93,8 @@ def execute_catalog_cycle(
         f"products={len(products)} "
         f"evaluations={evaluation_count} "
         f"notifications={notification_count} "
+        "suppressed_notifications="
+        f"{0 if synchronization is None else synchronization.suppressed_notification_count} "
         f"snapshots={snapshot_count} "
         f"provider_errors={provider_error_count} "
         f"catalog_errors={catalog_error_count} "

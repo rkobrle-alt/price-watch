@@ -25,7 +25,6 @@ def test_sqlite_persistence_respects_dependency_boundaries() -> None:
     }
     forbidden = (
         "applications",
-        "core.notifications",
         "core.provider",
         "core.rules",
         "homeassistant",

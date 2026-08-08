@@ -10,7 +10,11 @@ import pytest
 import infrastructure.persistence.sqlite as sqlite_api
 from core.catalog import CatalogStoreError, ProductReference
 from core.state import StateSnapshot, StateStoreError
-from infrastructure.persistence.sqlite import SqliteCatalogStore, SqliteStateStore
+from infrastructure.persistence.sqlite import (
+    SqliteCatalogStore,
+    SqliteNotificationReservationStore,
+    SqliteStateStore,
+)
 from infrastructure.persistence.sqlite.database import (
     SqliteDatabase,
     SqlitePersistenceError,
@@ -27,10 +31,22 @@ _NOW = datetime(2026, 8, 3, 10, 0, tzinfo=timezone.utc)
 
 
 def test_sqlite_public_api_is_explicit_documented_and_typed() -> None:
-    assert sqlite_api.__all__ == ["SqliteCatalogStore", "SqliteStateStore"]
+    assert sqlite_api.__all__ == [
+        "SqliteCatalogStore",
+        "SqliteNotificationReservationStore",
+        "SqliteStateStore",
+    ]
     assert sqlite_api.SqliteCatalogStore is SqliteCatalogStore
     assert sqlite_api.SqliteStateStore is SqliteStateStore
-    for public_class in (SqliteCatalogStore, SqliteStateStore):
+    assert (
+        sqlite_api.SqliteNotificationReservationStore
+        is SqliteNotificationReservationStore
+    )
+    for public_class in (
+        SqliteCatalogStore,
+        SqliteNotificationReservationStore,
+        SqliteStateStore,
+    ):
         assert inspect.getdoc(public_class)
         assert inspect.getdoc(public_class.__init__)
         assert inspect.signature(public_class.__init__).return_annotation is None
@@ -47,13 +63,19 @@ def test_sqlite_public_api_is_explicit_documented_and_typed() -> None:
     )
 
 
-@pytest.mark.parametrize("store_class", [SqliteCatalogStore, SqliteStateStore])
+@pytest.mark.parametrize(
+    "store_class",
+    [SqliteCatalogStore, SqliteNotificationReservationStore, SqliteStateStore],
+)
 def test_constructor_rejects_invalid_path_type(store_class: type[object]) -> None:
     with pytest.raises(TypeError, match="path"):
         store_class("state.sqlite3")  # type: ignore[call-arg]
 
 
-@pytest.mark.parametrize("store_class", [SqliteCatalogStore, SqliteStateStore])
+@pytest.mark.parametrize(
+    "store_class",
+    [SqliteCatalogStore, SqliteNotificationReservationStore, SqliteStateStore],
+)
 @pytest.mark.parametrize("timeout", [True, 1.5, "5"])
 def test_constructor_rejects_invalid_timeout_type(
     store_class: type[object],
@@ -63,7 +85,10 @@ def test_constructor_rejects_invalid_timeout_type(
         store_class(Path("state.sqlite3"), timeout)  # type: ignore[call-arg]
 
 
-@pytest.mark.parametrize("store_class", [SqliteCatalogStore, SqliteStateStore])
+@pytest.mark.parametrize(
+    "store_class",
+    [SqliteCatalogStore, SqliteNotificationReservationStore, SqliteStateStore],
+)
 @pytest.mark.parametrize("timeout", [0, -1])
 def test_constructor_rejects_non_positive_timeout(
     store_class: type[object],
@@ -107,15 +132,25 @@ def _create_invalid_database(path: Path, kind: str) -> None:
             connection.execute("PRAGMA user_version = 1")
         else:
             _create_schema(connection)
-            connection.execute(
-                "ALTER TABLE observations ADD COLUMN unexpected TEXT"
+            table = (
+                "notification_reservations"
+                if kind == "reservation_columns"
+                else "observations"
             )
+            connection.execute(f"ALTER TABLE {table} ADD COLUMN unexpected TEXT")
         connection.commit()
 
 
 @pytest.mark.parametrize(
     "kind",
-    ["foreign", "version", "missing", "columns", "observation_columns"],
+    [
+        "foreign",
+        "version",
+        "missing",
+        "columns",
+        "observation_columns",
+        "reservation_columns",
+    ],
 )
 @pytest.mark.parametrize("store_kind", ["catalog", "state"])
 def test_invalid_schema_is_rejected_by_relevant_boundary(

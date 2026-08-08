@@ -27,12 +27,19 @@ class PriceDropEvaluator:
         timestamp: datetime,
     ) -> EvaluationResult:
         """Evaluate a current price against its previous product state."""
-        if previous is None:
+        available_only = self._available_only(rule)
+        if available_only and not current.availability:
+            return EvaluationResult(False, "Product is unavailable.", timestamp)
+
+        reference = current.original_price
+        if reference is None and previous is None:
             return EvaluationResult(False, "Previous product state is unavailable.", timestamp)
-        if previous.currency is not current.currency:
+        if reference is None:
+            reference = previous.current_price
+        if reference.currency is not current.currency:
             return EvaluationResult(False, "Product currencies do not match.", timestamp)
 
-        drop = previous.current_price.amount - current.current_price.amount
+        drop = reference.amount - current.current_price.amount
         if drop <= Decimal("0"):
             return EvaluationResult(False, "Product price did not decrease.", timestamp)
 
@@ -41,7 +48,7 @@ class PriceDropEvaluator:
             return EvaluationResult(False, "Price drop is below the fixed threshold.", timestamp)
 
         percentage_threshold = self._percentage_threshold(rule)
-        percentage_drop = drop * Decimal("100") / previous.current_price.amount
+        percentage_drop = drop * Decimal("100") / reference.amount
         if (
             percentage_threshold is not None
             and percentage_drop < percentage_threshold
@@ -52,6 +59,13 @@ class PriceDropEvaluator:
                 timestamp,
             )
         return EvaluationResult(True, "Product price decreased.", timestamp)
+
+    @staticmethod
+    def _available_only(rule: Rule) -> bool:
+        value = rule.parameters.get("available_only", False)
+        if not isinstance(value, bool):
+            raise RuleError("available_only must be a bool")
+        return value
 
     @staticmethod
     def _fixed_threshold(rule: Rule, currency: Currency) -> Decimal | None:

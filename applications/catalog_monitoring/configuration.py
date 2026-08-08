@@ -15,7 +15,7 @@ class CatalogMonitoringConfig:
     timeout_seconds: int = 10
     batch_size: int = 25
     discovery_interval_cycles: int = 288
-    price_drop_percentage: Decimal | None = None
+    price_drop_percentage: Decimal | None = Decimal("20.00")
     price_drop_amount: Decimal | None = None
 
     def __post_init__(self) -> None:

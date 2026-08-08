@@ -33,6 +33,7 @@ def test_catalog_options_use_documented_defaults_without_product_urls() -> None:
     )
     assert result.notify_entity == "notify.gmail_parkside"
     assert result.notification_title == "Price Watch"
+    assert result.catalog.price_drop_percentage == Decimal("20.00")
 
 
 def test_catalog_options_preserve_exact_custom_values() -> None:

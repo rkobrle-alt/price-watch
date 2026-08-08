@@ -149,7 +149,7 @@ def _parse_catalog_configuration(
         batch_size=batch_size,
         discovery_interval_cycles=discovery_cycles,
         price_drop_percentage=_optional_decimal(
-            document.get("price_drop_percentage"),
+            document.get("price_drop_percentage", "20.00"),
             "price_drop_percentage",
             Decimal("100"),
         ),

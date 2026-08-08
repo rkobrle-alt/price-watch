@@ -19,6 +19,10 @@ class NotificationPublicApiTests(TestCase):
             "NotificationChannel",
             "NotificationEngine",
             "NotificationError",
+            "NotificationReservation",
+            "NotificationReservationError",
+            "NotificationReservationStore",
+            "PriceDropReservationPolicy",
         }
 
         self.assertEqual(set(notifications_api.__all__), expected)

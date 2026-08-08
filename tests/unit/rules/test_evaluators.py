@@ -1,5 +1,6 @@
 """Unit tests for built-in independent rule evaluators."""
 
+from dataclasses import replace
 from decimal import Decimal
 from unittest import TestCase
 
@@ -69,6 +70,69 @@ class PriceDropEvaluatorTests(TestCase):
                     TIMESTAMP,
                 )
                 self.assertFalse(result.matched)
+
+    def test_prefers_current_original_price_over_previous_state(self) -> None:
+        current = replace(
+            create_product("80"),
+            original_price=Money(Decimal("100"), Currency.CZK),
+        )
+
+        result = self.evaluator.evaluate(
+            create_rule(
+                RuleType.PRICE_DROP,
+                parameters={"percentage": Decimal("20")},
+            ),
+            create_product("81"),
+            current,
+            TIMESTAMP,
+        )
+
+        self.assertTrue(result.matched)
+
+    def test_available_only_rejects_unavailable_product(self) -> None:
+        rule = create_rule(
+            RuleType.PRICE_DROP,
+            parameters={"available_only": True},
+        )
+
+        result = self.evaluator.evaluate(
+            rule,
+            create_product("100"),
+            create_product("80", availability=False),
+            TIMESTAMP,
+        )
+
+        self.assertFalse(result.matched)
+        self.assertIn("unavailable", result.reason)
+
+    def test_available_only_false_preserves_unavailable_matching(self) -> None:
+        rule = create_rule(
+            RuleType.PRICE_DROP,
+            parameters={"available_only": False},
+        )
+
+        result = self.evaluator.evaluate(
+            rule,
+            create_product("100"),
+            create_product("80", availability=False),
+            TIMESTAMP,
+        )
+
+        self.assertTrue(result.matched)
+
+    def test_rejects_invalid_available_only_parameter(self) -> None:
+        rule = create_rule(
+            RuleType.PRICE_DROP,
+            parameters={"available_only": "yes"},
+        )
+
+        with self.assertRaisesRegex(RuleError, "available_only"):
+            self.evaluator.evaluate(
+                rule,
+                create_product("100"),
+                create_product("80"),
+                TIMESTAMP,
+            )
 
     def test_fixed_decimal_threshold_must_be_met(self) -> None:
         below = create_rule(

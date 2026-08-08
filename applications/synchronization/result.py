@@ -17,6 +17,7 @@ class SynchronizationResult:
     notifications: tuple[Notification, ...]
     snapshots: tuple[StateSnapshot, ...]
     provider_errors: tuple[ProviderError, ...]
+    suppressed_notification_count: int = 0
 
     def __post_init__(self) -> None:
         """Validate result collection types."""
@@ -25,6 +26,13 @@ class SynchronizationResult:
         _validate_tuple(self.notifications, Notification, "notifications")
         _validate_tuple(self.snapshots, StateSnapshot, "snapshots")
         _validate_tuple(self.provider_errors, ProviderError, "provider_errors")
+        if isinstance(self.suppressed_notification_count, bool) or not isinstance(
+            self.suppressed_notification_count,
+            int,
+        ):
+            raise TypeError("suppressed_notification_count must be an int")
+        if self.suppressed_notification_count < 0:
+            raise ValueError("suppressed_notification_count cannot be negative")
 
 
 def _validate_tuple(

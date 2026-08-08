@@ -37,7 +37,7 @@ def test_configuration_uses_catalog_defaults() -> None:
     assert config.timeout_seconds == 10
     assert config.batch_size == 25
     assert config.discovery_interval_cycles == 288
-    assert config.price_drop_percentage is None
+    assert config.price_drop_percentage == Decimal("20.00")
     assert config.price_drop_amount is None
 
 

@@ -20,7 +20,7 @@ from applications.homeassistant.cycle import (
 from applications.scheduler import IntervalScheduler
 from core.catalog import CatalogStoreError
 from core.configuration import ConfigurationError
-from core.notifications import NotificationError
+from core.notifications import NotificationError, NotificationReservationError
 from core.rules import RuleError
 from core.scheduler import Delay, SchedulerError
 from core.state import StateStoreError
@@ -127,6 +127,7 @@ def run(
         StateStoreError,
         RuleError,
         NotificationError,
+        NotificationReservationError,
         SchedulerError,
     ) as error:
         _write(stderr, f"error: {error}\n")

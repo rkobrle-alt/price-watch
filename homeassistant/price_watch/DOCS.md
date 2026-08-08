@@ -32,19 +32,29 @@ integration. Change it if Home Assistant exposes another notify entity.
 
 `interval_seconds` controls the fixed delay after every completed cycle. The
 first cycle starts immediately. `price_drop_percentage` and
-`price_drop_amount` remain optional exact decimal strings. The durable
-20-percent reference and deduplication policy is planned for STORY-018; v0.17
-retains the existing previous-observation price rule.
+`price_drop_amount` remain optional exact decimal strings. Catalog mode
+defaults to 20 percent and requires the product to be available. It prefers a
+provider original price and otherwise compares with the highest prior price in
+the same currency. The same product, rule type, currency and current price is
+reserved durably and does not produce another email.
 
 ## Persistence
 
-Catalog mode stores membership, refresh ordering and complete append-only
-observations in `/data/catalog.sqlite3`. Explicit mode stores its latest
+Catalog mode stores membership, refresh ordering, complete append-only
+observations and notification reservations in `/data/catalog.sqlite3`.
+Explicit mode stores its latest
 snapshots in `/data/state.json`. Supervisor preserves both App-owned paths
 across restarts and upgrades.
 
 A valid schema-version-1 catalog database is migrated transactionally to
-version 2. Price Watch performs no automatic history deletion.
+version 2 and then version 3. A valid version-2 database migrates directly to
+version 3. Price Watch performs no automatic history deletion.
+
+SQLite reservation and Home Assistant SMTP delivery cannot share one atomic
+transaction. Ordinary reported delivery failures release the reservation for
+retry. A hard process stop after reservation but before delivery can suppress
+that one message; this trade-off prevents repeated email after a successful
+delivery followed by a state-write failure.
 
 ## Security
 

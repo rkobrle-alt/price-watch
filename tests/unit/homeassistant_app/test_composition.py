@@ -59,7 +59,7 @@ def test_composition_assembles_exact_supervisor_stack() -> None:
     assert provider._http_client._user_agent == f"PriceWatch/{VERSION}"
     assert isinstance(workflow._state_store, JsonStateStore)
     assert workflow._state_store._path == config.application.state_file
-    channel = workflow._notification_channel
+    channel = workflow._alerts._notification_channel
     assert isinstance(channel, HomeAssistantNotificationChannel)
     assert channel._entity_id == "notify.gmail_parkside"
     assert channel._title == "Parkside Price Watch"

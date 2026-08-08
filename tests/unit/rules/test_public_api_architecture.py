@@ -14,6 +14,7 @@ class RulePublicApiTests(TestCase):
         expected = {
             "EvaluationResult",
             "EvaluatorRegistry",
+            "PriceReferencePolicy",
             "RuleEngine",
             "RuleError",
             "RuleEvaluator",

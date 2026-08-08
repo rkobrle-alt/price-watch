@@ -1,8 +1,10 @@
 """Unit tests for deterministic notification generation."""
 
+from dataclasses import replace
+from decimal import Decimal
 from unittest import TestCase
 
-from core.domain import Notification
+from core.domain import Currency, Money, Notification, Percentage
 from core.notifications import NotificationEngine
 from tests.unit.notifications.helpers import (
     NOTIFICATION_ID,
@@ -50,6 +52,19 @@ class NotificationEngineTests(TestCase):
         )
 
         self.assertIsNone(result)
+
+    def test_reference_price_adds_discount_details(self) -> None:
+        product = replace(
+            self.product,
+            original_price=Money(Decimal("125"), Currency.CZK),
+            discount_percent=Percentage(Decimal("20.08")),
+        )
+
+        result = self.engine.generate(product, self.evaluation, NOTIFICATION_ID)
+
+        assert result is not None
+        self.assertIn("Reference price: 125 CZK", result.message)
+        self.assertIn("Discount: 20.08%", result.message)
 
     def test_invalid_argument_types_raise_type_error(self) -> None:
         cases = (

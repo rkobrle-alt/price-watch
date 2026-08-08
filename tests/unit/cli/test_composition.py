@@ -67,9 +67,12 @@ def test_compose_sync_builds_exact_approved_stack_and_rule_order() -> None:
     assert tuple(
         type(evaluator) for evaluator in workflow._rule_engine._registry.list()
     ) == (PriceDropEvaluator, BackInStockEvaluator)
-    assert isinstance(workflow._notification_channel, ConsoleNotificationChannel)
-    assert workflow._notification_channel._stream is stdout
-    assert workflow._notification_id_factory is fixed_notification_id
+    assert isinstance(
+        workflow._alerts._notification_channel,
+        ConsoleNotificationChannel,
+    )
+    assert workflow._alerts._notification_channel._stream is stdout
+    assert workflow._alerts._notification_id_factory is fixed_notification_id
     assert tuple(rule.rule_type for rule in composition.rules) == (
         RuleType.PRICE_DROP,
         RuleType.BACK_IN_STOCK,

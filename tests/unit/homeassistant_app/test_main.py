@@ -12,7 +12,7 @@ from applications.homeassistant.composition import _HomeAssistantComposition
 from applications.homeassistant.main import run
 from applications.synchronization import SynchronizationResult, SynchronizationWorkflow
 from core.domain import Product
-from core.notifications import NotificationError
+from core.notifications import NotificationError, NotificationReservationError
 from core.provider import FetchResult, ProviderError
 from core.rules import RuleError
 from core.scheduler import SchedulerError
@@ -243,6 +243,7 @@ def test_unexpected_status_failure_propagates(
         StateStoreError("state failed"),
         RuleError("rule failed"),
         NotificationError("delivery failed"),
+        NotificationReservationError("reservation failed"),
         SchedulerError("delay failed"),
     ],
 )

@@ -17,10 +17,15 @@ from applications.synchronization import SynchronizationResult, SynchronizationW
 from applications.version import VERSION
 from core.catalog import ProductReference
 from core.domain import Rule, RuleType
-from core.notifications import NotificationChannel, NotificationEngine
-from core.rules import EvaluatorRegistry, RuleEngine
+from core.notifications import (
+    NotificationChannel,
+    NotificationEngine,
+    NotificationReservationStore,
+    PriceDropReservationPolicy,
+)
+from core.rules import EvaluatorRegistry, PriceReferencePolicy, RuleEngine
 from core.rules.evaluators import BackInStockEvaluator, PriceDropEvaluator
-from core.state import StateStore
+from core.state import ObservationHistory, StateStore
 from infrastructure.homeassistant import (
     HomeAssistantStatusPublisher,
     UrllibHomeAssistantClient,
@@ -32,7 +37,11 @@ from infrastructure.http import (
 )
 from infrastructure.notifications.homeassistant import HomeAssistantNotificationChannel
 from infrastructure.persistence.json import JsonStateStore
-from infrastructure.persistence.sqlite import SqliteCatalogStore, SqliteStateStore
+from infrastructure.persistence.sqlite import (
+    SqliteCatalogStore,
+    SqliteNotificationReservationStore,
+    SqliteStateStore,
+)
 from infrastructure.providers.lidl import LidlParksideCatalog, LidlParksideProvider
 
 _SUPERVISOR_CORE_API = "http://supervisor/core/api"
@@ -68,6 +77,10 @@ class _LidlCatalogBatchSynchronizer:
         notification_engine: NotificationEngine,
         notification_channel: NotificationChannel,
         notification_id_factory: Callable[[], UUID],
+        observation_history: ObservationHistory,
+        price_reference_policy: PriceReferencePolicy,
+        notification_reservation_store: NotificationReservationStore,
+        price_drop_reservation_policy: PriceDropReservationPolicy,
     ) -> None:
         self._http_client = http_client
         self._clock = clock
@@ -76,6 +89,10 @@ class _LidlCatalogBatchSynchronizer:
         self._notification_engine = notification_engine
         self._notification_channel = notification_channel
         self._notification_id_factory = notification_id_factory
+        self._observation_history = observation_history
+        self._price_reference_policy = price_reference_policy
+        self._notification_reservation_store = notification_reservation_store
+        self._price_drop_reservation_policy = price_drop_reservation_policy
 
     def synchronize(
         self,
@@ -96,6 +113,10 @@ class _LidlCatalogBatchSynchronizer:
             notification_engine=self._notification_engine,
             notification_channel=self._notification_channel,
             notification_id_factory=self._notification_id_factory,
+            observation_history=self._observation_history,
+            price_reference_policy=self._price_reference_policy,
+            notification_reservation_store=self._notification_reservation_store,
+            price_drop_reservation_policy=self._price_drop_reservation_policy,
         )
         return workflow.run(rules, timestamp)
 
@@ -194,6 +215,9 @@ def _compose_catalog(
     catalog = LidlParksideCatalog(binary_client)
     catalog_store = SqliteCatalogStore(catalog_config.database_file)
     state_store = SqliteStateStore(catalog_config.database_file)
+    reservation_store = SqliteNotificationReservationStore(
+        catalog_config.database_file
+    )
     batch_synchronizer = _LidlCatalogBatchSynchronizer(
         text_client,
         clock,
@@ -202,6 +226,10 @@ def _compose_catalog(
         notification_engine,
         notification_channel,
         notification_id_factory,
+        state_store,
+        PriceReferencePolicy(),
+        reservation_store,
+        PriceDropReservationPolicy(),
     )
     catalog_workflow = CatalogMonitoringWorkflow(
         catalog,
@@ -218,6 +246,7 @@ def _compose_catalog(
         rules=_create_rules(
             catalog_config.price_drop_percentage,
             catalog_config.price_drop_amount,
+            available_only=True,
         ),
         interval=catalog_config.interval,
         discovery_interval_cycles=catalog_config.discovery_interval_cycles,
@@ -253,12 +282,16 @@ def _validate_composition_arguments(
 def _create_rules(
     percentage: Decimal | None,
     amount: Decimal | None,
+    *,
+    available_only: bool = False,
 ) -> tuple[Rule, ...]:
-    parameters: dict[str, Decimal] = {}
+    parameters: dict[str, Decimal | bool] = {}
     if percentage is not None:
         parameters["percentage"] = percentage
     if amount is not None:
         parameters["fixed_amount"] = amount
+    if available_only:
+        parameters["available_only"] = True
     return (
         Rule(
             id=_PRICE_DROP_RULE_ID,

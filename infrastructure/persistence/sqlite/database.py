@@ -3,7 +3,7 @@
 import sqlite3
 from pathlib import Path
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 
 _CATALOG_COLUMNS_V1 = (
     "sequence",
@@ -15,7 +15,15 @@ _CATALOG_COLUMNS_V1 = (
 )
 _CATALOG_COLUMNS = _CATALOG_COLUMNS_V1 + ("last_refresh_attempt_at",)
 _OBSERVATION_COLUMNS = ("sequence", "product_id", "snapshot")
-_REQUIRED_TABLES = {"catalog_entries", "observations"}
+_RESERVATION_COLUMNS = (
+    "product_id",
+    "rule_type",
+    "currency",
+    "price_amount",
+    "reserved_at",
+)
+_LEGACY_TABLES = {"catalog_entries", "observations"}
+_REQUIRED_TABLES = _LEGACY_TABLES | {"notification_reservations"}
 
 
 class SqlitePersistenceError(Exception):
@@ -65,8 +73,28 @@ class SqliteDatabase:
                 )
             _create_schema(connection)
         elif version == 1:
-            _validate_schema_columns(connection, _CATALOG_COLUMNS_V1)
+            _validate_schema_columns(
+                connection,
+                _CATALOG_COLUMNS_V1,
+                _LEGACY_TABLES,
+                False,
+            )
             _migrate_version_one(connection)
+            _validate_schema_columns(
+                connection,
+                _CATALOG_COLUMNS,
+                _LEGACY_TABLES,
+                False,
+            )
+            _migrate_version_two(connection)
+        elif version == 2:
+            _validate_schema_columns(
+                connection,
+                _CATALOG_COLUMNS,
+                _LEGACY_TABLES,
+                False,
+            )
+            _migrate_version_two(connection)
         elif version != SCHEMA_VERSION:
             raise SqlitePersistenceError(
                 f"unsupported SQLite schema version: {version}"
@@ -127,6 +155,7 @@ def _create_schema(connection: sqlite3.Connection) -> None:
                 "ON observations(product_id, sequence)"
             )
             _create_refresh_index(connection)
+            _create_reservation_table(connection)
             connection.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
     except sqlite3.Error as error:
         raise SqlitePersistenceError("failed to initialize SQLite schema") from error
@@ -141,6 +170,16 @@ def _migrate_version_one(connection: sqlite3.Connection) -> None:
                 "ADD COLUMN last_refresh_attempt_at TEXT"
             )
             _create_refresh_index(connection)
+            connection.execute("PRAGMA user_version = 2")
+    except sqlite3.Error as error:
+        raise SqlitePersistenceError("failed to migrate SQLite schema") from error
+
+
+def _migrate_version_two(connection: sqlite3.Connection) -> None:
+    try:
+        with connection:
+            connection.execute("BEGIN IMMEDIATE")
+            _create_reservation_table(connection)
             connection.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
     except sqlite3.Error as error:
         raise SqlitePersistenceError("failed to migrate SQLite schema") from error
@@ -154,21 +193,48 @@ def _create_refresh_index(connection: sqlite3.Connection) -> None:
     )
 
 
+def _create_reservation_table(connection: sqlite3.Connection) -> None:
+    connection.execute(
+        "CREATE TABLE notification_reservations ("
+        "product_id TEXT NOT NULL, "
+        "rule_type TEXT NOT NULL, "
+        "currency TEXT NOT NULL, "
+        "price_amount TEXT NOT NULL, "
+        "reserved_at TEXT NOT NULL, "
+        "PRIMARY KEY(product_id, rule_type, currency, price_amount)"
+        ")"
+    )
+
+
 def _validate_schema(connection: sqlite3.Connection) -> None:
-    _validate_schema_columns(connection, _CATALOG_COLUMNS)
+    _validate_schema_columns(
+        connection,
+        _CATALOG_COLUMNS,
+        _REQUIRED_TABLES,
+        True,
+    )
 
 
 def _validate_schema_columns(
     connection: sqlite3.Connection,
     catalog_columns: tuple[str, ...],
+    required_tables: set[str],
+    validate_reservations: bool,
 ) -> None:
     tables = _user_tables(connection)
-    if not _REQUIRED_TABLES.issubset(tables):
+    if not required_tables.issubset(tables):
         raise SqlitePersistenceError("SQLite schema is missing required tables")
     if _table_columns(connection, "catalog_entries") != catalog_columns:
         raise SqlitePersistenceError("catalog_entries schema is incompatible")
     if _table_columns(connection, "observations") != _OBSERVATION_COLUMNS:
         raise SqlitePersistenceError("observations schema is incompatible")
+    if validate_reservations and (
+        _table_columns(connection, "notification_reservations")
+        != _RESERVATION_COLUMNS
+    ):
+        raise SqlitePersistenceError(
+            "notification_reservations schema is incompatible"
+        )
 
 
 def _table_columns(

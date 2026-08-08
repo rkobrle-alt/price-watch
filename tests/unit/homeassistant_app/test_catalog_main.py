@@ -65,9 +65,17 @@ def _result(
     catalog_error: CatalogError | None = None,
     provider_errors: tuple[ProviderError, ...] = (),
     synchronization: bool = True,
+    suppressed_notifications: int = 0,
 ) -> CatalogMonitoringResult:
     sync = (
-        SynchronizationResult((), (), (), (), provider_errors)
+        SynchronizationResult(
+            (),
+            (),
+            (),
+            (),
+            provider_errors,
+            suppressed_notifications,
+        )
         if synchronization
         else None
     )
@@ -182,8 +190,24 @@ def test_empty_catalog_cycle_publishes_empty_status_and_summary() -> None:
     assert result.synchronization is None
     assert published is True
     assert "products=0" in stdout.text
+    assert "suppressed_notifications=0" in stdout.text
     publisher = cast(_StatusPublisher, composition.status_publisher)
     assert publisher.calls == [((), TIMESTAMP, 0, 0)]
+
+
+def test_catalog_summary_reports_suppressed_notifications() -> None:
+    workflow = _CatalogWorkflow([_result(suppressed_notifications=2)])
+    stdout = RecordingStream()
+
+    _execute_catalog_cycle(
+        _composition(workflow),
+        cast(TextIO, stdout),
+        cast(TextIO, RecordingStream()),
+        TIMESTAMP,
+        False,
+    )
+
+    assert "suppressed_notifications=2" in stdout.text
 
 
 def test_catalog_store_failure_returns_operational_exit_code(

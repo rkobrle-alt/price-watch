@@ -5,12 +5,18 @@ from datetime import datetime
 from typing import cast
 from uuid import UUID
 
+from applications.synchronization._alerts import _AlertCoordinator
 from applications.synchronization.result import SynchronizationResult
 from core.domain import Notification, ProviderId, Rule
-from core.notifications import NotificationChannel, NotificationEngine
+from core.notifications import (
+    NotificationChannel,
+    NotificationEngine,
+    NotificationReservationStore,
+    PriceDropReservationPolicy,
+)
 from core.provider import FetchResult, Provider, ProviderError
-from core.rules import EvaluationResult, RuleEngine
-from core.state import StateSnapshot, StateStore
+from core.rules import EvaluationResult, PriceReferencePolicy, RuleEngine
+from core.state import ObservationHistory, StateSnapshot, StateStore
 
 
 class SynchronizationWorkflow:
@@ -24,6 +30,11 @@ class SynchronizationWorkflow:
         notification_engine: NotificationEngine,
         notification_channel: NotificationChannel,
         notification_id_factory: Callable[[], UUID],
+        *,
+        observation_history: ObservationHistory | None = None,
+        price_reference_policy: PriceReferencePolicy | None = None,
+        notification_reservation_store: NotificationReservationStore | None = None,
+        price_drop_reservation_policy: PriceDropReservationPolicy | None = None,
     ) -> None:
         """Configure a reusable workflow without invoking its dependencies."""
         self._providers = _validate_providers(providers)
@@ -41,12 +52,17 @@ class SynchronizationWorkflow:
         )
         if not callable(notification_id_factory):
             raise TypeError("notification_id_factory must be callable")
-
         self._state_store = cast(StateStore, state_store)
         self._rule_engine = cast(RuleEngine, rule_engine)
-        self._notification_engine = cast(NotificationEngine, notification_engine)
-        self._notification_channel = cast(NotificationChannel, notification_channel)
-        self._notification_id_factory = notification_id_factory
+        self._alerts = _AlertCoordinator(
+            cast(NotificationEngine, notification_engine),
+            cast(NotificationChannel, notification_channel),
+            notification_id_factory,
+            observation_history,
+            price_reference_policy,
+            notification_reservation_store,
+            price_drop_reservation_policy,
+        )
 
     def run(
         self,
@@ -60,6 +76,7 @@ class SynchronizationWorkflow:
         notifications: list[Notification] = []
         snapshots: list[StateSnapshot] = []
         provider_errors: list[ProviderError] = []
+        suppressed_notification_count = 0
 
         for provider in self._providers:
             try:
@@ -73,6 +90,7 @@ class SynchronizationWorkflow:
             fetch_results.append(fetch_result)
             provider_errors.extend(fetch_result.errors)
             for product in fetch_result.products:
+                product = self._alerts.enrich(product)
                 previous_snapshot = self._state_store.load(product.id)
                 previous = (
                     None
@@ -87,13 +105,16 @@ class SynchronizationWorkflow:
                         timestamp,
                     )
                     evaluations.append(evaluation)
-                    notification = self._notification_engine.generate(
+                    notification, suppressed = self._alerts.notify(
+                        rule,
                         product,
                         evaluation,
-                        self._notification_id_factory(),
+                        timestamp,
                     )
+                    if suppressed:
+                        suppressed_notification_count += 1
+                        continue
                     if notification is not None:
-                        self._notification_channel.send(notification)
                         notifications.append(notification)
 
                 snapshot = StateSnapshot(product=product, timestamp=timestamp)
@@ -106,8 +127,8 @@ class SynchronizationWorkflow:
             notifications=tuple(notifications),
             snapshots=tuple(snapshots),
             provider_errors=tuple(provider_errors),
+            suppressed_notification_count=suppressed_notification_count,
         )
-
 
 def _validate_providers(providers: object) -> tuple[Provider, ...]:
     if not isinstance(providers, tuple):

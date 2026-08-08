@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.18.0
+
+- Compare catalog prices with provider original prices or historical highs.
+- Default catalog price-drop alerts to 20 percent and available products.
+- Persist logical-price notification reservations in SQLite.
+- Suppress repeated email for an unchanged qualifying product price.
+- Migrate valid SQLite schema versions 1 and 2 to version 3.
+
 ## 0.17.0
 
 - Discover Parkside catalog candidates from the published Lidl sitemap.
