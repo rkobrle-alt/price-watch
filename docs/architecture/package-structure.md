@@ -173,6 +173,9 @@ business logic.
 ADR-0021 adds the aggregate catalog-status publisher. It accepts one fully
 validated Home Assistant representation and performs no catalog queries or
 discount business logic.
+ADR-0022 extends that publisher with dashboard-ready numeric and timestamp
+representations while preserving the aggregate health entity and existing
+dependency boundary.
 
 `infrastructure.scheduler` contains `SystemDelay`, the standard-library
 implementation of the Core delay boundary.
@@ -258,6 +261,9 @@ Assistant catalog mode when explicitly enabled.
 ADR-0021 additionally composes durable catalog statistics, latest snapshots,
 the existing discount engine and aggregate Home Assistant publication in
 catalog mode.
+ADR-0022 passes completed synchronization notification diagnostics into the
+same catalog representation; Applications still perform no Home Assistant
+formatting or discount calculation.
 
 ---
 

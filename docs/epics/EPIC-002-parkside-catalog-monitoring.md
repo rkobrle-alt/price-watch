@@ -37,6 +37,7 @@ digest summarizes currently discounted available products.
 4. 20-percent alert reference and delivery deduplication
 5. optional calendar-based daily digest
 6. Home Assistant catalog health and summary representations
+7. dashboard-ready operational overview and diagnostics
 
 Each step requires its own accepted ADR when it introduces a new persistence,
 workflow, rule or scheduling contract.
@@ -52,6 +53,9 @@ ADR-0020 and STORY-019 define step 5 using latest persisted product states,
 Europe/Prague calendar eligibility and one durable reservation per local date.
 ADR-0021 and STORY-020 define step 6 using durable provider-neutral catalog
 statistics and one aggregate Home Assistant catalog-health representation.
+ADR-0022 and STORY-021 define step 7 by projecting the already computed
+catalog outcome into backward-compatible native Home Assistant overview
+states without changing Core or persistence.
 
 ## Discount Semantics
 
@@ -74,3 +78,5 @@ boundary between durable reservation and Home Assistant delivery.
 - the daily digest can be enabled or disabled and uses Europe/Prague calendar
   time
 - Home Assistant reports catalog health and useful aggregate counts
+- Home Assistant can display qualifying discounts, current errors and the
+  latest completed check directly on a dashboard

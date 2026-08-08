@@ -133,6 +133,12 @@ ADR-0015. This post-workflow Infrastructure side effect cannot change rule,
 notification or persistence results. A status-publication failure is reported
 and counted but does not stop later scheduled monitoring cycles.
 
+In catalog mode, ADR-0022 publishes dashboard-ready discounted-product, error
+and latest-check representations from the already assembled catalog status.
+These representations are published before the established aggregate health
+entity, so a final `ok` update indicates that Home Assistant accepted the
+complete overview for that cycle.
+
 When enabled in catalog mode, ADR-0020 then invokes the reusable daily-digest
 workflow with the same cycle timestamp. Before the configured Europe/Prague
 wall-clock time it performs no persistence. At or after that time it reserves

@@ -307,6 +307,23 @@ Deliverables:
 - unchanged explicit-URL mode and existing status entities
 
 ---
+# v0.21.0 — Home Assistant Operational Overview
+
+Goal:
+
+Make the most useful catalog outcome and current operational diagnostics
+visible directly as native Home Assistant dashboard states.
+
+Deliverables:
+
+- numeric currently discounted Parkside product state
+- numeric current-cycle catalog error state
+- latest completed catalog-check timestamp state
+- delivered and suppressed individual-alert diagnostics
+- backward-compatible `sensor.price_watch_catalog` health contract
+- unchanged Core, persistence schema, App options and explicit mode
+
+---
 # v1.0.0
 
 Stable public release.

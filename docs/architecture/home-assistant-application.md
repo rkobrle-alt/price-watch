@@ -48,6 +48,12 @@ qualifying-discount counts, configured threshold and durable last discovery and
 refresh-attempt times summarize the complete catalog without requiring product
 cards. Discount qualification reuses the deterministic Core digest engine.
 
+ADR-0022 additionally projects the same validated catalog-cycle value into
+dashboard-ready `sensor.price_watch_discounted_products`,
+`sensor.price_watch_catalog_errors` and `sensor.price_watch_last_checked`
+representations. The established aggregate health entity remains `ok` or
+`degraded` and is published last.
+
 ---
 
 ## Boundaries
