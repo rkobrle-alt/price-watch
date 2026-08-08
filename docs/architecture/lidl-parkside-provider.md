@@ -102,6 +102,10 @@ Each configured URL is processed independently. A supported failure adds one
 
 The returned product order and error order follow configured URL order.
 
+Schema.org availability values `InStock` and `OnlineOnly` map to available.
+`OutOfStock` and `SoldOut` map to unavailable. Other availability values are
+rejected as provider data errors.
+
 ---
 
 ## Boundaries
@@ -175,4 +179,3 @@ With equal page content, configured URLs and clock values, the provider
 returns equal Domain values and timing information.
 
 The only side effects are the injected clock reads and HTTP client calls.
-

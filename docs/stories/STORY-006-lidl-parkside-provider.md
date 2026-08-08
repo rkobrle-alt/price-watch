@@ -192,6 +192,7 @@ Required fields:
 Accepted availability values, with or without a schema.org URL prefix:
 
 - `InStock` maps to `True`
+- `OnlineOnly` maps to `True`
 - `OutOfStock` maps to `False`
 - `SoldOut` maps to `False`
 
@@ -296,4 +297,3 @@ No skipped tests are allowed.
 - No TODOs, placeholders, pass statements, commented-out code or dead code
   remain.
 - All tests pass with 100% statement and branch coverage.
-
