@@ -83,6 +83,10 @@ Catalog installations additionally publish one aggregate catalog-health state
 with retained, observed, available and qualifying-discount counts plus durable
 last discovery and refresh-attempt times.
 
+They also publish dashboard-ready states for the current qualifying-discount
+count, current catalog/provider error count and latest completed check time.
+The existing aggregate health state remains `ok` or `degraded`.
+
 Catalog mode uses a 20-percent default alert threshold. A provider original
 price is preferred as the reference; otherwise the highest prior
 same-currency observation is used. Durable SQLite reservations prevent an

@@ -158,6 +158,18 @@ def test_catalog_mode_discovers_and_rotates_durable_batches(
     for request in status_requests:
         assert request.data is not None
         assert json.loads(request.data)["state"] == "ok"
+    for entity_id in (
+        "sensor.price_watch_discounted_products",
+        "sensor.price_watch_catalog_errors",
+        "sensor.price_watch_last_checked",
+        "sensor.price_watch_catalog",
+    ):
+        requests = [
+            request
+            for request, _ in opener.requests
+            if request.full_url.endswith(f"/states/{entity_id}")
+        ]
+        assert len(requests) == 2
 
 
 def test_catalog_alerts_once_for_repeated_twenty_percent_price(
@@ -232,6 +244,21 @@ def test_catalog_alerts_once_for_repeated_twenty_percent_price(
     assert observation_count == (3,)
     assert stdout.text.count(" notifications=1 suppressed_notifications=") == 1
     assert stdout.text.count("suppressed_notifications=1") == 1
+    overview_payloads = [
+        json.loads(request.data)
+        for request, _ in opener.requests
+        if "/states/sensor.price_watch_discounted_products" in request.full_url
+        and request.data is not None
+    ]
+    assert [payload["state"] for payload in overview_payloads] == ["0", "1", "1"]
+    assert [
+        payload["attributes"]["notification_count"]
+        for payload in overview_payloads
+    ] == [0, 1, 0]
+    assert [
+        payload["attributes"]["suppressed_notification_count"]
+        for payload in overview_payloads
+    ] == [0, 0, 1]
 
 
 def test_daily_digest_sends_once_after_local_time_across_recomposition(

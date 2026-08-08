@@ -9,6 +9,9 @@ from infrastructure.homeassistant.client import HomeAssistantStateClient
 
 _SENSOR_ENTITY_PATTERN = re.compile(r"sensor\.[a-z0-9_]+")
 _DEFAULT_ENTITY_ID = "sensor.price_watch_catalog"
+_DISCOUNTED_ENTITY_ID = "sensor.price_watch_discounted_products"
+_ERROR_ENTITY_ID = "sensor.price_watch_catalog_errors"
+_LAST_CHECKED_ENTITY_ID = "sensor.price_watch_last_checked"
 
 
 @dataclass(frozen=True, slots=True)
@@ -25,6 +28,8 @@ class CatalogStatus:
     last_refresh_attempt_at: datetime | None
     provider_error_count: int
     catalog_error_count: int
+    notification_count: int = 0
+    suppressed_notification_count: int = 0
 
     def __post_init__(self) -> None:
         """Validate aggregate counts and chronological values."""
@@ -36,6 +41,8 @@ class CatalogStatus:
             "qualifying_discount_count",
             "provider_error_count",
             "catalog_error_count",
+            "notification_count",
+            "suppressed_notification_count",
         ):
             _validate_count(getattr(self, name), name)
         if self.available_product_count > self.observed_product_count:
@@ -83,32 +90,91 @@ class HomeAssistantCatalogStatusPublisher:
         """Publish a fully validated healthy or degraded catalog state."""
         if not isinstance(status, CatalogStatus):
             raise TypeError("status must be a CatalogStatus")
-        state = (
+        health = (
             "ok"
             if status.provider_error_count == 0 and status.catalog_error_count == 0
             else "degraded"
         )
+        timestamp_text = status.timestamp.isoformat()
+        minimum_discount = (
+            None
+            if status.minimum_discount is None
+            else str(status.minimum_discount.value)
+        )
+        self._publish_overview(status, health, timestamp_text, minimum_discount)
         self._client.set_state(
             self._entity_id,
-            state,
+            health,
             {
                 "friendly_name": "Price Watch Catalog",
-                "last_checked": status.timestamp.isoformat(),
+                "last_checked": timestamp_text,
                 "reference_count": status.reference_count,
                 "observed_product_count": status.observed_product_count,
                 "available_product_count": status.available_product_count,
                 "qualifying_discount_count": status.qualifying_discount_count,
-                "minimum_discount_percentage": (
-                    None
-                    if status.minimum_discount is None
-                    else str(status.minimum_discount.value)
-                ),
+                "minimum_discount_percentage": minimum_discount,
                 "last_discovered_at": _timestamp_text(status.last_discovered_at),
                 "last_refresh_attempt_at": _timestamp_text(
                     status.last_refresh_attempt_at
                 ),
                 "provider_error_count": status.provider_error_count,
                 "catalog_error_count": status.catalog_error_count,
+                "notification_count": status.notification_count,
+                "suppressed_notification_count": (
+                    status.suppressed_notification_count
+                ),
+                "version": self._version,
+            },
+        )
+
+    def _publish_overview(
+        self,
+        status: CatalogStatus,
+        health: str,
+        timestamp_text: str,
+        minimum_discount: str | None,
+    ) -> None:
+        self._client.set_state(
+            _DISCOUNTED_ENTITY_ID,
+            str(status.qualifying_discount_count),
+            {
+                "friendly_name": "Parkside Discounted Products",
+                "icon": "mdi:percent",
+                "unit_of_measurement": "products",
+                "last_checked": timestamp_text,
+                "reference_count": status.reference_count,
+                "observed_product_count": status.observed_product_count,
+                "available_product_count": status.available_product_count,
+                "minimum_discount_percentage": minimum_discount,
+                "notification_count": status.notification_count,
+                "suppressed_notification_count": (
+                    status.suppressed_notification_count
+                ),
+                "version": self._version,
+            },
+        )
+        self._client.set_state(
+            _ERROR_ENTITY_ID,
+            str(status.provider_error_count + status.catalog_error_count),
+            {
+                "friendly_name": "Price Watch Catalog Errors",
+                "icon": "mdi:alert-circle-outline",
+                "unit_of_measurement": "errors",
+                "last_checked": timestamp_text,
+                "provider_error_count": status.provider_error_count,
+                "catalog_error_count": status.catalog_error_count,
+                "version": self._version,
+            },
+        )
+        self._client.set_state(
+            _LAST_CHECKED_ENTITY_ID,
+            timestamp_text,
+            {
+                "friendly_name": "Price Watch Last Checked",
+                "device_class": "timestamp",
+                "icon": "mdi:clock-check-outline",
+                "last_checked": timestamp_text,
+                "catalog_health": health,
                 "version": self._version,
             },
         )

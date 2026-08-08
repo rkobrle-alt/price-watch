@@ -32,16 +32,60 @@ def _status() -> CatalogStatus:
         last_refresh_attempt_at=TIMESTAMP,
         provider_error_count=0,
         catalog_error_count=0,
+        notification_count=2,
+        suppressed_notification_count=3,
     )
 
 
 def test_publisher_emits_exact_healthy_catalog_representation() -> None:
     client = RecordingStateClient()
-    publisher = HomeAssistantCatalogStatusPublisher(client, "0.20.0")
+    publisher = HomeAssistantCatalogStatusPublisher(client, "0.21.0")
 
     publisher.publish(_status())
 
     assert client.calls == [
+        (
+            "sensor.price_watch_discounted_products",
+            "8",
+            {
+                "friendly_name": "Parkside Discounted Products",
+                "icon": "mdi:percent",
+                "unit_of_measurement": "products",
+                "last_checked": TIMESTAMP.isoformat(),
+                "reference_count": 1879,
+                "observed_product_count": 125,
+                "available_product_count": 100,
+                "minimum_discount_percentage": "20.00",
+                "notification_count": 2,
+                "suppressed_notification_count": 3,
+                "version": "0.21.0",
+            },
+        ),
+        (
+            "sensor.price_watch_catalog_errors",
+            "0",
+            {
+                "friendly_name": "Price Watch Catalog Errors",
+                "icon": "mdi:alert-circle-outline",
+                "unit_of_measurement": "errors",
+                "last_checked": TIMESTAMP.isoformat(),
+                "provider_error_count": 0,
+                "catalog_error_count": 0,
+                "version": "0.21.0",
+            },
+        ),
+        (
+            "sensor.price_watch_last_checked",
+            TIMESTAMP.isoformat(),
+            {
+                "friendly_name": "Price Watch Last Checked",
+                "device_class": "timestamp",
+                "icon": "mdi:clock-check-outline",
+                "last_checked": TIMESTAMP.isoformat(),
+                "catalog_health": "ok",
+                "version": "0.21.0",
+            },
+        ),
         (
             "sensor.price_watch_catalog",
             "ok",
@@ -57,7 +101,9 @@ def test_publisher_emits_exact_healthy_catalog_representation() -> None:
                 "last_refresh_attempt_at": TIMESTAMP.isoformat(),
                 "provider_error_count": 0,
                 "catalog_error_count": 0,
-                "version": "0.20.0",
+                "notification_count": 2,
+                "suppressed_notification_count": 3,
+                "version": "0.21.0",
             },
         )
     ]
@@ -67,7 +113,7 @@ def test_publisher_emits_degraded_state_and_unknown_optional_values() -> None:
     client = RecordingStateClient()
     publisher = HomeAssistantCatalogStatusPublisher(
         client,
-        "0.20.0",
+        "0.21.0",
         "sensor.price_watch_catalog_health",
     )
 
@@ -83,7 +129,17 @@ def test_publisher_emits_degraded_state_and_unknown_optional_values() -> None:
         )
     )
 
-    entity_id, state, attributes = client.calls[0]
+    discounted_id, discounted_state, discounted_attributes = client.calls[0]
+    assert discounted_id == "sensor.price_watch_discounted_products"
+    assert discounted_state == "0"
+    assert discounted_attributes["minimum_discount_percentage"] is None
+    error_id, error_state, error_attributes = client.calls[1]
+    assert error_id == "sensor.price_watch_catalog_errors"
+    assert error_state == "2"
+    assert error_attributes["provider_error_count"] == 1
+    assert error_attributes["catalog_error_count"] == 1
+    assert client.calls[2][2]["catalog_health"] == "degraded"
+    entity_id, state, attributes = client.calls[3]
     assert entity_id == "sensor.price_watch_catalog_health"
     assert state == "degraded"
     assert attributes["minimum_discount_percentage"] is None
@@ -94,16 +150,16 @@ def test_publisher_emits_degraded_state_and_unknown_optional_values() -> None:
 @pytest.mark.parametrize(
     ("arguments", "exception_type", "message"),
     [
-        ((object(), "0.20.0"), TypeError, "client"),
+        ((object(), "0.21.0"), TypeError, "client"),
         ((RecordingStateClient(), 1), TypeError, "version"),
         ((RecordingStateClient(), " "), ValueError, "version"),
         (
-            (RecordingStateClient(), "0.20.0", 1),
+            (RecordingStateClient(), "0.21.0", 1),
             TypeError,
             "entity_id",
         ),
         (
-            (RecordingStateClient(), "0.20.0", "binary_sensor.catalog"),
+            (RecordingStateClient(), "0.21.0", "binary_sensor.catalog"),
             ValueError,
             "entity_id",
         ),
@@ -135,6 +191,12 @@ def test_publisher_rejects_invalid_configuration(
         ({"available_product_count": 126}, ValueError, "available_product_count"),
         ({"qualifying_discount_count": 101}, ValueError, "qualifying_discount_count"),
         ({"minimum_discount": object()}, TypeError, "minimum_discount"),
+        ({"notification_count": True}, TypeError, "notification_count"),
+        (
+            {"suppressed_notification_count": -1},
+            ValueError,
+            "suppressed_notification_count",
+        ),
         (
             {"minimum_discount": None, "qualifying_discount_count": 1},
             ValueError,
@@ -164,6 +226,8 @@ def test_catalog_status_rejects_invalid_values(
         "last_refresh_attempt_at": _status().last_refresh_attempt_at,
         "provider_error_count": _status().provider_error_count,
         "catalog_error_count": _status().catalog_error_count,
+        "notification_count": _status().notification_count,
+        "suppressed_notification_count": _status().suppressed_notification_count,
     }
     values.update(changes)
 
@@ -173,7 +237,7 @@ def test_catalog_status_rejects_invalid_values(
 
 def test_publisher_rejects_invalid_status_before_side_effect() -> None:
     client = RecordingStateClient()
-    publisher = HomeAssistantCatalogStatusPublisher(client, "0.20.0")
+    publisher = HomeAssistantCatalogStatusPublisher(client, "0.21.0")
 
     with pytest.raises(TypeError, match="status"):
         publisher.publish(cast(CatalogStatus, object()))
@@ -185,7 +249,7 @@ def test_publisher_propagates_home_assistant_failure() -> None:
     failure = HomeAssistantError("state failed")
     publisher = HomeAssistantCatalogStatusPublisher(
         FailingStateClient(failure),
-        "0.20.0",
+        "0.21.0",
     )
 
     with pytest.raises(HomeAssistantError) as captured:

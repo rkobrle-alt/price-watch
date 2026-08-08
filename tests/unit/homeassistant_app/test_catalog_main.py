@@ -6,7 +6,7 @@ from dataclasses import replace
 from datetime import date, timedelta
 from decimal import Decimal
 from typing import TextIO, cast
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 
@@ -21,7 +21,7 @@ from applications.homeassistant.main import (
 )
 from applications.synchronization import SynchronizationResult
 from core.catalog import CatalogError, CatalogStatistics, CatalogStoreError
-from core.domain import Money, Percentage
+from core.domain import Money, Notification, Percentage
 from core.state import StateSnapshot
 from infrastructure.homeassistant import CatalogStatus, HomeAssistantError
 from infrastructure.providers.lidl import LidlParksideCatalog
@@ -113,12 +113,22 @@ def _result(
     provider_errors: tuple[ProviderError, ...] = (),
     synchronization: bool = True,
     suppressed_notifications: int = 0,
+    notification_count: int = 0,
 ) -> CatalogMonitoringResult:
+    notifications = tuple(
+        Notification(
+            UUID(int=index + 1),
+            create_product().id,
+            "test notification",
+            TIMESTAMP,
+        )
+        for index in range(notification_count)
+    )
     sync = (
         SynchronizationResult(
             (),
             (),
-            (),
+            notifications,
             (),
             provider_errors,
             suppressed_notifications,
@@ -283,7 +293,9 @@ def test_catalog_cycle_publishes_complete_aggregate_status() -> None:
     other_provider_product = create_product()
     publisher = _CatalogStatusPublisher()
     composition = _composition(
-        _CatalogWorkflow([_result()]),
+        _CatalogWorkflow(
+            [_result(notification_count=1, suppressed_notifications=2)]
+        ),
         catalog_publisher=publisher,
         snapshots=(
             StateSnapshot(product, TIMESTAMP),
@@ -312,6 +324,8 @@ def test_catalog_cycle_publishes_complete_aggregate_status() -> None:
             last_refresh_attempt_at=TIMESTAMP,
             provider_error_count=0,
             catalog_error_count=0,
+            notification_count=1,
+            suppressed_notification_count=2,
         )
     ]
 

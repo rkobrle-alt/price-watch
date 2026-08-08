@@ -92,6 +92,20 @@ percentage discount, the exact percentage threshold, and the durable times of
 the last successful discovery and refresh attempt. This single summary can be
 added to a dashboard without adding every product sensor.
 
+For a more useful dashboard overview, catalog mode also publishes:
+
+- `sensor.price_watch_discounted_products`, whose numeric state is the number
+  of currently available products meeting the configured percentage discount;
+- `sensor.price_watch_catalog_errors`, whose numeric state is the current
+  provider plus catalog error count;
+- `sensor.price_watch_last_checked`, whose timestamp state is the latest
+  completed catalog-cycle time.
+
+The discounted-products attributes include retained, observed and available
+counts together with successfully delivered and durably suppressed individual
+alert counts. The established `sensor.price_watch_catalog` state remains
+`ok/degraded` for backward compatibility.
+
 If percentage monitoring is disabled in favor of a fixed price amount, the
 percentage threshold is unavailable and the qualifying percentage count is
 zero.

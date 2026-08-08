@@ -53,6 +53,8 @@ def _publish_catalog_status(
     timestamp: datetime,
     provider_error_count: int,
     catalog_error_count: int,
+    notification_count: int,
+    suppressed_notification_count: int,
     stderr: TextIO,
 ) -> bool:
     context = composition.catalog_status
@@ -85,6 +87,8 @@ def _publish_catalog_status(
         last_refresh_attempt_at=statistics.last_refresh_attempt_at,
         provider_error_count=provider_error_count,
         catalog_error_count=catalog_error_count,
+        notification_count=notification_count,
+        suppressed_notification_count=suppressed_notification_count,
     )
     try:
         context.publisher.publish(status)
@@ -137,6 +141,12 @@ def execute_catalog_cycle(
         timestamp,
         provider_error_count,
         catalog_error_count,
+        notification_count,
+        (
+            0
+            if synchronization is None
+            else synchronization.suppressed_notification_count
+        ),
         stderr,
     )
     status_published = cycle_status_published and catalog_status_published
