@@ -1,7 +1,8 @@
 [project]
 name = "price-watch"
-version = "0.18.0"
+version = "0.19.0"
 requires-python = ">=3.13"
+dependencies = ["tzdata==2026.3"]
 
 [project.scripts]
 price-watch = "applications.cli:main"

@@ -3,14 +3,16 @@
 import re
 from collections.abc import Mapping
 from dataclasses import dataclass
-from datetime import timedelta
+from datetime import time, timedelta
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import cast
 
 from applications.catalog_monitoring import CatalogMonitoringConfig
+from applications.daily_digest import DailyDigestConfig
 from applications.configuration import ApplicationConfig, parse_configuration
 from core.configuration import ConfigurationError
+from core.domain import Percentage
 
 _ALLOWED_KEYS = frozenset(
     {
@@ -24,13 +26,21 @@ _ALLOWED_KEYS = frozenset(
         "catalog_enabled",
         "catalog_batch_size",
         "catalog_discovery_interval_cycles",
+        "daily_digest_enabled",
+        "daily_digest_time",
     }
 )
 _REQUIRED_KEYS = frozenset({"notify_entity", "interval_seconds"})
 _CATALOG_ONLY_KEYS = frozenset(
-    {"catalog_batch_size", "catalog_discovery_interval_cycles"}
+    {
+        "catalog_batch_size",
+        "catalog_discovery_interval_cycles",
+        "daily_digest_enabled",
+        "daily_digest_time",
+    }
 )
 _ENTITY_PATTERN = re.compile(r"notify\.[a-z0-9_]+")
+_TIME_PATTERN = re.compile(r"(?:[01][0-9]|2[0-3]):[0-5][0-9]")
 
 
 @dataclass(frozen=True, slots=True)
@@ -41,6 +51,7 @@ class HomeAssistantConfig:
     notify_entity: str
     notification_title: str = "Price Watch"
     catalog: CatalogMonitoringConfig | None = None
+    daily_digest: DailyDigestConfig | None = None
 
     def __post_init__(self) -> None:
         """Validate mode selection and Home Assistant-specific invariants."""
@@ -56,6 +67,13 @@ class HomeAssistantConfig:
             raise TypeError("catalog must be a CatalogMonitoringConfig or None")
         if (self.application is None) == (self.catalog is None):
             raise ValueError("exactly one monitoring mode must be configured")
+        if self.daily_digest is not None and not isinstance(
+            self.daily_digest,
+            DailyDigestConfig,
+        ):
+            raise TypeError("daily_digest must be a DailyDigestConfig or None")
+        if self.daily_digest is not None and self.catalog is None:
+            raise ValueError("daily digest requires catalog monitoring")
         if self.application is not None and self.application.interval is None:
             raise ValueError("application.interval is required")
         if not isinstance(self.notify_entity, str):
@@ -90,6 +108,7 @@ def parse_homeassistant_options(
         else:
             application = _parse_explicit_configuration(document, data_directory)
             catalog = None
+        daily_digest = _parse_daily_digest(document, catalog)
         return HomeAssistantConfig(
             application=application,
             catalog=catalog,
@@ -98,6 +117,7 @@ def parse_homeassistant_options(
                 str,
                 document.get("notification_title", "Price Watch"),
             ),
+            daily_digest=daily_digest,
         )
     except (TypeError, ValueError) as error:
         raise ConfigurationError(
@@ -180,6 +200,29 @@ def _application_document(
     if price_drop:
         application_document["rules"] = {"price_drop": price_drop}
     return application_document
+
+
+def _parse_daily_digest(
+    document: Mapping[str, object],
+    catalog: CatalogMonitoringConfig | None,
+) -> DailyDigestConfig | None:
+    enabled = document.get("daily_digest_enabled", False)
+    if not isinstance(enabled, bool):
+        raise TypeError("daily_digest_enabled must be a boolean")
+    if not enabled:
+        if "daily_digest_time" in document:
+            raise ValueError("daily_digest_time requires daily_digest_enabled")
+        return None
+    percentage = cast(CatalogMonitoringConfig, catalog).price_drop_percentage
+    if percentage is None:
+        raise ValueError("daily digest requires price_drop_percentage")
+    value = document.get("daily_digest_time", "08:00")
+    if not isinstance(value, str):
+        raise TypeError("daily_digest_time must be a string")
+    if _TIME_PATTERN.fullmatch(value) is None:
+        raise ValueError("daily_digest_time must use HH:MM")
+    hour, minute = (int(part) for part in value.split(":"))
+    return DailyDigestConfig(time(hour, minute), Percentage(percentage))
 
 
 def _positive_integer(value: object, name: str) -> int:

@@ -15,6 +15,7 @@ from infrastructure.homeassistant import (
     UrllibHomeAssistantClient,
 )
 from infrastructure.notifications.homeassistant import (
+    HomeAssistantDailyDiscountDigestChannel,
     HomeAssistantNotificationChannel,
 )
 
@@ -51,7 +52,10 @@ def test_homeassistant_public_apis_are_explicit_and_documented() -> None:
         "HomeAssistantStatusPublisher",
         "UrllibHomeAssistantClient",
     ]
-    assert notification_api.__all__ == ["HomeAssistantNotificationChannel"]
+    assert notification_api.__all__ == [
+        "HomeAssistantDailyDiscountDigestChannel",
+        "HomeAssistantNotificationChannel",
+    ]
     assert homeassistant_api.HomeAssistantClient is HomeAssistantClient
     assert homeassistant_api.HomeAssistantError is HomeAssistantError
     assert homeassistant_api.HomeAssistantStateClient is HomeAssistantStateClient
@@ -60,6 +64,10 @@ def test_homeassistant_public_apis_are_explicit_and_documented() -> None:
         is HomeAssistantStatusPublisher
     )
     assert homeassistant_api.UrllibHomeAssistantClient is UrllibHomeAssistantClient
+    assert (
+        notification_api.HomeAssistantDailyDiscountDigestChannel
+        is HomeAssistantDailyDiscountDigestChannel
+    )
     assert (
         notification_api.HomeAssistantNotificationChannel
         is HomeAssistantNotificationChannel
@@ -75,6 +83,7 @@ def test_homeassistant_public_apis_are_explicit_and_documented() -> None:
         HomeAssistantStateClient,
         HomeAssistantStatusPublisher,
         UrllibHomeAssistantClient,
+        HomeAssistantDailyDiscountDigestChannel,
         HomeAssistantNotificationChannel,
     ):
         assert inspect.getdoc(public_object)

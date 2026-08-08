@@ -7,3 +7,7 @@ class NotificationError(Exception):
 
 class NotificationReservationError(Exception):
     """Report persistence failures for notification reservations."""
+
+
+class DailyDigestReservationError(Exception):
+    """Report persistence failures for daily digest reservations."""

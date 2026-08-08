@@ -4,6 +4,7 @@ from datetime import datetime
 from typing import TextIO
 
 from applications.catalog_monitoring import CatalogMonitoringResult
+from applications.daily_digest import DailyDigestResult
 from applications.homeassistant.composition import _HomeAssistantComposition
 from applications.synchronization import SynchronizationResult
 from core.domain import Product
@@ -84,6 +85,8 @@ def execute_catalog_cycle(
         provider_error_count + catalog_error_count,
         stderr,
     )
+    digest_result = _run_daily_digest(composition, timestamp)
+    digest_text = _digest_summary(digest_result)
     _write(
         stdout,
         "catalog sync complete: "
@@ -98,9 +101,29 @@ def execute_catalog_cycle(
         f"snapshots={snapshot_count} "
         f"provider_errors={provider_error_count} "
         f"catalog_errors={catalog_error_count} "
+        f"{digest_text}"
         f"status_published={str(status_published).lower()}\n",
     )
     return result, status_published
+
+
+def _run_daily_digest(
+    composition: _HomeAssistantComposition,
+    timestamp: datetime,
+) -> DailyDigestResult | None:
+    workflow = composition.daily_digest_workflow
+    if workflow is None:
+        return None
+    return workflow.run(timestamp)
+
+
+def _digest_summary(result: DailyDigestResult | None) -> str:
+    if result is None:
+        return ""
+    return (
+        f"digest_status={result.status.value} "
+        f"digest_products={result.product_count} "
+    )
 
 
 def _result_products(result: SynchronizationResult) -> tuple[Product, ...]:

@@ -11,6 +11,8 @@ from applications.catalog_monitoring import (
     CatalogMonitoringWorkflow,
     CatalogMonitoringConfig,
 )
+from applications.daily_digest import DailyDigestConfig, DailyDigestWorkflow
+from applications.homeassistant.digest import compose_daily_digest
 from applications.homeassistant.configuration import HomeAssistantConfig
 from applications.configuration import ApplicationConfig
 from applications.synchronization import SynchronizationResult, SynchronizationWorkflow
@@ -59,10 +61,13 @@ class _HomeAssistantComposition:
     interval: timedelta
     catalog_workflow: CatalogMonitoringWorkflow | None = None
     discovery_interval_cycles: int = 1
+    daily_digest_workflow: DailyDigestWorkflow | None = None
 
     def __post_init__(self) -> None:
         if (self.workflow is None) == (self.catalog_workflow is None):
             raise ValueError("composition must contain exactly one workflow")
+        if self.daily_digest_workflow is not None and self.catalog_workflow is None:
+            raise ValueError("daily digest requires catalog workflow")
 
 
 class _LidlCatalogBatchSynchronizer:
@@ -160,6 +165,10 @@ def _compose_homeassistant(
             notification_channel,
             rule_engine,
             notification_engine,
+            homeassistant_client,
+            config.notify_entity,
+            config.notification_title,
+            config.daily_digest,
             clock,
             notification_id_factory,
         )
@@ -201,6 +210,10 @@ def _compose_catalog(
     notification_channel: NotificationChannel,
     rule_engine: RuleEngine,
     notification_engine: NotificationEngine,
+    homeassistant_client: UrllibHomeAssistantClient,
+    notify_entity: str,
+    notification_title: str,
+    daily_digest_config: DailyDigestConfig | None,
     clock: Callable[[], datetime],
     notification_id_factory: Callable[[], UUID],
 ) -> _HomeAssistantComposition:
@@ -250,6 +263,14 @@ def _compose_catalog(
         ),
         interval=catalog_config.interval,
         discovery_interval_cycles=catalog_config.discovery_interval_cycles,
+        daily_digest_workflow=compose_daily_digest(
+            daily_digest_config,
+            state_store,
+            catalog_config.database_file,
+            homeassistant_client,
+            notify_entity,
+            notification_title,
+        ),
     )
 
 

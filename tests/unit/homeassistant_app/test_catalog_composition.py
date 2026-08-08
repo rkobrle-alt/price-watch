@@ -1,7 +1,7 @@
 """Tests for concrete Home Assistant catalog monitoring composition."""
 
 import json
-from datetime import timedelta
+from datetime import time, timedelta
 from decimal import Decimal
 from pathlib import Path
 from typing import cast
@@ -13,6 +13,7 @@ from applications.catalog_monitoring import (
     CatalogMonitoringConfig,
     CatalogMonitoringWorkflow,
 )
+from applications.daily_digest import DailyDigestConfig, DailyDigestWorkflow
 from applications.homeassistant import HomeAssistantConfig
 from applications.homeassistant.composition import (
     _HomeAssistantComposition,
@@ -20,15 +21,19 @@ from applications.homeassistant.composition import (
     _compose_homeassistant,
 )
 from core.catalog import ProductReference
-from core.domain import ProviderId, Rule, RuleType
+from core.domain import Percentage, ProviderId, Rule, RuleType
 from core.notifications import NotificationEngine
 from core.notifications import PriceDropReservationPolicy
 from core.rules import EvaluatorRegistry, PriceReferencePolicy, RuleEngine
 from core.rules.evaluators import BackInStockEvaluator
-from infrastructure.notifications.homeassistant import HomeAssistantNotificationChannel
+from infrastructure.notifications.homeassistant import (
+    HomeAssistantDailyDiscountDigestChannel,
+    HomeAssistantNotificationChannel,
+)
 from infrastructure.persistence.memory import InMemoryStateStore
 from infrastructure.persistence.sqlite import (
     SqliteCatalogStore,
+    SqliteDailyDigestReservationStore,
     SqliteNotificationReservationStore,
     SqliteStateStore,
 )
@@ -59,7 +64,7 @@ class _Channel:
         return None
 
 
-def _catalog_config() -> HomeAssistantConfig:
+def _catalog_config(*, digest: bool = False) -> HomeAssistantConfig:
     return HomeAssistantConfig(
         application=None,
         catalog=CatalogMonitoringConfig(
@@ -72,6 +77,11 @@ def _catalog_config() -> HomeAssistantConfig:
         ),
         notify_entity="notify.gmail_parkside",
         notification_title="Parkside Catalog",
+        daily_digest=(
+            DailyDigestConfig(time(8), Percentage(Decimal("20.00")))
+            if digest
+            else None
+        ),
     )
 
 
@@ -111,6 +121,31 @@ def test_catalog_composition_assembles_shared_sqlite_stack() -> None:
     assert isinstance(channel, HomeAssistantNotificationChannel)
     assert channel._entity_id == "notify.gmail_parkside"
     assert channel._title == "Parkside Catalog"
+    assert result.daily_digest_workflow is None
+
+
+def test_catalog_composition_assembles_optional_daily_digest() -> None:
+    result = _compose_homeassistant(
+        _catalog_config(digest=True),
+        "token",
+        lambda: TIMESTAMP,
+        uuid4,
+    )
+
+    workflow = result.daily_digest_workflow
+    assert isinstance(workflow, DailyDigestWorkflow)
+    assert isinstance(workflow._snapshot_reader, SqliteStateStore)
+    assert isinstance(
+        workflow._reservation_store,
+        SqliteDailyDigestReservationStore,
+    )
+    assert isinstance(
+        workflow._digest_channel,
+        HomeAssistantDailyDiscountDigestChannel,
+    )
+    assert workflow._digest_channel._entity_id == "notify.gmail_parkside"
+    assert workflow._digest_channel._title == "Parkside Catalog Daily Digest"
+    assert str(workflow._timezone) == "Europe/Prague"
 
 
 def test_batch_synchronizer_reuses_standard_workflow() -> None:
@@ -183,6 +218,16 @@ def test_composition_dataclass_requires_exactly_one_workflow() -> None:
             status_publisher=explicit.status_publisher,
             rules=explicit.rules,
             interval=explicit.interval,
+        )
+
+    with pytest.raises(ValueError, match="daily digest"):
+        _HomeAssistantComposition(
+            workflow=cast(object, object()),
+            catalog_workflow=None,
+            status_publisher=explicit.status_publisher,
+            rules=explicit.rules,
+            interval=explicit.interval,
+            daily_digest_workflow=cast(DailyDigestWorkflow, object()),
         )
 
 

@@ -20,7 +20,11 @@ from applications.homeassistant.cycle import (
 from applications.scheduler import IntervalScheduler
 from core.catalog import CatalogStoreError
 from core.configuration import ConfigurationError
-from core.notifications import NotificationError, NotificationReservationError
+from core.notifications import (
+    DailyDigestReservationError,
+    NotificationError,
+    NotificationReservationError,
+)
 from core.rules import RuleError
 from core.scheduler import Delay, SchedulerError
 from core.state import StateStoreError
@@ -124,6 +128,7 @@ def run(
         return 130
     except (
         CatalogStoreError,
+        DailyDigestReservationError,
         StateStoreError,
         RuleError,
         NotificationError,

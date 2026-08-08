@@ -11,7 +11,7 @@ def test_app_manifest_has_exact_runtime_identity_and_defaults() -> None:
     manifest = (APP / "config.yaml").read_text(encoding="utf-8")
 
     for required in (
-        'version: "0.18.0"',
+        'version: "0.19.0"',
         "slug: price_watch",
         "  - aarch64",
         "  - amd64",
@@ -24,6 +24,8 @@ def test_app_manifest_has_exact_runtime_identity_and_defaults() -> None:
         "product_urls: []",
         "notify_entity: notify.gmail_parkside_kobrle_fomei_com",
         "interval_seconds: 300",
+        "daily_digest_enabled: true",
+        'daily_digest_time: "08:00"',
         "image: ghcr.io/rkobrle-alt/price-watch",
     ):
         assert required in manifest
@@ -52,6 +54,7 @@ def test_repository_container_and_operator_documents_are_complete() -> None:
     assert 'io.hass.type="app"' in dockerfile
     assert 'io.hass.arch="aarch64|amd64"' in dockerfile
     assert 'CMD ["python", "-m", "applications.homeassistant"]' in dockerfile
+    assert 'tzdata==2026.3' in dockerfile
     assert "SUPERVISOR_TOKEN" not in dockerfile
     assert "tests" in dockerignore
     operator_docs = (APP / "DOCS.md").read_text(encoding="utf-8")
@@ -60,6 +63,7 @@ def test_repository_container_and_operator_documents_are_complete() -> None:
     assert "not entity-registry-backed" in operator_docs
     assert "/data/catalog.sqlite3" in operator_docs
     assert "catalog_batch_size" in operator_docs
+    assert "daily_digest_enabled" in operator_docs
     for document in ("README.md", "DOCS.md", "CHANGELOG.md"):
         content = (APP / document).read_text(encoding="utf-8")
         assert content.strip()

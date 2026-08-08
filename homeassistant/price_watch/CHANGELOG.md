@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.19.0
+
+- Add an optional daily digest of currently available qualifying discounts.
+- Use Europe/Prague calendar time with a configurable `HH:MM` delivery time.
+- Persist one digest reservation per local date in SQLite schema version 4.
+- Include an explicit empty digest when no product currently qualifies.
+- Package official IANA timezone data for consistent daylight-saving behavior.
+
 ## 0.18.0
 
 - Compare catalog prices with provider original prices or historical highs.

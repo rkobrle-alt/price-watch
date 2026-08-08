@@ -107,6 +107,38 @@ def _create_version_two_database(
         connection.commit()
 
 
+def _create_version_three_database(
+    path: Path,
+    *,
+    conflicting_table: bool = False,
+) -> None:
+    _create_version_two_database(path)
+    with open_database(path) as connection:
+        connection.execute(
+            "CREATE TABLE notification_reservations ("
+            "product_id TEXT NOT NULL, rule_type TEXT NOT NULL, "
+            "currency TEXT NOT NULL, price_amount TEXT NOT NULL, "
+            "reserved_at TEXT NOT NULL, "
+            "PRIMARY KEY(product_id, rule_type, currency, price_amount))"
+        )
+        connection.execute(
+            "INSERT INTO notification_reservations VALUES (?, ?, ?, ?, ?)",
+            (
+                str(PRODUCT_ID.value),
+                "PRICE_DROP",
+                "CZK",
+                "80",
+                _NOW.isoformat(),
+            ),
+        )
+        if conflicting_table:
+            connection.execute(
+                "CREATE TABLE daily_digest_reservations (wrong TEXT)"
+            )
+        connection.execute("PRAGMA user_version = 3")
+        connection.commit()
+
+
 def test_version_one_database_migrates_without_data_loss(tmp_path: Path) -> None:
     path = tmp_path / "catalog.sqlite3"
     _create_version_one_database(path)
@@ -129,7 +161,7 @@ def test_version_one_database_migrates_without_data_loss(tmp_path: Path) -> None
         attempt = connection.execute(
             "SELECT last_refresh_attempt_at FROM catalog_entries"
         ).fetchone()
-    assert version == (3,)
+    assert version == (4,)
     assert columns == _V1_CATALOG_COLUMNS + ("last_refresh_attempt_at",)
     assert attempt == (None,)
 
@@ -151,7 +183,7 @@ def test_version_two_database_migrates_without_data_loss(tmp_path: Path) -> None
         observation_count = connection.execute(
             "SELECT COUNT(*) FROM observations"
         ).fetchone()
-    assert version == (3,)
+    assert version == (4,)
     assert reservation_columns == (
         "product_id",
         "rule_type",
@@ -160,6 +192,48 @@ def test_version_two_database_migrates_without_data_loss(tmp_path: Path) -> None
         "reserved_at",
     )
     assert observation_count == (1,)
+
+
+def test_version_three_database_migrates_without_data_loss(tmp_path: Path) -> None:
+    path = tmp_path / "catalog.sqlite3"
+    _create_version_three_database(path)
+
+    assert SqliteStateStore(path).load(PRODUCT_ID) == create_snapshot()
+
+    with open_database(path) as connection:
+        assert connection.execute("PRAGMA user_version").fetchone() == (4,)
+        assert connection.execute(
+            "SELECT product_id, rule_type, currency, price_amount, reserved_at "
+            "FROM notification_reservations"
+        ).fetchone() == (
+            str(PRODUCT_ID.value),
+            "PRICE_DROP",
+            "CZK",
+            "80",
+            _NOW.isoformat(),
+        )
+        assert connection.execute(
+            "PRAGMA table_info(daily_digest_reservations)"
+        ).fetchall()
+
+
+def test_failed_version_three_migration_rolls_back(tmp_path: Path) -> None:
+    path = tmp_path / "catalog.sqlite3"
+    _create_version_three_database(path, conflicting_table=True)
+
+    with pytest.raises(CatalogStoreError) as captured:
+        SqliteCatalogStore(path).list_entries(CATALOG_PROVIDER_ID)
+
+    assert isinstance(captured.value.__cause__, SqlitePersistenceError)
+    with open_database(path) as connection:
+        assert connection.execute("PRAGMA user_version").fetchone() == (3,)
+        columns = tuple(
+            row[1]
+            for row in connection.execute(
+                "PRAGMA table_info(daily_digest_reservations)"
+            ).fetchall()
+        )
+    assert columns == ("wrong",)
 
 
 def test_failed_version_two_migration_rolls_back(tmp_path: Path) -> None:
@@ -205,7 +279,7 @@ def test_failed_migration_rolls_back_schema_and_version(tmp_path: Path) -> None:
 def test_future_schema_version_is_rejected(tmp_path: Path) -> None:
     path = tmp_path / "catalog.sqlite3"
     with open_database(path) as connection:
-        connection.execute("PRAGMA user_version = 4")
+        connection.execute("PRAGMA user_version = 5")
         connection.commit()
 
     with pytest.raises(CatalogStoreError) as captured:

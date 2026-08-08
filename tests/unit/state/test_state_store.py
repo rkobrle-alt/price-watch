@@ -90,6 +90,7 @@ class StateStorePublicApiTests(TestCase):
 
     def test_core_state_exports(self) -> None:
         expected = {
+            "LatestSnapshotReader",
             "ObservationHistory",
             "StateSnapshot",
             "StateStore",

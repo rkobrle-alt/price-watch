@@ -2,13 +2,14 @@
 
 import importlib
 from dataclasses import dataclass, field
-from datetime import timedelta
+from datetime import date, timedelta
 from typing import TextIO, cast
 from uuid import uuid4
 
 import pytest
 
 from applications.catalog_monitoring import CatalogMonitoringResult
+from applications.daily_digest import DailyDigestResult, DailyDigestStatus
 from applications.homeassistant.composition import _HomeAssistantComposition
 from applications.homeassistant.main import (
     _execute_catalog_cycle,
@@ -60,6 +61,16 @@ class _StatusPublisher:
         )
 
 
+@dataclass(slots=True)
+class _DigestWorkflow:
+    result: DailyDigestResult
+    timestamps: list[object] = field(default_factory=list)
+
+    def run(self, timestamp: object) -> DailyDigestResult:
+        self.timestamps.append(timestamp)
+        return self.result
+
+
 def _result(
     *,
     catalog_error: CatalogError | None = None,
@@ -82,7 +93,10 @@ def _result(
     return CatalogMonitoringResult((), (), (), sync, catalog_error)
 
 
-def _composition(workflow: _CatalogWorkflow) -> _HomeAssistantComposition:
+def _composition(
+    workflow: _CatalogWorkflow,
+    digest_workflow: _DigestWorkflow | None = None,
+) -> _HomeAssistantComposition:
     return _HomeAssistantComposition(
         workflow=None,
         catalog_workflow=cast(object, workflow),
@@ -90,6 +104,7 @@ def _composition(workflow: _CatalogWorkflow) -> _HomeAssistantComposition:
         rules=(),
         interval=timedelta(seconds=300),
         discovery_interval_cycles=2,
+        daily_digest_workflow=cast(object, digest_workflow),
     )
 
 
@@ -208,6 +223,26 @@ def test_catalog_summary_reports_suppressed_notifications() -> None:
     )
 
     assert "suppressed_notifications=2" in stdout.text
+
+
+def test_enabled_digest_runs_after_status_and_is_reported() -> None:
+    workflow = _CatalogWorkflow([_result()])
+    digest = _DigestWorkflow(
+        DailyDigestResult(date(2026, 8, 1), DailyDigestStatus.SENT, 3)
+    )
+    composition = _composition(workflow, digest)
+    stdout = RecordingStream()
+
+    _execute_catalog_cycle(
+        composition,
+        cast(TextIO, stdout),
+        cast(TextIO, RecordingStream()),
+        TIMESTAMP,
+        False,
+    )
+
+    assert digest.timestamps == [TIMESTAMP]
+    assert "digest_status=sent digest_products=3" in stdout.text
 
 
 def test_catalog_store_failure_returns_operational_exit_code(

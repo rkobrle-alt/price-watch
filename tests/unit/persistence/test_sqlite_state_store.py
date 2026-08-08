@@ -8,7 +8,12 @@ from pathlib import Path
 import pytest
 
 from core.domain import ProductId
-from core.state import ObservationHistory, StateStore, StateStoreError
+from core.state import (
+    LatestSnapshotReader,
+    ObservationHistory,
+    StateStore,
+    StateStoreError,
+)
 from infrastructure.persistence.sqlite import SqliteStateStore
 from infrastructure.persistence.sqlite.database import (
     SqliteDatabase,
@@ -31,6 +36,10 @@ def _as_history(store: ObservationHistory) -> ObservationHistory:
     return store
 
 
+def _as_latest_reader(store: LatestSnapshotReader) -> LatestSnapshotReader:
+    return store
+
+
 def test_constructor_has_no_io_and_implements_both_protocols(
     tmp_path: Path,
 ) -> None:
@@ -39,6 +48,7 @@ def test_constructor_has_no_io_and_implements_both_protocols(
 
     assert _as_state_store(store) is store
     assert _as_history(store) is store
+    assert _as_latest_reader(store) is store
     assert not path.parent.exists()
 
 
@@ -50,6 +60,7 @@ def test_missing_database_and_unknown_product_return_none_and_empty(
 
     assert store.load(PRODUCT_ID) is None
     assert store.history(PRODUCT_ID) == ()
+    assert store.latest_snapshots() == ()
     assert path.exists()
 
 
@@ -104,6 +115,20 @@ def test_products_have_independent_histories(tmp_path: Path) -> None:
 
     assert store.history(PRODUCT_ID) == (first,)
     assert store.history(OTHER_PRODUCT_ID) == (other,)
+
+
+def test_latest_snapshots_returns_last_value_per_product_in_id_order(
+    tmp_path: Path,
+) -> None:
+    store = SqliteStateStore(tmp_path / "state.sqlite3")
+    first = create_snapshot(amount="100")
+    latest = create_snapshot(amount="80")
+    other = create_snapshot(product_id=OTHER_PRODUCT_ID, amount="300")
+    store.save(other)
+    store.save(first)
+    store.save(latest)
+
+    assert store.latest_snapshots() == (latest, other)
 
 
 @pytest.mark.parametrize(
@@ -196,7 +221,7 @@ def test_history_rejects_non_positive_limit_before_io(
 
 
 @pytest.mark.parametrize("payload", ["{broken", "[]"])
-@pytest.mark.parametrize("method", ["load", "history"])
+@pytest.mark.parametrize("method", ["load", "history", "latest_snapshots"])
 def test_read_wraps_invalid_snapshot_payload(
     tmp_path: Path,
     payload: str,
@@ -213,7 +238,10 @@ def test_read_wraps_invalid_snapshot_payload(
         connection.commit()
 
     with pytest.raises(StateStoreError, match="invalid persisted") as captured:
-        getattr(store, method)(PRODUCT_ID)
+        if method == "latest_snapshots":
+            store.latest_snapshots()
+        else:
+            getattr(store, method)(PRODUCT_ID)
 
     assert captured.value.__cause__ is not None
 
@@ -234,6 +262,9 @@ def test_read_wraps_indexed_product_id_mismatch(tmp_path: Path) -> None:
 
     assert captured.value.__cause__ is not None
 
+    with pytest.raises(StateStoreError):
+        store.latest_snapshots()
+
 
 def test_non_string_snapshot_value_is_rejected(tmp_path: Path) -> None:
     path = tmp_path / "state.sqlite3"
@@ -252,7 +283,7 @@ def test_non_string_snapshot_value_is_rejected(tmp_path: Path) -> None:
     assert captured.value.__cause__ is not None
 
 
-@pytest.mark.parametrize("operation", ["save", "history"])
+@pytest.mark.parametrize("operation", ["save", "history", "latest"])
 def test_additional_operations_wrap_connect_failure(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -272,8 +303,10 @@ def test_additional_operations_wrap_connect_failure(
     with pytest.raises(StateStoreError) as captured:
         if operation == "save":
             store.save(create_snapshot())
-        else:
+        elif operation == "history":
             store.history(PRODUCT_ID)
+        else:
+            store.latest_snapshots()
 
     assert captured.value.__cause__ is not None
 

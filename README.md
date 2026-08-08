@@ -84,6 +84,13 @@ price is preferred as the reference; otherwise the highest prior
 same-currency observation is used. Durable SQLite reservations prevent an
 unchanged qualifying product price from repeatedly sending email.
 
+New Home Assistant installations also enable one daily Parkside discount
+digest at 08:00 Europe/Prague. It summarizes the latest available products
+meeting the configured percentage, including an explicit empty result. A
+durable local-date reservation prevents repeated daily email after later
+cycles or App restart. Existing option documents remain opted out until
+`daily_digest_enabled` is added.
+
 ## Development
 
 The project requires Python 3.13 or newer.

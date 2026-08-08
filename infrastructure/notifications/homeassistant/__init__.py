@@ -3,5 +3,11 @@
 from infrastructure.notifications.homeassistant.channel import (
     HomeAssistantNotificationChannel,
 )
+from infrastructure.notifications.homeassistant.digest_channel import (
+    HomeAssistantDailyDiscountDigestChannel,
+)
 
-__all__ = ["HomeAssistantNotificationChannel"]
+__all__ = [
+    "HomeAssistantDailyDiscountDigestChannel",
+    "HomeAssistantNotificationChannel",
+]

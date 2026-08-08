@@ -2,6 +2,7 @@
 
 import importlib
 import json
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import TextIO, cast
 from uuid import uuid4
@@ -56,6 +57,14 @@ class _SingleCatalog(_Catalog):
 
 
 class _ChangingTextClient:
+    def __init__(self) -> None:
+        self._prices = iter(("100.00", "80.00", "80.00"))
+
+    def get(self, url: str) -> str:
+        return _page(price=next(self._prices), availability="InStock")
+
+
+class _DigestChangingTextClient:
     def __init__(self) -> None:
         self._prices = iter(("100.00", "80.00", "80.00"))
 
@@ -135,7 +144,7 @@ def test_catalog_mode_discovers_and_rotates_durable_batches(
     assert catalog_count == (2,)
     assert attempted_count == (2,)
     assert observation_count == (2,)
-    assert version == (3,)
+    assert version == (4,)
     assert stdout.text.count("catalog sync complete:") == 2
     assert "selected=1" in stdout.text
     assert stderr.text == ""
@@ -223,3 +232,87 @@ def test_catalog_alerts_once_for_repeated_twenty_percent_price(
     assert observation_count == (3,)
     assert stdout.text.count(" notifications=1 suppressed_notifications=") == 1
     assert stdout.text.count("suppressed_notifications=1") == 1
+
+
+def test_daily_digest_sends_once_after_local_time_across_recomposition(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    _SingleCatalog.calls = 0
+    text_client = _DigestChangingTextClient()
+    opener = CapturingOpener()
+    original_client = UrllibHomeAssistantClient
+    monkeypatch.setattr(_composition, "LidlParksideCatalog", _SingleCatalog)
+    monkeypatch.setattr(
+        _composition,
+        "UrllibBinaryHttpClient",
+        lambda **keywords: object(),
+    )
+    monkeypatch.setattr(
+        _composition,
+        "UrllibTextHttpClient",
+        lambda **keywords: text_client,
+    )
+    monkeypatch.setattr(
+        _composition,
+        "UrllibHomeAssistantClient",
+        lambda base_url, access_token, timeout_seconds, user_agent: original_client(
+            base_url,
+            access_token,
+            timeout_seconds,
+            user_agent,
+            opener=opener,
+        ),
+    )
+    options = {
+        "catalog_enabled": True,
+        "notify_entity": "notify.gmail_parkside",
+        "notification_title": "Parkside",
+        "interval_seconds": 60,
+        "catalog_batch_size": 1,
+        "catalog_discovery_interval_cycles": 10,
+        "daily_digest_enabled": True,
+        "daily_digest_time": "08:00",
+    }
+    outputs: list[RecordingStream] = []
+
+    for timestamp in (
+        datetime(2026, 8, 8, 5, 0, tzinfo=UTC),
+        datetime(2026, 8, 8, 6, 0, tzinfo=UTC),
+        datetime(2026, 8, 8, 7, 0, tzinfo=UTC),
+    ):
+        stdout = RecordingStream()
+        outputs.append(stdout)
+        assert run(
+            options,
+            "supervisor-token",
+            cast(TextIO, stdout),
+            cast(TextIO, RecordingStream()),
+            lambda timestamp=timestamp: timestamp,
+            uuid4,
+            RecordingDelay(),
+            data_directory=tmp_path,
+            max_cycles=1,
+        ) == 0
+
+    notification_payloads = [
+        json.loads(request.data)
+        for request, _ in opener.requests
+        if "/services/notify/send_message" in request.full_url
+        and request.data is not None
+    ]
+    digest_payloads = [
+        payload
+        for payload in notification_payloads
+        if payload["title"] == "Parkside Daily Digest"
+    ]
+    assert len(digest_payloads) == 1
+    assert "Discounted products: 1" in digest_payloads[0]["message"]
+    assert "Reference price: 100.00 CZK" in digest_payloads[0]["message"]
+    assert "digest_status=not_due" in outputs[0].text
+    assert "digest_status=sent digest_products=1" in outputs[1].text
+    assert "digest_status=already_sent" in outputs[2].text
+    with open_database(tmp_path / "catalog.sqlite3") as connection:
+        assert connection.execute(
+            "SELECT calendar_date FROM daily_digest_reservations"
+        ).fetchall() == [("2026-08-08",)]

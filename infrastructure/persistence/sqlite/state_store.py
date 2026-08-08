@@ -109,6 +109,28 @@ class SqliteStateStore:
             if connection is not None:
                 _close_state_connection(self._database, connection)
 
+    def latest_snapshots(self) -> tuple[StateSnapshot, ...]:
+        """Return one last-inserted snapshot per product in ID order."""
+        connection: sqlite3.Connection | None = None
+        try:
+            connection = self._database.open()
+            rows = connection.execute(
+                "SELECT observations.product_id, observations.snapshot "
+                "FROM observations JOIN ("
+                "SELECT product_id, MAX(sequence) AS latest_sequence "
+                "FROM observations GROUP BY product_id"
+                ") AS latest ON observations.sequence = latest.latest_sequence "
+                "ORDER BY observations.product_id"
+            ).fetchall()
+            return tuple(_decode_payload(row[1], row[0]) for row in rows)
+        except (json.JSONDecodeError, SnapshotCodecError) as error:
+            raise StateStoreError("invalid persisted SQLite observation") from error
+        except (sqlite3.Error, SqlitePersistenceError) as error:
+            raise StateStoreError("failed to read latest SQLite states") from error
+        finally:
+            if connection is not None:
+                _close_state_connection(self._database, connection)
+
 
 def _validate_product_id(product_id: object) -> None:
     if not isinstance(product_id, ProductId):

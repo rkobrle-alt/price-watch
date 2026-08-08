@@ -12,6 +12,7 @@ from core.catalog import CatalogStoreError, ProductReference
 from core.state import StateSnapshot, StateStoreError
 from infrastructure.persistence.sqlite import (
     SqliteCatalogStore,
+    SqliteDailyDigestReservationStore,
     SqliteNotificationReservationStore,
     SqliteStateStore,
 )
@@ -33,10 +34,15 @@ _NOW = datetime(2026, 8, 3, 10, 0, tzinfo=timezone.utc)
 def test_sqlite_public_api_is_explicit_documented_and_typed() -> None:
     assert sqlite_api.__all__ == [
         "SqliteCatalogStore",
+        "SqliteDailyDigestReservationStore",
         "SqliteNotificationReservationStore",
         "SqliteStateStore",
     ]
     assert sqlite_api.SqliteCatalogStore is SqliteCatalogStore
+    assert (
+        sqlite_api.SqliteDailyDigestReservationStore
+        is SqliteDailyDigestReservationStore
+    )
     assert sqlite_api.SqliteStateStore is SqliteStateStore
     assert (
         sqlite_api.SqliteNotificationReservationStore
@@ -44,6 +50,7 @@ def test_sqlite_public_api_is_explicit_documented_and_typed() -> None:
     )
     for public_class in (
         SqliteCatalogStore,
+        SqliteDailyDigestReservationStore,
         SqliteNotificationReservationStore,
         SqliteStateStore,
     ):
@@ -65,7 +72,12 @@ def test_sqlite_public_api_is_explicit_documented_and_typed() -> None:
 
 @pytest.mark.parametrize(
     "store_class",
-    [SqliteCatalogStore, SqliteNotificationReservationStore, SqliteStateStore],
+    [
+        SqliteCatalogStore,
+        SqliteDailyDigestReservationStore,
+        SqliteNotificationReservationStore,
+        SqliteStateStore,
+    ],
 )
 def test_constructor_rejects_invalid_path_type(store_class: type[object]) -> None:
     with pytest.raises(TypeError, match="path"):
@@ -74,7 +86,12 @@ def test_constructor_rejects_invalid_path_type(store_class: type[object]) -> Non
 
 @pytest.mark.parametrize(
     "store_class",
-    [SqliteCatalogStore, SqliteNotificationReservationStore, SqliteStateStore],
+    [
+        SqliteCatalogStore,
+        SqliteDailyDigestReservationStore,
+        SqliteNotificationReservationStore,
+        SqliteStateStore,
+    ],
 )
 @pytest.mark.parametrize("timeout", [True, 1.5, "5"])
 def test_constructor_rejects_invalid_timeout_type(
@@ -87,7 +104,12 @@ def test_constructor_rejects_invalid_timeout_type(
 
 @pytest.mark.parametrize(
     "store_class",
-    [SqliteCatalogStore, SqliteNotificationReservationStore, SqliteStateStore],
+    [
+        SqliteCatalogStore,
+        SqliteDailyDigestReservationStore,
+        SqliteNotificationReservationStore,
+        SqliteStateStore,
+    ],
 )
 @pytest.mark.parametrize("timeout", [0, -1])
 def test_constructor_rejects_non_positive_timeout(
@@ -135,7 +157,11 @@ def _create_invalid_database(path: Path, kind: str) -> None:
             table = (
                 "notification_reservations"
                 if kind == "reservation_columns"
-                else "observations"
+                else (
+                    "daily_digest_reservations"
+                    if kind == "digest_reservation_columns"
+                    else "observations"
+                )
             )
             connection.execute(f"ALTER TABLE {table} ADD COLUMN unexpected TEXT")
         connection.commit()
@@ -150,6 +176,7 @@ def _create_invalid_database(path: Path, kind: str) -> None:
         "columns",
         "observation_columns",
         "reservation_columns",
+        "digest_reservation_columns",
     ],
 )
 @pytest.mark.parametrize("store_kind", ["catalog", "state"])

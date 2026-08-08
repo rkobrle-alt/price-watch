@@ -38,17 +38,26 @@ provider original price and otherwise compares with the highest prior price in
 the same currency. The same product, rule type, currency and current price is
 reserved durably and does not produce another email.
 
+In catalog mode, `daily_digest_enabled` optionally sends one summary per
+Europe/Prague calendar date. `daily_digest_time` uses exact 24-hour `HH:MM`
+local time and defaults to `08:00`. The first completed cycle at or after that
+time sends the digest. Later cycles and App restarts on the same date do not
+repeat it. The digest uses `price_drop_percentage`, includes only available
+products with an approved reference price, and sends an explicit empty summary
+when none qualify.
+
 ## Persistence
 
 Catalog mode stores membership, refresh ordering, complete append-only
-observations and notification reservations in `/data/catalog.sqlite3`.
+observations, notification reservations and daily digest reservations in
+`/data/catalog.sqlite3`.
 Explicit mode stores its latest
 snapshots in `/data/state.json`. Supervisor preserves both App-owned paths
 across restarts and upgrades.
 
-A valid schema-version-1 catalog database is migrated transactionally to
-version 2 and then version 3. A valid version-2 database migrates directly to
-version 3. Price Watch performs no automatic history deletion.
+A valid schema-version-1 catalog database is migrated transactionally through
+versions 2, 3 and 4. Valid version-2 and version-3 databases continue through
+the remaining migrations. Price Watch performs no automatic history deletion.
 
 SQLite reservation and Home Assistant SMTP delivery cannot share one atomic
 transaction. Ordinary reported delivery failures release the reservation for
