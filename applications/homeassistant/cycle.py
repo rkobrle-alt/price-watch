@@ -9,7 +9,11 @@ from applications.homeassistant.composition import _HomeAssistantComposition
 from applications.synchronization import SynchronizationResult
 from core.domain import Product
 from core.notifications import DailyDiscountDigestEngine
-from infrastructure.homeassistant import CatalogStatus, HomeAssistantError
+from infrastructure.homeassistant import (
+    CatalogStatus,
+    HomeAssistantError,
+    StorageStatus,
+)
 
 
 def execute_explicit_cycle(
@@ -149,7 +153,16 @@ def execute_catalog_cycle(
         ),
         stderr,
     )
-    status_published = cycle_status_published and catalog_status_published
+    storage_status_published = _publish_storage_status(
+        composition,
+        timestamp,
+        stderr,
+    )
+    status_published = (
+        cycle_status_published
+        and catalog_status_published
+        and storage_status_published
+    )
     digest_result = _run_daily_digest(composition, timestamp)
     digest_text = _digest_summary(digest_result)
     _write(
@@ -170,6 +183,40 @@ def execute_catalog_cycle(
         f"status_published={str(status_published).lower()}\n",
     )
     return result, status_published
+
+
+def publish_storage_warning(
+    composition: _HomeAssistantComposition,
+    timestamp: datetime,
+    stderr: TextIO,
+) -> bool:
+    """Publish a best-effort warning without reading failed persistence."""
+    context = composition.storage_status
+    if context is None:
+        raise ValueError("storage status composition is required")
+    try:
+        context.publisher.publish(StorageStatus(timestamp, None))
+    except HomeAssistantError as error:
+        _write(stderr, f"storage status error: {error}\n")
+        return False
+    return True
+
+
+def _publish_storage_status(
+    composition: _HomeAssistantComposition,
+    timestamp: datetime,
+    stderr: TextIO,
+) -> bool:
+    context = composition.storage_status
+    if context is None:
+        raise ValueError("storage status composition is required")
+    statistics = context.statistics_reader.observation_statistics()
+    try:
+        context.publisher.publish(StorageStatus(timestamp, statistics))
+    except HomeAssistantError as error:
+        _write(stderr, f"storage status error: {error}\n")
+        return False
+    return True
 
 
 def _run_daily_digest(

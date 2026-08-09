@@ -14,6 +14,8 @@ from infrastructure.homeassistant import (
     HomeAssistantError,
     HomeAssistantStateClient,
     HomeAssistantStatusPublisher,
+    HomeAssistantStorageStatusPublisher,
+    StorageStatus,
     UrllibHomeAssistantClient,
 )
 from infrastructure.notifications.homeassistant import (
@@ -54,6 +56,8 @@ def test_homeassistant_public_apis_are_explicit_and_documented() -> None:
         "HomeAssistantError",
         "HomeAssistantStateClient",
         "HomeAssistantStatusPublisher",
+        "HomeAssistantStorageStatusPublisher",
+        "StorageStatus",
         "UrllibHomeAssistantClient",
     ]
     assert notification_api.__all__ == [
@@ -76,6 +80,11 @@ def test_homeassistant_public_apis_are_explicit_and_documented() -> None:
     )
     assert homeassistant_api.UrllibHomeAssistantClient is UrllibHomeAssistantClient
     assert (
+        homeassistant_api.HomeAssistantStorageStatusPublisher
+        is HomeAssistantStorageStatusPublisher
+    )
+    assert homeassistant_api.StorageStatus is StorageStatus
+    assert (
         notification_api.HomeAssistantDailyDiscountDigestChannel
         is HomeAssistantDailyDiscountDigestChannel
     )
@@ -95,6 +104,8 @@ def test_homeassistant_public_apis_are_explicit_and_documented() -> None:
         HomeAssistantError,
         HomeAssistantStateClient,
         HomeAssistantStatusPublisher,
+        HomeAssistantStorageStatusPublisher,
+        StorageStatus,
         UrllibHomeAssistantClient,
         HomeAssistantDailyDiscountDigestChannel,
         HomeAssistantNotificationChannel,
@@ -111,7 +122,7 @@ def test_homeassistant_dependency_direction_and_secret_boundary() -> None:
 
     assert not any(name.startswith("applications") for name in imports)
     core_imports = {name for name in imports if name.startswith("core")}
-    assert core_imports == {"core.domain"}
+    assert core_imports == {"core.domain", "core.state"}
     assert not any(name.startswith("applications") for name in notification_imports)
     for package in (homeassistant, notification):
         for module in package.rglob("*.py"):

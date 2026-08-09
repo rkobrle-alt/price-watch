@@ -16,6 +16,7 @@ from applications.homeassistant.configuration import parse_homeassistant_options
 from applications.homeassistant.cycle import (
     execute_catalog_cycle as _execute_catalog_cycle,
     execute_explicit_cycle as _execute_cycle,
+    publish_storage_warning as _publish_storage_warning,
 )
 from applications.scheduler import IntervalScheduler
 from core.catalog import CatalogStoreError
@@ -82,23 +83,33 @@ def run(
     def cycle() -> None:
         nonlocal completed, provider_error_cycles
         nonlocal catalog_error_cycles, status_error_cycles
+        timestamp = clock()
         if composition.catalog_workflow is None:
             result, status_published = _execute_cycle(
                 composition,
                 stdout,
                 stderr,
-                clock(),
+                timestamp,
             )
             has_provider_errors = bool(result.provider_errors)
             has_catalog_error = False
         else:
-            catalog_result, status_published = _execute_catalog_cycle(
-                composition,
-                stdout,
-                stderr,
-                clock(),
-                completed % composition.discovery_interval_cycles == 0,
-            )
+            try:
+                catalog_result, status_published = _execute_catalog_cycle(
+                    composition,
+                    stdout,
+                    stderr,
+                    timestamp,
+                    completed % composition.discovery_interval_cycles == 0,
+                )
+            except (
+                CatalogStoreError,
+                DailyDigestReservationError,
+                NotificationReservationError,
+                StateStoreError,
+            ):
+                _publish_storage_warning(composition, timestamp, stderr)
+                raise
             synchronization = catalog_result.synchronization
             has_provider_errors = bool(
                 synchronization is not None and synchronization.provider_errors

@@ -14,6 +14,8 @@ from applications.catalog_monitoring import CatalogMonitoringResult
 from applications.daily_digest import DailyDigestResult, DailyDigestStatus
 from applications.homeassistant.composition import _HomeAssistantComposition
 from applications.homeassistant.composition import _CatalogStatusComposition
+from applications.homeassistant.composition import _StorageStatusComposition
+from applications.homeassistant.cycle import publish_storage_warning
 from applications.homeassistant.main import (
     _execute_catalog_cycle,
     _execute_cycle,
@@ -22,8 +24,16 @@ from applications.homeassistant.main import (
 from applications.synchronization import SynchronizationResult
 from core.catalog import CatalogError, CatalogStatistics, CatalogStoreError
 from core.domain import Money, Notification, Percentage
-from core.state import StateSnapshot
-from infrastructure.homeassistant import CatalogStatus, HomeAssistantError
+from core.notifications import (
+    DailyDigestReservationError,
+    NotificationReservationError,
+)
+from core.state import ObservationStatistics, StateSnapshot, StateStoreError
+from infrastructure.homeassistant import (
+    CatalogStatus,
+    HomeAssistantError,
+    StorageStatus,
+)
 from infrastructure.providers.lidl import LidlParksideCatalog
 from core.provider import ProviderError
 from tests.unit.homeassistant_app.helpers import (
@@ -81,6 +91,17 @@ class _CatalogStatusPublisher:
 
 
 @dataclass(slots=True)
+class _StorageStatusPublisher:
+    calls: list[StorageStatus] = field(default_factory=list)
+    failure: HomeAssistantError | None = None
+
+    def publish(self, status: StorageStatus) -> None:
+        if self.failure is not None:
+            raise self.failure
+        self.calls.append(status)
+
+
+@dataclass(slots=True)
 class _StatisticsReader:
     statistics: CatalogStatistics = CatalogStatistics(10, TIMESTAMP, TIMESTAMP)
 
@@ -95,6 +116,20 @@ class _SnapshotReader:
 
     def latest_snapshots(self) -> tuple[StateSnapshot, ...]:
         return self.snapshots
+
+
+@dataclass(slots=True)
+class _ObservationStatisticsReader:
+    statistics: ObservationStatistics = ObservationStatistics(
+        20,
+        10,
+        TIMESTAMP,
+        TIMESTAMP,
+        4096,
+    )
+
+    def observation_statistics(self) -> ObservationStatistics:
+        return self.statistics
 
 
 @dataclass(slots=True)
@@ -144,6 +179,7 @@ def _composition(
     digest_workflow: _DigestWorkflow | None = None,
     *,
     catalog_publisher: _CatalogStatusPublisher | None = None,
+    storage_publisher: _StorageStatusPublisher | None = None,
     snapshots: tuple[StateSnapshot, ...] = (),
     minimum_discount: Percentage | None = Percentage(Decimal("20.00")),
 ) -> _HomeAssistantComposition:
@@ -162,6 +198,13 @@ def _composition(
             snapshot_reader=cast(object, _SnapshotReader(snapshots)),
             provider_id=LidlParksideCatalog.id,
             minimum_discount=minimum_discount,
+        ),
+        storage_status=_StorageStatusComposition(
+            publisher=cast(
+                object,
+                storage_publisher or _StorageStatusPublisher(),
+            ),
+            statistics_reader=cast(object, _ObservationStatisticsReader()),
         ),
     )
 
@@ -328,6 +371,15 @@ def test_catalog_cycle_publishes_complete_aggregate_status() -> None:
             suppressed_notification_count=2,
         )
     ]
+    storage_context = composition.storage_status
+    assert storage_context is not None
+    storage_publisher = cast(_StorageStatusPublisher, storage_context.publisher)
+    assert storage_publisher.calls == [
+        StorageStatus(
+            TIMESTAMP,
+            ObservationStatistics(20, 10, TIMESTAMP, TIMESTAMP, 4096),
+        )
+    ]
 
 
 def test_disabled_percentage_and_catalog_status_failure_are_reported() -> None:
@@ -352,6 +404,26 @@ def test_disabled_percentage_and_catalog_status_failure_are_reported() -> None:
     assert stderr.text == "catalog status error: aggregate failed\n"
 
 
+def test_storage_status_failure_is_non_fatal_and_reported() -> None:
+    failure = HomeAssistantError("storage publish failed")
+    composition = _composition(
+        _CatalogWorkflow([_result()]),
+        storage_publisher=_StorageStatusPublisher(failure=failure),
+    )
+    stderr = RecordingStream()
+
+    _, published = _execute_catalog_cycle(
+        composition,
+        cast(TextIO, RecordingStream()),
+        cast(TextIO, stderr),
+        TIMESTAMP,
+        False,
+    )
+
+    assert published is False
+    assert stderr.text == "storage status error: storage publish failed\n"
+
+
 def test_enabled_digest_runs_after_status_and_is_reported() -> None:
     workflow = _CatalogWorkflow([_result()])
     digest = _DigestWorkflow(
@@ -372,12 +444,22 @@ def test_enabled_digest_runs_after_status_and_is_reported() -> None:
     assert "digest_status=sent digest_products=3" in stdout.text
 
 
-def test_catalog_store_failure_returns_operational_exit_code(
+@pytest.mark.parametrize(
+    "failure",
+    [
+        CatalogStoreError("catalog database failed"),
+        StateStoreError("state database failed"),
+        NotificationReservationError("reservation database failed"),
+        DailyDigestReservationError("digest database failed"),
+    ],
+)
+def test_persistence_failure_publishes_warning_and_returns_operational_exit_code(
     monkeypatch: pytest.MonkeyPatch,
+    failure: Exception,
 ) -> None:
     class _FailingWorkflow:
         def run(self, rules: tuple, timestamp: object, discover: bool) -> None:
-            raise CatalogStoreError("database failed")
+            raise failure
 
     composition = _composition(cast(_CatalogWorkflow, _FailingWorkflow()))
     monkeypatch.setattr(
@@ -404,7 +486,56 @@ def test_catalog_store_failure_returns_operational_exit_code(
     )
 
     assert exit_code == 1
-    assert stderr.text == "error: database failed\n"
+    assert stderr.text == f"error: {failure}\n"
+    storage_context = composition.storage_status
+    assert storage_context is not None
+    publisher = cast(_StorageStatusPublisher, storage_context.publisher)
+    assert publisher.calls == [StorageStatus(TIMESTAMP, None)]
+
+
+def test_warning_publication_failure_does_not_mask_persistence_failure(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    failure = StateStoreError("database failed")
+
+    class _FailingWorkflow:
+        def run(self, rules: tuple, timestamp: object, discover: bool) -> None:
+            raise failure
+
+    composition = _composition(
+        cast(_CatalogWorkflow, _FailingWorkflow()),
+        storage_publisher=_StorageStatusPublisher(
+            failure=HomeAssistantError("warning failed")
+        ),
+    )
+    monkeypatch.setattr(
+        _homeassistant_main,
+        "parse_homeassistant_options",
+        lambda options, data_directory: object(),
+    )
+    monkeypatch.setattr(
+        _homeassistant_main,
+        "_compose_homeassistant",
+        lambda config, token, clock, factory: composition,
+    )
+    stderr = RecordingStream()
+
+    exit_code = run(
+        {},
+        "token",
+        cast(TextIO, RecordingStream()),
+        cast(TextIO, stderr),
+        lambda: TIMESTAMP,
+        uuid4,
+        RecordingDelay(),
+        max_cycles=1,
+    )
+
+    assert exit_code == 1
+    assert stderr.text == (
+        "storage status error: warning failed\n"
+        "error: database failed\n"
+    )
 
 def test_cycle_helpers_reject_wrong_composition_mode() -> None:
     catalog_composition = _composition(_CatalogWorkflow([_result()]))
@@ -441,4 +572,30 @@ def test_cycle_helpers_reject_wrong_composition_mode() -> None:
             cast(TextIO, RecordingStream()),
             TIMESTAMP,
             True,
+        )
+
+    object.__setattr__(catalog_composition, "catalog_status", _CatalogStatusComposition(
+        publisher=cast(object, _CatalogStatusPublisher()),
+        statistics_reader=cast(object, _StatisticsReader()),
+        snapshot_reader=cast(object, _SnapshotReader()),
+        provider_id=LidlParksideCatalog.id,
+        minimum_discount=Percentage(Decimal("20.00")),
+    ))
+    object.__setattr__(catalog_composition, "storage_status", None)
+    workflow = cast(_CatalogWorkflow, catalog_composition.catalog_workflow)
+    workflow.results.append(_result())
+    with pytest.raises(ValueError, match="storage status composition"):
+        _execute_catalog_cycle(
+            catalog_composition,
+            cast(TextIO, RecordingStream()),
+            cast(TextIO, RecordingStream()),
+            TIMESTAMP,
+            True,
+        )
+
+    with pytest.raises(ValueError, match="storage status composition"):
+        publish_storage_warning(
+            catalog_composition,
+            TIMESTAMP,
+            cast(TextIO, RecordingStream()),
         )

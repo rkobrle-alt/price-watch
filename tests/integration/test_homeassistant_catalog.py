@@ -163,6 +163,7 @@ def test_catalog_mode_discovers_and_rotates_durable_batches(
         "sensor.price_watch_catalog_errors",
         "sensor.price_watch_last_checked",
         "sensor.price_watch_catalog",
+        "sensor.price_watch_storage",
     ):
         requests = [
             request
@@ -170,6 +171,21 @@ def test_catalog_mode_discovers_and_rotates_durable_batches(
             if request.full_url.endswith(f"/states/{entity_id}")
         ]
         assert len(requests) == 2
+    storage_payloads = [
+        json.loads(request.data)
+        for request, _ in opener.requests
+        if request.full_url.endswith("/states/sensor.price_watch_storage")
+        and request.data is not None
+    ]
+    assert [payload["state"] for payload in storage_payloads] == ["ok", "ok"]
+    assert [
+        payload["attributes"]["observation_count"]
+        for payload in storage_payloads
+    ] == [1, 2]
+    assert all(
+        payload["attributes"]["storage_size_bytes"] > 0
+        for payload in storage_payloads
+    )
 
 
 def test_catalog_alerts_once_for_repeated_twenty_percent_price(

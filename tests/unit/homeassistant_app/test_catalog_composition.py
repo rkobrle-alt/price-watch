@@ -18,6 +18,7 @@ from applications.homeassistant import HomeAssistantConfig
 from applications.homeassistant.composition import (
     _HomeAssistantComposition,
     _LidlCatalogBatchSynchronizer,
+    _StorageStatusComposition,
     _compose_homeassistant,
 )
 from core.catalog import ProductReference
@@ -30,7 +31,10 @@ from infrastructure.notifications.homeassistant import (
     HomeAssistantDailyDiscountDigestChannel,
     HomeAssistantNotificationChannel,
 )
-from infrastructure.homeassistant import HomeAssistantCatalogStatusPublisher
+from infrastructure.homeassistant import (
+    HomeAssistantCatalogStatusPublisher,
+    HomeAssistantStorageStatusPublisher,
+)
 from infrastructure.persistence.memory import InMemoryStateStore
 from infrastructure.persistence.sqlite import (
     SqliteCatalogStore,
@@ -137,6 +141,12 @@ def test_catalog_composition_assembles_shared_sqlite_stack() -> None:
     assert result.catalog_status.snapshot_reader is synchronizer._state_store
     assert result.catalog_status.provider_id == LidlParksideCatalog.id
     assert result.catalog_status.minimum_discount == Percentage(Decimal("20.00"))
+    assert result.storage_status is not None
+    assert isinstance(
+        result.storage_status.publisher,
+        HomeAssistantStorageStatusPublisher,
+    )
+    assert result.storage_status.statistics_reader is synchronizer._state_store
 
 
 def test_catalog_composition_assembles_optional_daily_digest() -> None:
@@ -175,6 +185,7 @@ def test_catalog_composition_can_disable_only_individual_notifications() -> None
     assert isinstance(result.daily_digest_workflow, DailyDigestWorkflow)
     assert result.catalog_workflow is not None
     assert result.catalog_status is not None
+    assert result.storage_status is not None
 
 
 def test_catalog_composition_preserves_disabled_percentage_status() -> None:
@@ -285,6 +296,16 @@ def test_composition_dataclass_requires_exactly_one_workflow() -> None:
             rules=explicit.rules,
             interval=explicit.interval,
             catalog_status=explicit.catalog_status,
+        )
+
+    with pytest.raises(ValueError, match="storage status"):
+        _HomeAssistantComposition(
+            workflow=cast(object, object()),
+            catalog_workflow=None,
+            status_publisher=explicit.status_publisher,
+            rules=explicit.rules,
+            interval=explicit.interval,
+            storage_status=cast(_StorageStatusComposition, object()),
         )
 
 

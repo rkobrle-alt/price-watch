@@ -27,10 +27,16 @@ from core.notifications import (
 )
 from core.rules import EvaluatorRegistry, PriceReferencePolicy, RuleEngine
 from core.rules.evaluators import BackInStockEvaluator, PriceDropEvaluator
-from core.state import LatestSnapshotReader, ObservationHistory, StateStore
+from core.state import (
+    LatestSnapshotReader,
+    ObservationHistory,
+    ObservationStatisticsReader,
+    StateStore,
+)
 from infrastructure.homeassistant import (
     HomeAssistantCatalogStatusPublisher,
     HomeAssistantStatusPublisher,
+    HomeAssistantStorageStatusPublisher,
     UrllibHomeAssistantClient,
 )
 from infrastructure.http import (
@@ -64,6 +70,7 @@ class _HomeAssistantComposition:
     discovery_interval_cycles: int = 1
     daily_digest_workflow: DailyDigestWorkflow | None = None
     catalog_status: "_CatalogStatusComposition | None" = None
+    storage_status: "_StorageStatusComposition | None" = None
 
     def __post_init__(self) -> None:
         if (self.workflow is None) == (self.catalog_workflow is None):
@@ -72,6 +79,8 @@ class _HomeAssistantComposition:
             raise ValueError("daily digest requires catalog workflow")
         if (self.catalog_status is None) != (self.catalog_workflow is None):
             raise ValueError("catalog status requires catalog workflow")
+        if (self.storage_status is None) != (self.catalog_workflow is None):
+            raise ValueError("storage status requires catalog workflow")
 
 
 @dataclass(frozen=True, slots=True)
@@ -83,6 +92,14 @@ class _CatalogStatusComposition:
     snapshot_reader: LatestSnapshotReader
     provider_id: ProviderId
     minimum_discount: Percentage | None
+
+
+@dataclass(frozen=True, slots=True)
+class _StorageStatusComposition:
+    """Hold collaborators for observation storage-health publication."""
+
+    publisher: HomeAssistantStorageStatusPublisher
+    statistics_reader: ObservationStatisticsReader
 
 
 class _LidlCatalogBatchSynchronizer:
@@ -305,6 +322,13 @@ def _compose_catalog(
                 if catalog_config.price_drop_percentage is None
                 else Percentage(catalog_config.price_drop_percentage)
             ),
+        ),
+        storage_status=_StorageStatusComposition(
+            publisher=HomeAssistantStorageStatusPublisher(
+                homeassistant_client,
+                VERSION,
+            ),
+            statistics_reader=state_store,
         ),
     )
 

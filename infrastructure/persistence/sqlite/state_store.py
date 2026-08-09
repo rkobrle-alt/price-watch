@@ -5,7 +5,7 @@ import sqlite3
 from pathlib import Path
 
 from core.domain import ProductId
-from core.state import StateSnapshot, StateStoreError
+from core.state import ObservationStatistics, StateSnapshot, StateStoreError
 from infrastructure.persistence.snapshot_codec import (
     SnapshotCodecError,
     decode_snapshot,
@@ -131,6 +131,55 @@ class SqliteStateStore:
             if connection is not None:
                 _close_state_connection(self._database, connection)
 
+    def observation_statistics(self) -> ObservationStatistics:
+        """Return read-only counts, boundary timestamps and allocated bytes."""
+        connection: sqlite3.Connection | None = None
+        try:
+            connection = self._database.open()
+            aggregate = connection.execute(
+                "SELECT COUNT(*), COUNT(DISTINCT product_id), "
+                "MIN(sequence), MAX(sequence) FROM observations"
+            ).fetchone()
+            observation_count = aggregate[0]
+            observed_product_count = aggregate[1]
+            first_at = None
+            last_at = None
+            if observation_count:
+                rows = connection.execute(
+                    "SELECT product_id, snapshot FROM observations "
+                    "WHERE sequence IN (?, ?) ORDER BY sequence",
+                    (aggregate[2], aggregate[3]),
+                ).fetchall()
+                snapshots = tuple(
+                    _decode_payload(row[1], row[0]) for row in rows
+                )
+                first_at = snapshots[0].timestamp
+                last_at = snapshots[-1].timestamp
+            storage_size_bytes = _allocated_database_bytes(connection)
+            return ObservationStatistics(
+                observation_count=observation_count,
+                observed_product_count=observed_product_count,
+                first_observation_at=first_at,
+                last_observation_at=last_at,
+                storage_size_bytes=storage_size_bytes,
+            )
+        except (
+            json.JSONDecodeError,
+            SnapshotCodecError,
+            TypeError,
+            ValueError,
+        ) as error:
+            raise StateStoreError(
+                "invalid persisted SQLite observation statistics"
+            ) from error
+        except (sqlite3.Error, SqlitePersistenceError) as error:
+            raise StateStoreError(
+                "failed to read SQLite observation statistics"
+            ) from error
+        finally:
+            if connection is not None:
+                _close_state_connection(self._database, connection)
+
 
 def _validate_product_id(product_id: object) -> None:
     if not isinstance(product_id, ProductId):
@@ -150,6 +199,18 @@ def _decode_payload(value: object, product_id: str) -> StateSnapshot:
     if not isinstance(value, str):
         raise SnapshotCodecError("SQLite snapshot must be a JSON string")
     return decode_snapshot(json.loads(value), product_id)
+
+
+def _allocated_database_bytes(connection: sqlite3.Connection) -> int:
+    page_count = connection.execute("PRAGMA page_count").fetchone()[0]
+    page_size = connection.execute("PRAGMA page_size").fetchone()[0]
+    if isinstance(page_count, bool) or not isinstance(page_count, int):
+        raise TypeError("SQLite page count must be an int")
+    if isinstance(page_size, bool) or not isinstance(page_size, int):
+        raise TypeError("SQLite page size must be an int")
+    if page_count < 0 or page_size <= 0:
+        raise ValueError("SQLite page metrics must be positive")
+    return page_count * page_size
 
 
 def _close_state_connection(

@@ -105,6 +105,11 @@ documents retain individual alerts unless
 `individual_notifications_enabled: false` is configured. Monitoring, history
 and dashboard states continue in either mode.
 
+Catalog installations publish `sensor.price_watch_storage` with the exact
+retained observation count, observed-product count, first and last inserted
+observation times and allocated SQLite bytes. These diagnostics are read-only;
+Price Watch does not automatically delete, compact or rewrite history.
+
 ## Development
 
 The project requires Python 3.13 or newer.

@@ -117,6 +117,21 @@ If percentage monitoring is disabled in favor of a fixed price amount, the
 percentage threshold is unavailable and the qualifying percentage count is
 zero.
 
+## Storage diagnostics and backup
+
+Catalog mode publishes `sensor.price_watch_storage`. Its state is `ok` after a
+successful read and `warning` when Price Watch reports a catalog persistence
+failure before stopping. Attributes contain the total observation count,
+distinct observed-product count, first and last inserted observation times and
+allocated SQLite bytes. The values are diagnostics only: Price Watch performs
+no automatic deletion, compaction or vacuum.
+
+The catalog database remains `/data/catalog.sqlite3`. Include the Price Watch
+App in a Home Assistant full or partial backup before maintenance or a future
+retention migration. Restore it through the Home Assistant backup workflow;
+do not replace the database while the App is running. Version 0.23.0 does not
+execute backups itself and does not change schema version 4.
+
 The REST-created product states are not entity-registry-backed. To test email
 delivery independently, call `notify.send_message` for the configured notify
 entity in Home Assistant Developer Tools.

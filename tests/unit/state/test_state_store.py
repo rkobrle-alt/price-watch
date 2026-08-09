@@ -92,6 +92,8 @@ class StateStorePublicApiTests(TestCase):
         expected = {
             "LatestSnapshotReader",
             "ObservationHistory",
+            "ObservationStatistics",
+            "ObservationStatisticsReader",
             "StateSnapshot",
             "StateStore",
             "StateStoreError",
