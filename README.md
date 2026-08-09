@@ -126,6 +126,12 @@ Price Watch does not automatically delete, compact or rewrite history.
 After explicitly applied retention they also report reclaimable bytes which
 SQLite can reuse without an automatic vacuum.
 
+Catalog installations may opt into a read-only Home Assistant retention
+preview by adding a positive `retention_preview_days` option. The resulting
+`sensor.price_watch_maintenance` reports the selected cutoff and exact total,
+removable, retained and protected observation counts. The App cannot apply
+the plan, create a backup, delete history or compact SQLite.
+
 ## Development
 
 The project requires Python 3.13 or newer.

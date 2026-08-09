@@ -1,5 +1,5 @@
 name: Price Watch
-version: "0.24.0"
+version: "0.25.0"
 slug: price_watch
 description: Monitor Lidl Parkside prices and availability
 url: https://github.com/rkobrle-alt/price-watch/tree/main/homeassistant/price_watch
@@ -39,4 +39,5 @@ schema:
   daily_digest_enabled: bool?
   daily_digest_time: str?
   individual_notifications_enabled: bool?
+  retention_preview_days: int(1,)?
 image: ghcr.io/rkobrle-alt/price-watch

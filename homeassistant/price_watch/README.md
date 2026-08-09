@@ -20,3 +20,7 @@ boundary timestamps and allocated size through
 Version 0.24.0 additionally reports reusable SQLite bytes after an explicitly
 invoked external maintenance operation. Normal App cycles never delete or
 compact history.
+
+Version 0.25.0 can optionally publish a read-only retention plan through
+`sensor.price_watch_maintenance`. Applying retention remains unavailable in
+the App.

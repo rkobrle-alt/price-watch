@@ -132,7 +132,7 @@ The catalog database remains `/data/catalog.sqlite3`. Include the Price Watch
 App in a Home Assistant full or partial backup before maintenance or a future
 retention migration. Restore it through the Home Assistant backup workflow;
 do not replace the database while the App is running. Version 0.23.0 does not
-execute backups itself and does not change schema version 4.
+execute maintenance backups itself and does not change schema version 4.
 
 Version 0.24.0 provides a separate CLI `maintenance` command for operators who
 have deliberately stopped every writer and can access the catalog database.
@@ -142,6 +142,19 @@ historical-high price for every product and currency. The Home Assistant App
 never invokes this command, exposes no deletion option and performs no
 automatic vacuum. Do not run retention directly against `/data/catalog.sqlite3`
 while the App is running.
+
+To see the impact of a retention window without changing the database, add a
+positive optional `retention_preview_days` value in the App configuration and
+restart the App. After a successful catalog cycle,
+`sensor.price_watch_maintenance` uses the removable observation count as its
+state and reports the exact cutoff, total, retained and protected counts as
+attributes. The sensor also reports `apply_available: false`. Omitting the
+option preserves the previous behavior and does not create the sensor.
+
+This preview invokes only the read-only planner. It never creates a backup,
+deletes observations, vacuums SQLite or enables scheduled maintenance. To
+apply a reviewed plan, stop the App and use the separate CLI command with its
+mandatory new backup destination.
 
 The REST-created product states are not entity-registry-backed. To test email
 delivery independently, call `notify.send_message` for the configured notify

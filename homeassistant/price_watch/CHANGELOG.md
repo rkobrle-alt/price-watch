@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.25.0
+
+- Add an opt-in read-only retention preview for catalog installations.
+- Publish exact plan counts through `sensor.price_watch_maintenance`.
+- Keep retention apply, backup creation, deletion and vacuum outside the App.
+- Preserve existing installations when the optional window is omitted.
+
 ## 0.24.0
 
 - Add previewable, manually invoked SQLite observation retention.
