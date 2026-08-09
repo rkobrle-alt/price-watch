@@ -29,6 +29,7 @@ _ALLOWED_KEYS = frozenset(
         "daily_digest_enabled",
         "daily_digest_time",
         "individual_notifications_enabled",
+        "retention_preview_days",
     }
 )
 _REQUIRED_KEYS = frozenset({"notify_entity", "interval_seconds"})
@@ -39,6 +40,7 @@ _CATALOG_ONLY_KEYS = frozenset(
         "daily_digest_enabled",
         "daily_digest_time",
         "individual_notifications_enabled",
+        "retention_preview_days",
     }
 )
 _ENTITY_PATTERN = re.compile(r"notify\.[a-z0-9_]+")
@@ -55,6 +57,7 @@ class HomeAssistantConfig:
     catalog: CatalogMonitoringConfig | None = None
     daily_digest: DailyDigestConfig | None = None
     individual_notifications_enabled: bool = True
+    retention_preview_days: int | None = None
 
     def __post_init__(self) -> None:
         """Validate mode selection and Home Assistant-specific invariants."""
@@ -81,6 +84,10 @@ class HomeAssistantConfig:
             raise TypeError("individual_notifications_enabled must be a boolean")
         if not self.individual_notifications_enabled and self.catalog is None:
             raise ValueError("disabled individual notifications require catalog monitoring")
+        if self.retention_preview_days is not None:
+            _positive_integer(self.retention_preview_days, "retention_preview_days")
+            if self.catalog is None:
+                raise ValueError("retention preview requires catalog monitoring")
         if self.application is not None and self.application.interval is None:
             raise ValueError("application.interval is required")
         if not isinstance(self.notify_entity, str):
@@ -128,6 +135,14 @@ def parse_homeassistant_options(
             individual_notifications_enabled=cast(
                 bool,
                 document.get("individual_notifications_enabled", True),
+            ),
+            retention_preview_days=(
+                None
+                if "retention_preview_days" not in document
+                else _positive_integer(
+                    document["retention_preview_days"],
+                    "retention_preview_days",
+                )
             ),
         )
     except (TypeError, ValueError) as error:

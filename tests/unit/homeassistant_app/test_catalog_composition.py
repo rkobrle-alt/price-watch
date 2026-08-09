@@ -18,6 +18,7 @@ from applications.homeassistant import HomeAssistantConfig
 from applications.homeassistant.composition import (
     _HomeAssistantComposition,
     _LidlCatalogBatchSynchronizer,
+    _MaintenanceStatusComposition,
     _StorageStatusComposition,
     _compose_homeassistant,
 )
@@ -33,6 +34,7 @@ from infrastructure.notifications.homeassistant import (
 )
 from infrastructure.homeassistant import (
     HomeAssistantCatalogStatusPublisher,
+    HomeAssistantMaintenanceStatusPublisher,
     HomeAssistantStorageStatusPublisher,
 )
 from infrastructure.persistence.memory import InMemoryStateStore
@@ -40,6 +42,7 @@ from infrastructure.persistence.sqlite import (
     SqliteCatalogStore,
     SqliteDailyDigestReservationStore,
     SqliteNotificationReservationStore,
+    SqliteObservationRetentionManager,
     SqliteStateStore,
 )
 from infrastructure.providers.lidl import LidlParksideCatalog
@@ -73,6 +76,7 @@ def _catalog_config(
     *,
     digest: bool = False,
     individual_notifications: bool = True,
+    retention_preview_days: int | None = None,
 ) -> HomeAssistantConfig:
     return HomeAssistantConfig(
         application=None,
@@ -92,6 +96,7 @@ def _catalog_config(
             else None
         ),
         individual_notifications_enabled=individual_notifications,
+        retention_preview_days=retention_preview_days,
     )
 
 
@@ -147,6 +152,61 @@ def test_catalog_composition_assembles_shared_sqlite_stack() -> None:
         HomeAssistantStorageStatusPublisher,
     )
     assert result.storage_status.statistics_reader is synchronizer._state_store
+    assert result.maintenance_status is None
+
+
+def test_catalog_composition_assembles_optional_retention_preview() -> None:
+    result = _compose_homeassistant(
+        _catalog_config(retention_preview_days=90),
+        "token",
+        lambda: TIMESTAMP,
+        uuid4,
+    )
+
+    context = result.maintenance_status
+    assert isinstance(context, _MaintenanceStatusComposition)
+    assert isinstance(
+        context.publisher,
+        HomeAssistantMaintenanceStatusPublisher,
+    )
+    assert isinstance(context.retention_manager, SqliteObservationRetentionManager)
+    assert context.retention_manager._database._path == Path(
+        "/data/catalog.sqlite3"
+    )
+    assert context.retention_days == 90
+
+
+@pytest.mark.parametrize(
+    ("days", "exception_type"),
+    [(True, TypeError), ("90", TypeError), (0, ValueError)],
+)
+def test_maintenance_composition_validates_retention_days(
+    days: object,
+    exception_type: type[Exception],
+) -> None:
+    with pytest.raises(exception_type, match="retention_days"):
+        _MaintenanceStatusComposition(
+            publisher=cast(object, object()),
+            retention_manager=cast(object, object()),
+            retention_days=cast(int, days),
+        )
+
+
+def test_explicit_composition_rejects_maintenance_status() -> None:
+    maintenance = _MaintenanceStatusComposition(
+        publisher=cast(object, object()),
+        retention_manager=cast(object, object()),
+        retention_days=90,
+    )
+
+    with pytest.raises(ValueError, match="maintenance status requires catalog"):
+        _HomeAssistantComposition(
+            workflow=cast(object, object()),
+            status_publisher=cast(object, object()),
+            rules=(),
+            interval=timedelta(minutes=5),
+            maintenance_status=maintenance,
+        )
 
 
 def test_catalog_composition_assembles_optional_daily_digest() -> None:

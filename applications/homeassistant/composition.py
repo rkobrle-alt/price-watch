@@ -30,11 +30,13 @@ from core.rules.evaluators import BackInStockEvaluator, PriceDropEvaluator
 from core.state import (
     LatestSnapshotReader,
     ObservationHistory,
+    ObservationRetentionManager,
     ObservationStatisticsReader,
     StateStore,
 )
 from infrastructure.homeassistant import (
     HomeAssistantCatalogStatusPublisher,
+    HomeAssistantMaintenanceStatusPublisher,
     HomeAssistantStatusPublisher,
     HomeAssistantStorageStatusPublisher,
     UrllibHomeAssistantClient,
@@ -49,6 +51,7 @@ from infrastructure.persistence.json import JsonStateStore
 from infrastructure.persistence.sqlite import (
     SqliteCatalogStore,
     SqliteNotificationReservationStore,
+    SqliteObservationRetentionManager,
     SqliteStateStore,
 )
 from infrastructure.providers.lidl import LidlParksideCatalog, LidlParksideProvider
@@ -71,6 +74,7 @@ class _HomeAssistantComposition:
     daily_digest_workflow: DailyDigestWorkflow | None = None
     catalog_status: "_CatalogStatusComposition | None" = None
     storage_status: "_StorageStatusComposition | None" = None
+    maintenance_status: "_MaintenanceStatusComposition | None" = None
 
     def __post_init__(self) -> None:
         if (self.workflow is None) == (self.catalog_workflow is None):
@@ -81,6 +85,8 @@ class _HomeAssistantComposition:
             raise ValueError("catalog status requires catalog workflow")
         if (self.storage_status is None) != (self.catalog_workflow is None):
             raise ValueError("storage status requires catalog workflow")
+        if self.maintenance_status is not None and self.catalog_workflow is None:
+            raise ValueError("maintenance status requires catalog workflow")
 
 
 @dataclass(frozen=True, slots=True)
@@ -100,6 +106,24 @@ class _StorageStatusComposition:
 
     publisher: HomeAssistantStorageStatusPublisher
     statistics_reader: ObservationStatisticsReader
+
+
+@dataclass(frozen=True, slots=True)
+class _MaintenanceStatusComposition:
+    """Hold collaborators for a read-only observation-retention preview."""
+
+    publisher: HomeAssistantMaintenanceStatusPublisher
+    retention_manager: ObservationRetentionManager
+    retention_days: int
+
+    def __post_init__(self) -> None:
+        if isinstance(self.retention_days, bool) or not isinstance(
+            self.retention_days,
+            int,
+        ):
+            raise TypeError("retention_days must be an int")
+        if self.retention_days <= 0:
+            raise ValueError("retention_days must be positive")
 
 
 class _LidlCatalogBatchSynchronizer:
@@ -202,6 +226,7 @@ def _compose_homeassistant(
             config.notification_title,
             config.daily_digest,
             config.individual_notifications_enabled,
+            config.retention_preview_days,
             clock,
             notification_id_factory,
         )
@@ -248,6 +273,7 @@ def _compose_catalog(
     notification_title: str,
     daily_digest_config: DailyDigestConfig | None,
     individual_notifications_enabled: bool,
+    retention_preview_days: int | None,
     clock: Callable[[], datetime],
     notification_id_factory: Callable[[], UUID],
 ) -> _HomeAssistantComposition:
@@ -329,6 +355,20 @@ def _compose_catalog(
                 VERSION,
             ),
             statistics_reader=state_store,
+        ),
+        maintenance_status=(
+            None
+            if retention_preview_days is None
+            else _MaintenanceStatusComposition(
+                publisher=HomeAssistantMaintenanceStatusPublisher(
+                    homeassistant_client,
+                    VERSION,
+                ),
+                retention_manager=SqliteObservationRetentionManager(
+                    catalog_config.database_file
+                ),
+                retention_days=retention_preview_days,
+            )
         ),
     )
 

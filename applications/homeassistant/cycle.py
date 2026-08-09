@@ -1,6 +1,6 @@
 """Home Assistant cycle execution and status publication."""
 
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import TextIO
 
 from applications.catalog_monitoring import CatalogMonitoringResult
@@ -12,6 +12,7 @@ from core.notifications import DailyDiscountDigestEngine
 from infrastructure.homeassistant import (
     CatalogStatus,
     HomeAssistantError,
+    MaintenanceStatus,
     StorageStatus,
 )
 
@@ -158,10 +159,16 @@ def execute_catalog_cycle(
         timestamp,
         stderr,
     )
+    maintenance_status_published = _publish_maintenance_status(
+        composition,
+        timestamp,
+        stderr,
+    )
     status_published = (
         cycle_status_published
         and catalog_status_published
         and storage_status_published
+        and maintenance_status_published
     )
     digest_result = _run_daily_digest(composition, timestamp)
     digest_text = _digest_summary(digest_result)
@@ -215,6 +222,26 @@ def _publish_storage_status(
         context.publisher.publish(StorageStatus(timestamp, statistics))
     except HomeAssistantError as error:
         _write(stderr, f"storage status error: {error}\n")
+        return False
+    return True
+
+
+def _publish_maintenance_status(
+    composition: _HomeAssistantComposition,
+    timestamp: datetime,
+    stderr: TextIO,
+) -> bool:
+    context = composition.maintenance_status
+    if context is None:
+        return True
+    cutoff = timestamp - timedelta(days=context.retention_days)
+    plan = context.retention_manager.plan(cutoff)
+    try:
+        context.publisher.publish(
+            MaintenanceStatus(timestamp, context.retention_days, plan)
+        )
+    except HomeAssistantError as error:
+        _write(stderr, f"maintenance status error: {error}\n")
         return False
     return True
 

@@ -12,9 +12,11 @@ from infrastructure.homeassistant import (
     HomeAssistantCatalogStatusPublisher,
     HomeAssistantClient,
     HomeAssistantError,
+    HomeAssistantMaintenanceStatusPublisher,
     HomeAssistantStateClient,
     HomeAssistantStatusPublisher,
     HomeAssistantStorageStatusPublisher,
+    MaintenanceStatus,
     StorageStatus,
     UrllibHomeAssistantClient,
 )
@@ -54,9 +56,11 @@ def test_homeassistant_public_apis_are_explicit_and_documented() -> None:
         "HomeAssistantClient",
         "HomeAssistantCatalogStatusPublisher",
         "HomeAssistantError",
+        "HomeAssistantMaintenanceStatusPublisher",
         "HomeAssistantStateClient",
         "HomeAssistantStatusPublisher",
         "HomeAssistantStorageStatusPublisher",
+        "MaintenanceStatus",
         "StorageStatus",
         "UrllibHomeAssistantClient",
     ]
@@ -84,6 +88,11 @@ def test_homeassistant_public_apis_are_explicit_and_documented() -> None:
         is HomeAssistantStorageStatusPublisher
     )
     assert homeassistant_api.StorageStatus is StorageStatus
+    assert homeassistant_api.MaintenanceStatus is MaintenanceStatus
+    assert (
+        homeassistant_api.HomeAssistantMaintenanceStatusPublisher
+        is HomeAssistantMaintenanceStatusPublisher
+    )
     assert (
         notification_api.HomeAssistantDailyDiscountDigestChannel
         is HomeAssistantDailyDiscountDigestChannel
@@ -104,7 +113,9 @@ def test_homeassistant_public_apis_are_explicit_and_documented() -> None:
         HomeAssistantError,
         HomeAssistantStateClient,
         HomeAssistantStatusPublisher,
+        HomeAssistantMaintenanceStatusPublisher,
         HomeAssistantStorageStatusPublisher,
+        MaintenanceStatus,
         StorageStatus,
         UrllibHomeAssistantClient,
         HomeAssistantDailyDiscountDigestChannel,

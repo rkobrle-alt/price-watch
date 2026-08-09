@@ -14,6 +14,7 @@ from applications.catalog_monitoring import CatalogMonitoringResult
 from applications.daily_digest import DailyDigestResult, DailyDigestStatus
 from applications.homeassistant.composition import _HomeAssistantComposition
 from applications.homeassistant.composition import _CatalogStatusComposition
+from applications.homeassistant.composition import _MaintenanceStatusComposition
 from applications.homeassistant.composition import _StorageStatusComposition
 from applications.homeassistant.cycle import publish_storage_warning
 from applications.homeassistant.main import (
@@ -28,10 +29,17 @@ from core.notifications import (
     DailyDigestReservationError,
     NotificationReservationError,
 )
-from core.state import ObservationStatistics, StateSnapshot, StateStoreError
+from core.state import (
+    ObservationRetentionPlan,
+    ObservationRetentionResult,
+    ObservationStatistics,
+    StateSnapshot,
+    StateStoreError,
+)
 from infrastructure.homeassistant import (
     CatalogStatus,
     HomeAssistantError,
+    MaintenanceStatus,
     StorageStatus,
 )
 from infrastructure.providers.lidl import LidlParksideCatalog
@@ -99,6 +107,35 @@ class _StorageStatusPublisher:
         if self.failure is not None:
             raise self.failure
         self.calls.append(status)
+
+
+@dataclass(slots=True)
+class _MaintenanceStatusPublisher:
+    calls: list[MaintenanceStatus] = field(default_factory=list)
+    failure: HomeAssistantError | None = None
+
+    def publish(self, status: MaintenanceStatus) -> None:
+        if self.failure is not None:
+            raise self.failure
+        self.calls.append(status)
+
+
+@dataclass(slots=True)
+class _RetentionManager:
+    plan_result: ObservationRetentionPlan
+    cutoffs: list[object] = field(default_factory=list)
+    apply_calls: int = 0
+    failure: StateStoreError | None = None
+
+    def plan(self, cutoff: object) -> ObservationRetentionPlan:
+        self.cutoffs.append(cutoff)
+        if self.failure is not None:
+            raise self.failure
+        return self.plan_result
+
+    def apply(self, cutoff: object, backup_file: object) -> ObservationRetentionResult:
+        self.apply_calls += 1
+        raise AssertionError("Home Assistant must not apply retention")
 
 
 @dataclass(slots=True)
@@ -180,6 +217,8 @@ def _composition(
     *,
     catalog_publisher: _CatalogStatusPublisher | None = None,
     storage_publisher: _StorageStatusPublisher | None = None,
+    maintenance_publisher: _MaintenanceStatusPublisher | None = None,
+    retention_manager: _RetentionManager | None = None,
     snapshots: tuple[StateSnapshot, ...] = (),
     minimum_discount: Percentage | None = Percentage(Decimal("20.00")),
 ) -> _HomeAssistantComposition:
@@ -205,6 +244,18 @@ def _composition(
                 storage_publisher or _StorageStatusPublisher(),
             ),
             statistics_reader=cast(object, _ObservationStatisticsReader()),
+        ),
+        maintenance_status=(
+            None
+            if retention_manager is None
+            else _MaintenanceStatusComposition(
+                publisher=cast(
+                    object,
+                    maintenance_publisher or _MaintenanceStatusPublisher(),
+                ),
+                retention_manager=cast(object, retention_manager),
+                retention_days=90,
+            )
         ),
     )
 
@@ -422,6 +473,82 @@ def test_storage_status_failure_is_non_fatal_and_reported() -> None:
 
     assert published is False
     assert stderr.text == "storage status error: storage publish failed\n"
+
+
+def test_retention_preview_uses_exact_cutoff_without_applying() -> None:
+    cutoff = TIMESTAMP - timedelta(days=90)
+    plan = ObservationRetentionPlan(cutoff, 100, 60, 40, 10)
+    manager = _RetentionManager(plan)
+    publisher = _MaintenanceStatusPublisher()
+    composition = _composition(
+        _CatalogWorkflow([_result()]),
+        retention_manager=manager,
+        maintenance_publisher=publisher,
+    )
+
+    _, published = _execute_catalog_cycle(
+        composition,
+        cast(TextIO, RecordingStream()),
+        cast(TextIO, RecordingStream()),
+        TIMESTAMP,
+        False,
+    )
+
+    assert published is True
+    assert manager.cutoffs == [cutoff]
+    assert manager.apply_calls == 0
+    assert publisher.calls == [MaintenanceStatus(TIMESTAMP, 90, plan)]
+
+
+def test_retention_preview_publication_failure_is_non_fatal() -> None:
+    cutoff = TIMESTAMP - timedelta(days=90)
+    manager = _RetentionManager(ObservationRetentionPlan(cutoff, 1, 0, 1, 0))
+    stderr = RecordingStream()
+    composition = _composition(
+        _CatalogWorkflow([_result()]),
+        retention_manager=manager,
+        maintenance_publisher=_MaintenanceStatusPublisher(
+            failure=HomeAssistantError("maintenance publish failed")
+        ),
+    )
+
+    _, published = _execute_catalog_cycle(
+        composition,
+        cast(TextIO, RecordingStream()),
+        cast(TextIO, stderr),
+        TIMESTAMP,
+        False,
+    )
+
+    assert published is False
+    assert stderr.text == (
+        "maintenance status error: maintenance publish failed\n"
+    )
+
+
+def test_retention_preview_planning_failure_propagates() -> None:
+    cutoff = TIMESTAMP - timedelta(days=90)
+    failure = StateStoreError("retention plan failed")
+    manager = _RetentionManager(
+        ObservationRetentionPlan(cutoff, 1, 0, 1, 0),
+        failure=failure,
+    )
+    composition = _composition(
+        _CatalogWorkflow([_result()]),
+        retention_manager=manager,
+    )
+
+    with pytest.raises(StateStoreError) as captured:
+        _execute_catalog_cycle(
+            composition,
+            cast(TextIO, RecordingStream()),
+            cast(TextIO, RecordingStream()),
+            TIMESTAMP,
+            False,
+        )
+
+    assert captured.value is failure
+    assert manager.apply_calls == 0
 
 
 def test_enabled_digest_runs_after_status_and_is_reported() -> None:
