@@ -41,6 +41,7 @@ installations may disable individual alerts and use only that daily digest.
 7. dashboard-ready operational overview and diagnostics
 8. digest-only notification policy
 9. non-destructive observation storage diagnostics
+10. manual backup-protected observation retention
 
 Each step requires its own accepted ADR when it introduces a new persistence,
 workflow, rule or scheduling contract.
@@ -63,6 +64,9 @@ ADR-0023 and STORY-022 define step 8 as a Home Assistant composition option
 which can suppress all individual rules while retaining the daily digest.
 ADR-0024 and STORY-023 define step 9 as read-only observation growth and
 storage-health publication without approving retention or deletion.
+ADR-0025 and STORY-024 define step 10 as explicit CLI-only retention which
+preserves current state and historical-high price references, requires a
+pre-deletion backup and is never scheduled by Home Assistant.
 
 ## Discount Semantics
 
@@ -90,3 +94,5 @@ boundary between durable reservation and Home Assistant delivery.
 - catalog email delivery can be configured as one daily digest without
   individual product messages
 - observation growth and SQLite health are visible without modifying history
+- historical growth can be reduced manually without changing current state or
+  the durable historical-high discount reference

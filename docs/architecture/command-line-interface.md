@@ -57,6 +57,24 @@ run(
 
 ---
 
+## Maintenance Composition
+
+ADR-0025 adds:
+
+```text
+price-watch maintenance \
+    --database-file PATH \
+    --retention-days POSITIVE_INTEGER \
+    [--apply --backup-file PATH]
+```
+
+The command composes `SqliteObservationRetentionManager` directly at the CLI
+boundary. Without `--apply` it only prints a retention plan. Apply requires a
+new backup file and reports the actual retained and removed counts. It does not
+construct a provider, rules, notification channel or scheduler.
+
+---
+
 ## Sync Composition
 
 ```text
@@ -115,6 +133,9 @@ returns `1`.
 Configuration loading and schema errors return `2`. Unexpected exceptions
 propagate for visibility.
 
+Retention persistence and backup failures return `1`. Missing or contradictory
+maintenance flags are usage errors and return `2`.
+
 ---
 
 ## Dependency Rules
@@ -130,3 +151,5 @@ No inner package may depend on the CLI.
 
 The CLI contains no HTML parsing, money comparison, availability transition,
 serialization or notification-generation logic.
+Retention selection and backup behavior likewise remain in the injected Core
+contract and SQLite Infrastructure adapter.

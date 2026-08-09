@@ -152,3 +152,22 @@ publication and before the daily digest. A successful query publishes exact
 observation counts, insertion-boundary timestamps and allocated bytes. An
 approved catalog persistence failure attempts a warning publication without
 reading the failed database and then retains the original fatal exception.
+
+Manual retention is a separate operator flow and never enters the monitoring
+sequence:
+
+```text
+CLI maintenance command
+    |
+    +--> plan: read and report protected/removable observations
+    |
+    +--> apply: acquire SQLite transaction
+                 |
+                 +--> write complete pre-deletion backup
+                 |
+                 +--> delete only planned observation rows
+```
+
+ADR-0025 preserves every recent observation, the latest inserted observation
+per product and the earliest historical-high observation per product/currency.
+It changes no catalog or reservation rows and performs no automatic vacuum.

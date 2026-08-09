@@ -359,6 +359,25 @@ Deliverables:
 
 ---
 
+# v0.24.0 — Manual Observation Retention
+
+Goal:
+
+Allow an operator to preview and explicitly reduce detailed observation
+history without changing the latest product state or historical-high discount
+reference.
+
+Deliverables:
+
+- immutable provider-neutral retention plan and result contracts
+- SQLite retention adapter preserving recent, latest and historical-high rows
+- mandatory complete backup before explicit deletion
+- plan-by-default CLI `maintenance` command
+- reclaimable-byte Home Assistant storage diagnostics
+- unchanged schema version 4 and no scheduled retention or automatic vacuum
+
+---
+
 # v1.0.0
 
 Stable public release.

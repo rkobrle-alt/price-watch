@@ -55,6 +55,8 @@ For product state, `core.state` contains only:
 - the `StateStoreError` persistence-failure contract
 - the read-only `ObservationHistory` Protocol
 - the immutable observation statistics and read-only statistics Protocol
+- immutable manual-retention plan/result values and the retention-manager
+  Protocol
 
 It contains no concrete State Store implementation.
 
@@ -155,6 +157,10 @@ ADR-0020 adds `SqliteDailyDigestReservationStore`, latest-snapshot collection
 queries and the sequential schema version 3 to 4 migration.
 ADR-0024 adds a read-only observation-statistics query to `SqliteStateStore`.
 It performs no schema migration, retention deletion or compaction.
+ADR-0025 adds a separate `SqliteObservationRetentionManager`. It performs
+previewable, explicitly requested and backup-protected observation deletion
+without changing schema version 4. Normal State Store operations never invoke
+it.
 
 `infrastructure.persistence.snapshot_codec` is a private shared codec used by
 JSON and SQLite persistence. It preserves exact Domain values and is not a
@@ -250,6 +256,10 @@ console stack and invokes `applications.synchronization` according to ADR-0010.
 Its `watch` command composes the interval scheduler and Infrastructure delay
 according to ADR-0011. Configuration-file commands compose the pure
 Application parser with the Infrastructure TOML loader according to ADR-0012.
+ADR-0025 adds an independent `maintenance` command which composes only the
+Core retention contract and SQLite retention adapter. Plan mode is read-only;
+apply mode requires an explicit backup destination. It does not compose or
+duplicate synchronization.
 `applications.homeassistant` is the Supervisor-managed composition root defined
 by ADR-0014. It loads App options, injects Supervisor access at the process
 boundary, uses persistent `/data` state, composes Home Assistant notification

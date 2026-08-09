@@ -60,6 +60,9 @@ ADR-0024 publishes `sensor.price_watch_storage` with read-only observation
 counts, insertion-boundary timestamps and allocated SQLite bytes. A completed
 read produces `ok`; an approved persistence failure attempts `warning` before
 the original error stops the process. No diagnostic operation mutates data.
+ADR-0025 adds exact reclaimable SQLite bytes to that representation after a
+manual retention operation. The Home Assistant application never plans or
+applies retention and exposes no deletion option.
 
 ---
 
