@@ -28,6 +28,7 @@ applications.homeassistant
     +--> IntervalScheduler
     +--> HomeAssistantStatusPublisher
     +--> HomeAssistantCatalogStatusPublisher (catalog mode only)
+    +--> HomeAssistantStorageStatusPublisher (catalog mode only)
 ```
 
 The first cycle starts immediately. Later cycles use fixed delay and never
@@ -54,6 +55,11 @@ dashboard-ready `sensor.price_watch_discounted_products`,
 `sensor.price_watch_catalog_errors` and `sensor.price_watch_last_checked`
 representations. The established aggregate health entity remains `ok` or
 `degraded` and is published last.
+
+ADR-0024 publishes `sensor.price_watch_storage` with read-only observation
+counts, insertion-boundary timestamps and allocated SQLite bytes. A completed
+read produces `ok`; an approved persistence failure attempts `warning` before
+the original error stops the process. No diagnostic operation mutates data.
 
 ---
 

@@ -54,6 +54,7 @@ For product state, `core.state` contains only:
 - the immutable `StateSnapshot`
 - the `StateStoreError` persistence-failure contract
 - the read-only `ObservationHistory` Protocol
+- the immutable observation statistics and read-only statistics Protocol
 
 It contains no concrete State Store implementation.
 
@@ -152,6 +153,8 @@ version 2 databases to version 3 while preserving catalog and observation
 data. Valid version 1 databases migrate sequentially through both steps.
 ADR-0020 adds `SqliteDailyDigestReservationStore`, latest-snapshot collection
 queries and the sequential schema version 3 to 4 migration.
+ADR-0024 adds a read-only observation-statistics query to `SqliteStateStore`.
+It performs no schema migration, retention deletion or compaction.
 
 `infrastructure.persistence.snapshot_codec` is a private shared codec used by
 JSON and SQLite persistence. It preserves exact Domain values and is not a
@@ -176,6 +179,8 @@ discount business logic.
 ADR-0022 extends that publisher with dashboard-ready numeric and timestamp
 representations while preserving the aggregate health entity and existing
 dependency boundary.
+ADR-0024 adds the storage-status publisher. It formats already assembled Core
+statistics and performs no SQLite query itself.
 
 `infrastructure.scheduler` contains `SystemDelay`, the standard-library
 implementation of the Core delay boundary.
@@ -264,6 +269,8 @@ catalog mode.
 ADR-0022 passes completed synchronization notification diagnostics into the
 same catalog representation; Applications still perform no Home Assistant
 formatting or discount calculation.
+ADR-0024 composes read-only SQLite observation statistics and Home Assistant
+storage-health publication only in catalog mode.
 
 ---
 

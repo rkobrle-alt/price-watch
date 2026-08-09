@@ -342,6 +342,23 @@ Deliverables:
 
 ---
 
+# v0.23.0 — Observation Storage Diagnostics
+
+Goal:
+
+Measure long-term SQLite observation growth and expose storage health without
+deleting or rewriting user history.
+
+Deliverables:
+
+- provider-neutral observation statistics contract
+- read-only SQLite counts, insertion-boundary timestamps and allocated bytes
+- `sensor.price_watch_storage` healthy and warning representations
+- original persistence-error propagation after best-effort warning publication
+- unchanged schema version 4 and indefinite retention
+
+---
+
 # v1.0.0
 
 Stable public release.

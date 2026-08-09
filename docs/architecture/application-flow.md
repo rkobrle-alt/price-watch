@@ -146,3 +146,9 @@ the local date, reads the latest persisted snapshot for every product and
 delivers one deterministic summary through the configured Home Assistant
 notify entity. The durable date prevents a restart or later cycle from
 repeating the same day's digest.
+
+ADR-0024 inserts one read-only storage-diagnostics step after catalog status
+publication and before the daily digest. A successful query publishes exact
+observation counts, insertion-boundary timestamps and allocated bytes. An
+approved catalog persistence failure attempts a warning publication without
+reading the failed database and then retains the original fatal exception.

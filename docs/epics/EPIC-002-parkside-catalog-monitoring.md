@@ -40,6 +40,7 @@ installations may disable individual alerts and use only that daily digest.
 6. Home Assistant catalog health and summary representations
 7. dashboard-ready operational overview and diagnostics
 8. digest-only notification policy
+9. non-destructive observation storage diagnostics
 
 Each step requires its own accepted ADR when it introduces a new persistence,
 workflow, rule or scheduling contract.
@@ -60,6 +61,8 @@ catalog outcome into backward-compatible native Home Assistant overview
 states without changing Core or persistence.
 ADR-0023 and STORY-022 define step 8 as a Home Assistant composition option
 which can suppress all individual rules while retaining the daily digest.
+ADR-0024 and STORY-023 define step 9 as read-only observation growth and
+storage-health publication without approving retention or deletion.
 
 ## Discount Semantics
 
@@ -86,3 +89,4 @@ boundary between durable reservation and Home Assistant delivery.
   latest completed check directly on a dashboard
 - catalog email delivery can be configured as one daily digest without
   individual product messages
+- observation growth and SQLite health are visible without modifying history
