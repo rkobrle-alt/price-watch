@@ -11,7 +11,7 @@ def test_app_manifest_has_exact_runtime_identity_and_defaults() -> None:
     manifest = (APP / "config.yaml").read_text(encoding="utf-8")
 
     for required in (
-        'version: "0.23.0"',
+        'version: "0.24.0"',
         "slug: price_watch",
         "  - aarch64",
         "  - amd64",
@@ -66,6 +66,8 @@ def test_repository_container_and_operator_documents_are_complete() -> None:
     assert "sensor.price_watch_catalog_errors" in operator_docs
     assert "sensor.price_watch_last_checked" in operator_docs
     assert "sensor.price_watch_storage" in operator_docs
+    assert "reclaimable_size_bytes" in operator_docs
+    assert "maintenance" in operator_docs
     assert "last successful discovery and refresh attempt" in operator_docs
     assert "not entity-registry-backed" in operator_docs
     assert "/data/catalog.sqlite3" in operator_docs

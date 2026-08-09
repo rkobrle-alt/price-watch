@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.24.0
+
+- Add previewable, manually invoked SQLite observation retention.
+- Require a complete new backup before every explicit apply operation.
+- Preserve recent rows, latest product state and historical-high price rows.
+- Report reclaimable SQLite bytes without automatic vacuum or App deletion.
+
 ## 0.23.0
 
 - Add read-only SQLite observation counts and allocated-size diagnostics.
