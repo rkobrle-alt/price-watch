@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.22.0
+
+- Add a backward-compatible catalog option for individual notifications.
+- Disable individual product email in new packaged installations.
+- Keep one daily digest with all current qualifying discounts and URLs.
+- Preserve catalog monitoring, history, status and existing option behavior.
+
 ## 0.21.0
 
 - Publish a numeric count of currently qualifying discounted Parkside products.
