@@ -37,6 +37,7 @@ def test_catalog_options_use_documented_defaults_without_product_urls() -> None:
     assert result.notification_title == "Price Watch"
     assert result.catalog.price_drop_percentage == Decimal("20.00")
     assert result.daily_digest is None
+    assert result.individual_notifications_enabled is True
 
 
 def test_catalog_options_preserve_exact_custom_values() -> None:
@@ -51,6 +52,7 @@ def test_catalog_options_preserve_exact_custom_values() -> None:
             notification_title="Parkside Catalog",
             daily_digest_enabled=True,
             daily_digest_time="07:15",
+            individual_notifications_enabled=False,
         ),
         Path("data"),
     )
@@ -68,6 +70,7 @@ def test_catalog_options_preserve_exact_custom_values() -> None:
         time(7, 15),
         Percentage(Decimal("20.00")),
     )
+    assert result.individual_notifications_enabled is False
 
 
 def test_enabled_digest_uses_documented_default_time() -> None:
@@ -95,6 +98,34 @@ def test_homeassistant_config_accepts_exactly_catalog_mode() -> None:
     )
 
     assert result.catalog is catalog
+    assert result.individual_notifications_enabled is True
+
+
+def test_homeassistant_config_validates_individual_notification_policy() -> None:
+    catalog = CatalogMonitoringConfig(Path("catalog.sqlite3"), timedelta(minutes=5))
+
+    with pytest.raises(TypeError, match="individual_notifications_enabled"):
+        HomeAssistantConfig(
+            None,
+            "notify.gmail_parkside",
+            catalog=catalog,
+            individual_notifications_enabled=1,  # type: ignore[arg-type]
+        )
+
+    explicit = parse_homeassistant_options(
+        {
+            "product_urls": ["https://www.lidl.cz/p/parkside-tool/p100"],
+            "notify_entity": "notify.gmail_parkside",
+            "interval_seconds": 300,
+        },
+        Path("/data"),
+    ).application
+    with pytest.raises(ValueError, match="require catalog"):
+        HomeAssistantConfig(
+            explicit,
+            "notify.gmail_parkside",
+            individual_notifications_enabled=False,
+        )
 
 
 @pytest.mark.parametrize(
@@ -194,6 +225,7 @@ def test_homeassistant_config_validates_daily_digest_mode_and_type() -> None:
         ({"daily_digest_enabled": True, "daily_digest_time": "8:00"}, "daily_digest_time"),
         ({"daily_digest_enabled": True, "daily_digest_time": "24:00"}, "daily_digest_time"),
         ({"daily_digest_enabled": True, "price_drop_percentage": None}, "price_drop_percentage"),
+        ({"individual_notifications_enabled": "no"}, "individual_notifications_enabled"),
     ],
 )
 def test_catalog_parser_rejects_invalid_values(
@@ -211,6 +243,7 @@ def test_catalog_parser_rejects_invalid_values(
         "catalog_discovery_interval_cycles",
         "daily_digest_enabled",
         "daily_digest_time",
+        "individual_notifications_enabled",
     ],
 )
 def test_explicit_mode_rejects_catalog_only_options(key: str) -> None:

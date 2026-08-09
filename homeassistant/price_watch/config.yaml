@@ -23,6 +23,7 @@ options:
   notification_title: Parkside Price Watch
   daily_digest_enabled: true
   daily_digest_time: "08:00"
+  individual_notifications_enabled: false
 schema:
   catalog_enabled: bool?
   catalog_batch_size: int(1,)?
@@ -37,4 +38,5 @@ schema:
   notification_title: str
   daily_digest_enabled: bool?
   daily_digest_time: str?
+  individual_notifications_enabled: bool?
 image: ghcr.io/rkobrle-alt/price-watch

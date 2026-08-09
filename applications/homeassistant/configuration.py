@@ -28,6 +28,7 @@ _ALLOWED_KEYS = frozenset(
         "catalog_discovery_interval_cycles",
         "daily_digest_enabled",
         "daily_digest_time",
+        "individual_notifications_enabled",
     }
 )
 _REQUIRED_KEYS = frozenset({"notify_entity", "interval_seconds"})
@@ -37,6 +38,7 @@ _CATALOG_ONLY_KEYS = frozenset(
         "catalog_discovery_interval_cycles",
         "daily_digest_enabled",
         "daily_digest_time",
+        "individual_notifications_enabled",
     }
 )
 _ENTITY_PATTERN = re.compile(r"notify\.[a-z0-9_]+")
@@ -52,6 +54,7 @@ class HomeAssistantConfig:
     notification_title: str = "Price Watch"
     catalog: CatalogMonitoringConfig | None = None
     daily_digest: DailyDigestConfig | None = None
+    individual_notifications_enabled: bool = True
 
     def __post_init__(self) -> None:
         """Validate mode selection and Home Assistant-specific invariants."""
@@ -74,6 +77,10 @@ class HomeAssistantConfig:
             raise TypeError("daily_digest must be a DailyDigestConfig or None")
         if self.daily_digest is not None and self.catalog is None:
             raise ValueError("daily digest requires catalog monitoring")
+        if not isinstance(self.individual_notifications_enabled, bool):
+            raise TypeError("individual_notifications_enabled must be a boolean")
+        if not self.individual_notifications_enabled and self.catalog is None:
+            raise ValueError("disabled individual notifications require catalog monitoring")
         if self.application is not None and self.application.interval is None:
             raise ValueError("application.interval is required")
         if not isinstance(self.notify_entity, str):
@@ -118,6 +125,10 @@ def parse_homeassistant_options(
                 document.get("notification_title", "Price Watch"),
             ),
             daily_digest=daily_digest,
+            individual_notifications_enabled=cast(
+                bool,
+                document.get("individual_notifications_enabled", True),
+            ),
         )
     except (TypeError, ValueError) as error:
         raise ConfigurationError(

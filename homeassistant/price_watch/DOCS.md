@@ -46,6 +46,13 @@ repeat it. The digest uses `price_drop_percentage`, includes only available
 products with an approved reference price, and sends an explicit empty summary
 when none qualify.
 
+`individual_notifications_enabled` controls immediate per-product price-drop
+and back-in-stock messages in catalog mode. It defaults to `true` when omitted
+so existing option documents remain compatible. New packaged installations
+set it to `false`, leaving the daily digest as the only email. Disabling it
+does not disable discovery, refresh, history, discount calculations or status
+entities.
+
 ## Persistence
 
 Catalog mode stores membership, refresh ordering, complete append-only

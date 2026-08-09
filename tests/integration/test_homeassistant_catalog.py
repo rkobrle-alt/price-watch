@@ -300,6 +300,7 @@ def test_daily_digest_sends_once_after_local_time_across_recomposition(
         "catalog_discovery_interval_cycles": 10,
         "daily_digest_enabled": True,
         "daily_digest_time": "08:00",
+        "individual_notifications_enabled": False,
     }
     outputs: list[RecordingStream] = []
 
@@ -334,6 +335,7 @@ def test_daily_digest_sends_once_after_local_time_across_recomposition(
         if payload["title"] == "Parkside Daily Digest"
     ]
     assert len(digest_payloads) == 1
+    assert notification_payloads == digest_payloads
     assert "Discounted products: 1" in digest_payloads[0]["message"]
     assert "Reference price: 100.00 CZK" in digest_payloads[0]["message"]
     assert "digest_status=not_due" in outputs[0].text
@@ -343,3 +345,6 @@ def test_daily_digest_sends_once_after_local_time_across_recomposition(
         assert connection.execute(
             "SELECT calendar_date FROM daily_digest_reservations"
         ).fetchall() == [("2026-08-08",)]
+        assert connection.execute(
+            "SELECT COUNT(*) FROM notification_reservations"
+        ).fetchone() == (0,)

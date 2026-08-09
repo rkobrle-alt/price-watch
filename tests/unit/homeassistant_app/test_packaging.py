@@ -26,6 +26,7 @@ def test_app_manifest_has_exact_runtime_identity_and_defaults() -> None:
         "interval_seconds: 300",
         "daily_digest_enabled: true",
         'daily_digest_time: "08:00"',
+        "individual_notifications_enabled: false",
         "image: ghcr.io/rkobrle-alt/price-watch",
     ):
         assert required in manifest
@@ -69,6 +70,7 @@ def test_repository_container_and_operator_documents_are_complete() -> None:
     assert "/data/catalog.sqlite3" in operator_docs
     assert "catalog_batch_size" in operator_docs
     assert "daily_digest_enabled" in operator_docs
+    assert "individual_notifications_enabled" in operator_docs
     for document in ("README.md", "DOCS.md", "CHANGELOG.md"):
         content = (APP / document).read_text(encoding="utf-8")
         assert content.strip()

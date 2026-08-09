@@ -99,6 +99,12 @@ durable local-date reservation prevents repeated daily email after later
 cycles or App restart. Existing option documents remain opted out until
 `daily_digest_enabled` is added.
 
+New packaged installations disable individual product notifications and send
+qualifying discounts together in that one daily digest. Existing option
+documents retain individual alerts unless
+`individual_notifications_enabled: false` is configured. Monitoring, history
+and dashboard states continue in either mode.
+
 ## Development
 
 The project requires Python 3.13 or newer.

@@ -184,6 +184,7 @@ def _compose_homeassistant(
             config.notify_entity,
             config.notification_title,
             config.daily_digest,
+            config.individual_notifications_enabled,
             clock,
             notification_id_factory,
         )
@@ -229,6 +230,7 @@ def _compose_catalog(
     notify_entity: str,
     notification_title: str,
     daily_digest_config: DailyDigestConfig | None,
+    individual_notifications_enabled: bool,
     clock: Callable[[], datetime],
     notification_id_factory: Callable[[], UUID],
 ) -> _HomeAssistantComposition:
@@ -271,10 +273,14 @@ def _compose_catalog(
         workflow=None,
         catalog_workflow=catalog_workflow,
         status_publisher=status_publisher,
-        rules=_create_rules(
-            catalog_config.price_drop_percentage,
-            catalog_config.price_drop_amount,
-            available_only=True,
+        rules=(
+            _create_rules(
+                catalog_config.price_drop_percentage,
+                catalog_config.price_drop_amount,
+                available_only=True,
+            )
+            if individual_notifications_enabled
+            else ()
         ),
         interval=catalog_config.interval,
         discovery_interval_cycles=catalog_config.discovery_interval_cycles,

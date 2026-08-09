@@ -65,7 +65,11 @@ class _Channel:
         return None
 
 
-def _catalog_config(*, digest: bool = False) -> HomeAssistantConfig:
+def _catalog_config(
+    *,
+    digest: bool = False,
+    individual_notifications: bool = True,
+) -> HomeAssistantConfig:
     return HomeAssistantConfig(
         application=None,
         catalog=CatalogMonitoringConfig(
@@ -83,6 +87,7 @@ def _catalog_config(*, digest: bool = False) -> HomeAssistantConfig:
             if digest
             else None
         ),
+        individual_notifications_enabled=individual_notifications,
     )
 
 
@@ -156,6 +161,20 @@ def test_catalog_composition_assembles_optional_daily_digest() -> None:
     assert workflow._digest_channel._entity_id == "notify.gmail_parkside"
     assert workflow._digest_channel._title == "Parkside Catalog Daily Digest"
     assert str(workflow._timezone) == "Europe/Prague"
+
+
+def test_catalog_composition_can_disable_only_individual_notifications() -> None:
+    result = _compose_homeassistant(
+        _catalog_config(digest=True, individual_notifications=False),
+        "token",
+        lambda: TIMESTAMP,
+        uuid4,
+    )
+
+    assert result.rules == ()
+    assert isinstance(result.daily_digest_workflow, DailyDigestWorkflow)
+    assert result.catalog_workflow is not None
+    assert result.catalog_status is not None
 
 
 def test_catalog_composition_preserves_disabled_percentage_status() -> None:
