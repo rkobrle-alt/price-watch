@@ -29,6 +29,7 @@ applications.homeassistant
     +--> HomeAssistantStatusPublisher
     +--> HomeAssistantCatalogStatusPublisher (catalog mode only)
     +--> HomeAssistantStorageStatusPublisher (catalog mode only)
+    +--> optional HomeAssistantMaintenanceStatusPublisher (catalog mode only)
 ```
 
 The first cycle starts immediately. Later cycles use fixed delay and never
@@ -38,6 +39,12 @@ Existing option documents without `catalog_enabled` remain in explicit mode.
 New packaged defaults enable catalog mode. The first catalog cycle discovers
 the sitemap; later discovery follows the configured cycle cadence while every
 cycle refreshes one persisted, fairly ordered batch.
+
+An optional positive `retention_preview_days` catalog setting composes the
+existing ADR-0025 planner and publishes `sensor.price_watch_maintenance` after
+healthy storage diagnostics. Omitting it creates neither planner nor entity.
+The App cannot apply retention, create the mandatory backup, delete history or
+compact SQLite; destructive maintenance remains an explicit CLI boundary.
 
 After a workflow cycle completes, `HomeAssistantStatusPublisher` writes one
 cycle status and one monetary sensor state for every successfully fetched

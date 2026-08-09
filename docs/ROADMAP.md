@@ -378,6 +378,23 @@ Deliverables:
 
 ---
 
+# v0.25.0 — Home Assistant Retention Preview
+
+Goal:
+
+Show the impact of an explicitly configured retention window in Home
+Assistant without making destructive maintenance available to the App.
+
+Deliverables:
+
+- optional catalog-only retention preview window
+- read-only `sensor.price_watch_maintenance` representation
+- exact cutoff and total, removable, retained and protected counts
+- unchanged CLI-only apply and mandatory backup boundary
+- no deletion, backup, compaction or schema migration in Home Assistant
+
+---
+
 # v1.0.0
 
 Stable public release.

@@ -153,6 +153,11 @@ observation counts, insertion-boundary timestamps and allocated bytes. An
 approved catalog persistence failure attempts a warning publication without
 reading the failed database and then retains the original fatal exception.
 
+ADR-0026 optionally inserts a read-only retention-preview publication after
+storage diagnostics and before the daily digest. It uses the injected cycle
+timestamp and configured whole-day window, calls only the ADR-0025 planner and
+adds no apply, backup, deletion or compaction path to Home Assistant.
+
 Manual retention is a separate operator flow and never enters the monitoring
 sequence:
 

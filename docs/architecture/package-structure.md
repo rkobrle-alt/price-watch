@@ -187,6 +187,8 @@ representations while preserving the aggregate health entity and existing
 dependency boundary.
 ADR-0024 adds the storage-status publisher. It formats already assembled Core
 statistics and performs no SQLite query itself.
+ADR-0026 adds the maintenance-status publisher. It formats an existing Core
+retention plan and exposes no persistence operation or destructive action.
 
 `infrastructure.scheduler` contains `SystemDelay`, the standard-library
 implementation of the Core delay boundary.

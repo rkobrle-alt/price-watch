@@ -42,6 +42,7 @@ installations may disable individual alerts and use only that daily digest.
 8. digest-only notification policy
 9. non-destructive observation storage diagnostics
 10. manual backup-protected observation retention
+11. optional Home Assistant retention preview
 
 Each step requires its own accepted ADR when it introduces a new persistence,
 workflow, rule or scheduling contract.
@@ -67,6 +68,8 @@ storage-health publication without approving retention or deletion.
 ADR-0025 and STORY-024 define step 10 as explicit CLI-only retention which
 preserves current state and historical-high price references, requires a
 pre-deletion backup and is never scheduled by Home Assistant.
+ADR-0026 and STORY-025 define step 11 as an opt-in read-only projection of a
+selected retention window in Home Assistant while retaining CLI-only apply.
 
 ## Discount Semantics
 
@@ -96,3 +99,5 @@ boundary between durable reservation and Home Assistant delivery.
 - observation growth and SQLite health are visible without modifying history
 - historical growth can be reduced manually without changing current state or
   the durable historical-high discount reference
+- a selected retention window can be assessed in Home Assistant without
+  enabling destructive maintenance there
