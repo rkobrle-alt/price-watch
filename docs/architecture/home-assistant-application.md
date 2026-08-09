@@ -21,6 +21,7 @@ applications.homeassistant
     |                  + reference-price enrichment
     |                  + shared SQLite history and alert reservations
     |                  + optional Europe/Prague daily discount digest
+    |                  + optional individual product notifications
     +--> RuleEngine + NotificationEngine
     +--> HomeAssistantNotificationChannel
     +--> SynchronizationWorkflow
@@ -90,6 +91,13 @@ calendar date before delivery. It is unavailable in explicit mode.
 
 The Supervisor token is constructor input to the REST client only. It is not
 part of `HomeAssistantConfig`, TOML, App options, logs or errors.
+
+ADR-0023 separates catalog monitoring from individual email delivery. Existing
+option documents retain individual price-drop and back-in-stock notifications.
+The packaged default disables those individual rules and retains the daily
+digest, so all current qualifying products are delivered in one email. This is
+an Application composition choice; Core and the synchronization workflow do
+not change.
 
 ---
 

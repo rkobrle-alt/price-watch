@@ -324,6 +324,24 @@ Deliverables:
 - unchanged Core, persistence schema, App options and explicit mode
 
 ---
+
+# v0.22.0 — Digest-Only Notifications
+
+Goal:
+
+Deliver all current qualifying Parkside discounts and links in one daily email
+without sending a separate email for every product.
+
+Deliverables:
+
+- backward-compatible catalog-only individual-notification option
+- packaged digest-only default for new installations
+- unchanged daily reservation and Europe/Prague scheduling
+- continued discovery, history and dashboard publication
+- unchanged Core, persistence, CLI and explicit mode
+
+---
+
 # v1.0.0
 
 Stable public release.

@@ -12,9 +12,10 @@ parts represented in the Lidl product catalog.
 ## User Outcome
 
 The operator does not maintain individual Lidl product URLs. Price Watch
-discovers new products, retains their price and availability history and sends
-an email when a product becomes at least 20 percent cheaper. An optional daily
-digest summarizes currently discounted available products.
+discovers new products, retains their price and availability history and can
+send an email when a product becomes at least 20 percent cheaper. An optional
+daily digest summarizes currently discounted available products. Catalog
+installations may disable individual alerts and use only that daily digest.
 
 ## Architecture Constraints
 
@@ -38,6 +39,7 @@ digest summarizes currently discounted available products.
 5. optional calendar-based daily digest
 6. Home Assistant catalog health and summary representations
 7. dashboard-ready operational overview and diagnostics
+8. digest-only notification policy
 
 Each step requires its own accepted ADR when it introduces a new persistence,
 workflow, rule or scheduling contract.
@@ -56,6 +58,8 @@ statistics and one aggregate Home Assistant catalog-health representation.
 ADR-0022 and STORY-021 define step 7 by projecting the already computed
 catalog outcome into backward-compatible native Home Assistant overview
 states without changing Core or persistence.
+ADR-0023 and STORY-022 define step 8 as a Home Assistant composition option
+which can suppress all individual rules while retaining the daily digest.
 
 ## Discount Semantics
 
@@ -80,3 +84,5 @@ boundary between durable reservation and Home Assistant delivery.
 - Home Assistant reports catalog health and useful aggregate counts
 - Home Assistant can display qualifying discounts, current errors and the
   latest completed check directly on a dashboard
+- catalog email delivery can be configured as one daily digest without
+  individual product messages
