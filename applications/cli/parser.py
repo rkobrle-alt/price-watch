@@ -9,6 +9,7 @@ from typing import TextIO
 
 from applications.cli.arguments import (
     CliArguments,
+    MaintenanceArguments,
     SyncArguments,
     SyncConfigurationArguments,
     VersionArguments,
@@ -66,6 +67,17 @@ def parse_arguments(
     namespace = parser.parse_args(argv)
     if namespace.command == "version":
         return VersionArguments()
+    if namespace.command == "maintenance":
+        if namespace.apply and namespace.backup_file is None:
+            parser.error("--backup-file is required with --apply")
+        if not namespace.apply and namespace.backup_file is not None:
+            parser.error("--backup-file requires --apply")
+        return MaintenanceArguments(
+            database_file=namespace.database_file,
+            retention_days=namespace.retention_days,
+            apply=namespace.apply,
+            backup_file=namespace.backup_file,
+        )
     if namespace.config_file is not None:
         if _has_direct_configuration(namespace):
             parser.error("--config cannot be combined with direct configuration options")
@@ -111,6 +123,32 @@ def _create_parser(stdout: TextIO, stderr: TextIO) -> _CliArgumentParser:
         allow_abbrev=False,
         stdout=stdout,
         stderr=stderr,
+    )
+    maintenance_parser = subparsers.add_parser(
+        "maintenance",
+        help="plan or apply SQLite observation retention",
+        allow_abbrev=False,
+        stdout=stdout,
+        stderr=stderr,
+    )
+    maintenance_parser.add_argument(
+        "--database-file",
+        type=Path,
+        required=True,
+        metavar="PATH",
+    )
+    maintenance_parser.add_argument(
+        "--retention-days",
+        type=_positive_integer,
+        required=True,
+        metavar="INTEGER",
+    )
+    maintenance_parser.add_argument("--apply", action="store_true")
+    maintenance_parser.add_argument(
+        "--backup-file",
+        type=Path,
+        default=None,
+        metavar="PATH",
     )
     sync_parser = subparsers.add_parser(
         "sync",

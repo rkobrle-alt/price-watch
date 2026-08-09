@@ -156,12 +156,14 @@ class SqliteStateStore:
                 first_at = snapshots[0].timestamp
                 last_at = snapshots[-1].timestamp
             storage_size_bytes = _allocated_database_bytes(connection)
+            reclaimable_size_bytes = _reclaimable_database_bytes(connection)
             return ObservationStatistics(
                 observation_count=observation_count,
                 observed_product_count=observed_product_count,
                 first_observation_at=first_at,
                 last_observation_at=last_at,
                 storage_size_bytes=storage_size_bytes,
+                reclaimable_size_bytes=reclaimable_size_bytes,
             )
         except (
             json.JSONDecodeError,
@@ -211,6 +213,18 @@ def _allocated_database_bytes(connection: sqlite3.Connection) -> int:
     if page_count < 0 or page_size <= 0:
         raise ValueError("SQLite page metrics must be positive")
     return page_count * page_size
+
+
+def _reclaimable_database_bytes(connection: sqlite3.Connection) -> int:
+    free_page_count = connection.execute("PRAGMA freelist_count").fetchone()[0]
+    page_size = connection.execute("PRAGMA page_size").fetchone()[0]
+    if isinstance(free_page_count, bool) or not isinstance(free_page_count, int):
+        raise TypeError("SQLite free page count must be an int")
+    if isinstance(page_size, bool) or not isinstance(page_size, int):
+        raise TypeError("SQLite page size must be an int")
+    if free_page_count < 0 or page_size <= 0:
+        raise ValueError("SQLite free page metrics must be non-negative")
+    return free_page_count * page_size
 
 
 def _close_state_connection(

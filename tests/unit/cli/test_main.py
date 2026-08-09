@@ -2,6 +2,7 @@
 
 import importlib
 from datetime import datetime
+from pathlib import Path
 from typing import cast
 
 import pytest
@@ -81,6 +82,92 @@ def test_version_writes_exact_output_and_returns_success() -> None:
     assert stdout.text() == f"Price Watch {VERSION}\n"
     assert stdout.flush_count == 1
     assert stderr.text() == ""
+
+
+def test_maintenance_plan_is_read_only_and_reports_exact_counts(
+    tmp_path: Path,
+) -> None:
+    stdout = RecordingStream()
+    stderr = RecordingStream()
+    database = tmp_path / "catalog.sqlite3"
+
+    status = run(
+        (
+            "maintenance",
+            "--database-file",
+            str(database),
+            "--retention-days",
+            "30",
+        ),
+        stdout,
+        stderr,
+        fixed_clock,
+        fixed_notification_id,
+    )
+
+    assert status == 0
+    assert stdout.text() == (
+        "maintenance plan: cutoff=2026-07-02T12:00:00+00:00 "
+        "observations=0 removable=0 retained=0 protected=0\n"
+    )
+    assert stderr.text() == ""
+
+
+def test_maintenance_apply_creates_backup_and_reports_result(tmp_path: Path) -> None:
+    stdout = RecordingStream()
+    stderr = RecordingStream()
+    database = tmp_path / "catalog.sqlite3"
+    backup = tmp_path / "backup.sqlite3"
+
+    status = run(
+        (
+            "maintenance",
+            "--database-file",
+            str(database),
+            "--retention-days",
+            "30",
+            "--apply",
+            "--backup-file",
+            str(backup),
+        ),
+        stdout,
+        stderr,
+        fixed_clock,
+        fixed_notification_id,
+    )
+
+    assert status == 0
+    assert backup.exists()
+    assert stdout.text().endswith(f"protected=0 backup={backup}\n")
+    assert stderr.text() == ""
+
+
+def test_maintenance_maps_backup_failure_to_operational_status(tmp_path: Path) -> None:
+    stdout = RecordingStream()
+    stderr = RecordingStream()
+    backup = tmp_path / "backup.sqlite3"
+    backup.write_bytes(b"existing")
+
+    status = run(
+        (
+            "maintenance",
+            "--database-file",
+            str(tmp_path / "catalog.sqlite3"),
+            "--retention-days",
+            "30",
+            "--apply",
+            "--backup-file",
+            str(backup),
+        ),
+        stdout,
+        stderr,
+        fixed_clock,
+        fixed_notification_id,
+    )
+
+    assert status == 1
+    assert stdout.text() == ""
+    assert stderr.text() == "error: failed to apply SQLite observation retention\n"
 
 
 @pytest.mark.parametrize(

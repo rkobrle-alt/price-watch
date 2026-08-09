@@ -2,11 +2,13 @@
 
 import sys
 from collections.abc import Callable, Sequence
-from datetime import UTC, datetime
-from typing import TextIO
+from datetime import UTC, datetime, timedelta
+from pathlib import Path
+from typing import TextIO, cast
 from uuid import UUID, uuid4
 
 from applications.cli.arguments import (
+    MaintenanceArguments,
     SyncConfigurationArguments,
     VersionArguments,
     WatchArguments,
@@ -22,8 +24,9 @@ from core.configuration import ConfigurationError, ConfigurationLoader
 from core.notifications import NotificationError
 from core.rules import RuleError
 from core.scheduler import Delay, SchedulerError
-from core.state import StateStoreError
+from core.state import ObservationRetentionPlan, StateStoreError
 from infrastructure.configuration.toml import TomlConfigurationLoader
+from infrastructure.persistence.sqlite import SqliteObservationRetentionManager
 from infrastructure.scheduler import SystemDelay
 
 
@@ -55,6 +58,8 @@ def run(
     if isinstance(command, VersionArguments):
         _write(stdout, f"Price Watch {VERSION}\n")
         return 0
+    if isinstance(command, MaintenanceArguments):
+        return _run_maintenance(command, stdout, stderr, clock())
 
     if isinstance(
         command,
@@ -97,6 +102,50 @@ def main() -> int:
         uuid4,
         delay=SystemDelay(),
         configuration_loader=TomlConfigurationLoader(),
+    )
+
+
+def _run_maintenance(
+    command: MaintenanceArguments,
+    stdout: TextIO,
+    stderr: TextIO,
+    timestamp: datetime,
+) -> int:
+    manager = SqliteObservationRetentionManager(command.database_file)
+    cutoff = timestamp - timedelta(days=command.retention_days)
+    try:
+        if command.apply:
+            result = manager.apply(cutoff, cast(Path, command.backup_file))
+            _write_retention_summary(
+                stdout,
+                "maintenance applied",
+                result.plan,
+                f" backup={result.backup_file}",
+            )
+        else:
+            plan = manager.plan(cutoff)
+            _write_retention_summary(stdout, "maintenance plan", plan)
+    except StateStoreError as error:
+        _write(stderr, f"error: {error}\n")
+        return 1
+    return 0
+
+
+def _write_retention_summary(
+    stdout: TextIO,
+    label: str,
+    plan: ObservationRetentionPlan,
+    suffix: str = "",
+) -> None:
+    _write(
+        stdout,
+        f"{label}: "
+        f"cutoff={plan.cutoff.isoformat()} "
+        f"observations={plan.observation_count} "
+        f"removable={plan.removable_observation_count} "
+        f"retained={plan.retained_observation_count} "
+        f"protected={plan.protected_observation_count}"
+        f"{suffix}\n",
     )
 
 

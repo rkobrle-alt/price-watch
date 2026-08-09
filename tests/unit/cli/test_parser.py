@@ -5,7 +5,11 @@ from pathlib import Path
 
 import pytest
 
-from applications.cli.arguments import SyncArguments, VersionArguments
+from applications.cli.arguments import (
+    MaintenanceArguments,
+    SyncArguments,
+    VersionArguments,
+)
 from applications.cli.parser import ParserExit, _create_parser, parse_arguments
 from tests.unit.cli.helpers import RecordingStream
 
@@ -74,12 +78,78 @@ def test_sync_command_uses_optional_defaults() -> None:
 
 
 @pytest.mark.parametrize(
+    ("argv", "expected"),
+    [
+        (
+            (
+                "maintenance",
+                "--database-file",
+                "catalog.sqlite3",
+                "--retention-days",
+                "90",
+            ),
+            MaintenanceArguments(Path("catalog.sqlite3"), 90),
+        ),
+        (
+            (
+                "maintenance",
+                "--database-file",
+                "catalog.sqlite3",
+                "--retention-days",
+                "30",
+                "--apply",
+                "--backup-file",
+                "backup.sqlite3",
+            ),
+            MaintenanceArguments(
+                Path("catalog.sqlite3"),
+                30,
+                True,
+                Path("backup.sqlite3"),
+            ),
+        ),
+    ],
+)
+def test_maintenance_command_parses_plan_and_apply(
+    argv: tuple[str, ...],
+    expected: MaintenanceArguments,
+) -> None:
+    assert parse_arguments(argv, RecordingStream(), RecordingStream()) == expected
+
+
+@pytest.mark.parametrize(
     "argv",
     [
         (),
         ("unknown",),
         ("sync", "--state-file", "state.json"),
         ("sync", "--url", "https://www.lidl.cz/tool/p100"),
+        ("maintenance", "--retention-days", "90"),
+        ("maintenance", "--database-file", "catalog.sqlite3"),
+        (
+            "maintenance",
+            "--database-file",
+            "catalog.sqlite3",
+            "--retention-days",
+            "0",
+        ),
+        (
+            "maintenance",
+            "--database-file",
+            "catalog.sqlite3",
+            "--retention-days",
+            "90",
+            "--apply",
+        ),
+        (
+            "maintenance",
+            "--database-file",
+            "catalog.sqlite3",
+            "--retention-days",
+            "90",
+            "--backup-file",
+            "backup.sqlite3",
+        ),
         (
             "sync",
             "--url",
@@ -167,7 +237,10 @@ def test_parser_errors_use_injected_stderr(argv: tuple[str, ...]) -> None:
     assert stdout.text() == ""
 
 
-@pytest.mark.parametrize("argv", [("--help",), ("sync", "--help")])
+@pytest.mark.parametrize(
+    "argv",
+    [("--help",), ("sync", "--help"), ("maintenance", "--help")],
+)
 def test_help_uses_injected_stdout(argv: tuple[str, ...]) -> None:
     stdout = RecordingStream()
     stderr = RecordingStream()

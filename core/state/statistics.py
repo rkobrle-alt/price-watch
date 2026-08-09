@@ -14,12 +14,21 @@ class ObservationStatistics:
     first_observation_at: datetime | None
     last_observation_at: datetime | None
     storage_size_bytes: int
+    reclaimable_size_bytes: int = 0
 
     def __post_init__(self) -> None:
         """Validate complete statistics and boundary timestamp presence."""
         _validate_count(self.observation_count, "observation_count")
         _validate_count(self.observed_product_count, "observed_product_count")
         _validate_count(self.storage_size_bytes, "storage_size_bytes")
+        _validate_count(
+            self.reclaimable_size_bytes,
+            "reclaimable_size_bytes",
+        )
+        if self.reclaimable_size_bytes > self.storage_size_bytes:
+            raise ValueError(
+                "reclaimable_size_bytes cannot exceed storage_size_bytes"
+            )
         if self.observed_product_count > self.observation_count:
             raise ValueError(
                 "observed_product_count cannot exceed observation_count"

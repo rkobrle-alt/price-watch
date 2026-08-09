@@ -68,6 +68,20 @@ interval_seconds = 300
 Run it with `python -m applications.cli watch --config price-watch.toml`.
 Relative state paths are interpreted from the configuration file directory.
 
+Preview manual retention for a catalog SQLite database:
+
+```text
+python -m applications.cli maintenance \
+    --database-file data/catalog.sqlite3 \
+    --retention-days 90
+```
+
+Planning is read-only. Applying retention additionally requires both
+`--apply` and a distinct, non-existing `--backup-file`. The backup contains the
+complete pre-deletion database. Retention preserves recent observations, the
+latest state of every product and every product/currency historical-high price.
+Stop any process writing the database before applying maintenance.
+
 Price Watch is also packaged as a Home Assistant App. Its catalog mode
 automatically discovers Parkside candidates from the published Lidl sitemap
 and refreshes a durable, bounded product batch every cycle. Catalog membership,
@@ -109,6 +123,8 @@ Catalog installations publish `sensor.price_watch_storage` with the exact
 retained observation count, observed-product count, first and last inserted
 observation times and allocated SQLite bytes. These diagnostics are read-only;
 Price Watch does not automatically delete, compact or rewrite history.
+After explicitly applied retention they also report reclaimable bytes which
+SQLite can reuse without an automatic vacuum.
 
 ## Development
 

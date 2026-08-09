@@ -124,13 +124,24 @@ successful read and `warning` when Price Watch reports a catalog persistence
 failure before stopping. Attributes contain the total observation count,
 distinct observed-product count, first and last inserted observation times and
 allocated SQLite bytes. The values are diagnostics only: Price Watch performs
-no automatic deletion, compaction or vacuum.
+no automatic deletion, compaction or vacuum. The
+`reclaimable_size_bytes` attribute reports allocated free pages which SQLite
+can reuse after explicit retention; it does not imply that the file shrank.
 
 The catalog database remains `/data/catalog.sqlite3`. Include the Price Watch
 App in a Home Assistant full or partial backup before maintenance or a future
 retention migration. Restore it through the Home Assistant backup workflow;
 do not replace the database while the App is running. Version 0.23.0 does not
 execute backups itself and does not change schema version 4.
+
+Version 0.24.0 provides a separate CLI `maintenance` command for operators who
+have deliberately stopped every writer and can access the catalog database.
+Without `--apply` it only previews removable and protected counts. Apply
+requires a distinct new backup file and preserves the latest state and
+historical-high price for every product and currency. The Home Assistant App
+never invokes this command, exposes no deletion option and performs no
+automatic vacuum. Do not run retention directly against `/data/catalog.sqlite3`
+while the App is running.
 
 The REST-created product states are not entity-registry-backed. To test email
 delivery independently, call `notify.send_message` for the configured notify

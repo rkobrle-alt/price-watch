@@ -7,6 +7,9 @@ from core.domain import ProductId
 from core.state import (
     LatestSnapshotReader,
     ObservationHistory,
+    ObservationRetentionManager,
+    ObservationRetentionPlan,
+    ObservationRetentionResult,
     ObservationStatistics,
     ObservationStatisticsReader,
     StateSnapshot,
@@ -43,6 +46,9 @@ def test_core_state_public_api_is_explicit() -> None:
     assert state_api.__all__ == [
         "LatestSnapshotReader",
         "ObservationHistory",
+        "ObservationRetentionManager",
+        "ObservationRetentionPlan",
+        "ObservationRetentionResult",
         "ObservationStatistics",
         "ObservationStatisticsReader",
         "StateSnapshot",
@@ -51,6 +57,9 @@ def test_core_state_public_api_is_explicit() -> None:
     ]
     assert state_api.LatestSnapshotReader is LatestSnapshotReader
     assert state_api.ObservationHistory is ObservationHistory
+    assert state_api.ObservationRetentionManager is ObservationRetentionManager
+    assert state_api.ObservationRetentionPlan is ObservationRetentionPlan
+    assert state_api.ObservationRetentionResult is ObservationRetentionResult
     assert state_api.ObservationStatistics is ObservationStatistics
     assert state_api.ObservationStatisticsReader is ObservationStatisticsReader
     assert state_api.StateSnapshot is StateSnapshot

@@ -63,6 +63,7 @@ class HomeAssistantStorageStatusPublisher:
             "first_observation_at": None,
             "last_observation_at": None,
             "storage_size_bytes": None,
+            "reclaimable_size_bytes": None,
             "version": self._version,
         }
         state = "warning"
@@ -81,6 +82,9 @@ class HomeAssistantStorageStatusPublisher:
                         statistics.last_observation_at
                     ),
                     "storage_size_bytes": statistics.storage_size_bytes,
+                    "reclaimable_size_bytes": (
+                        statistics.reclaimable_size_bytes
+                    ),
                 }
             )
         self._client.set_state(self._entity_id, state, attributes)

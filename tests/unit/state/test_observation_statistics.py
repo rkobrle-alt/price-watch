@@ -40,6 +40,13 @@ def test_empty_statistics_require_no_products_or_timestamps() -> None:
         ({"observation_count": -1}, ValueError, "observation_count"),
         ({"observed_product_count": "1"}, TypeError, "observed_product_count"),
         ({"storage_size_bytes": -1}, ValueError, "storage_size_bytes"),
+        ({"reclaimable_size_bytes": True}, TypeError, "reclaimable_size_bytes"),
+        ({"reclaimable_size_bytes": -1}, ValueError, "reclaimable_size_bytes"),
+        (
+            {"reclaimable_size_bytes": 4097},
+            ValueError,
+            "cannot exceed storage_size_bytes",
+        ),
         ({"observed_product_count": 3}, ValueError, "cannot exceed"),
         (
             {"first_observation_at": "now"},
@@ -77,6 +84,7 @@ def test_statistics_reject_invalid_values(
         "first_observation_at": _FIRST,
         "last_observation_at": _LAST,
         "storage_size_bytes": 4096,
+        "reclaimable_size_bytes": 0,
     }
     values.update(changes)
 

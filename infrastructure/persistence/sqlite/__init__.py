@@ -7,11 +7,15 @@ from infrastructure.persistence.sqlite.daily_digest_reservation_store import (
 from infrastructure.persistence.sqlite.notification_reservation_store import (
     SqliteNotificationReservationStore,
 )
+from infrastructure.persistence.sqlite.retention import (
+    SqliteObservationRetentionManager,
+)
 from infrastructure.persistence.sqlite.state_store import SqliteStateStore
 
 __all__ = [
     "SqliteCatalogStore",
     "SqliteDailyDigestReservationStore",
     "SqliteNotificationReservationStore",
+    "SqliteObservationRetentionManager",
     "SqliteStateStore",
 ]

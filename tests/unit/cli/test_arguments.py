@@ -7,7 +7,11 @@ from typing import cast
 
 import pytest
 
-from applications.cli.arguments import SyncArguments, VersionArguments
+from applications.cli.arguments import (
+    MaintenanceArguments,
+    SyncArguments,
+    VersionArguments,
+)
 
 
 def test_sync_arguments_retain_exact_values_and_are_immutable() -> None:
@@ -30,6 +34,50 @@ def test_version_arguments_is_immutable() -> None:
 
     with pytest.raises((FrozenInstanceError, TypeError)):
         arguments.value = "invalid"
+
+
+def test_maintenance_arguments_retain_explicit_plan_and_apply_modes() -> None:
+    plan = MaintenanceArguments(Path("catalog.sqlite3"), 90)
+    apply = MaintenanceArguments(
+        Path("catalog.sqlite3"),
+        30,
+        True,
+        Path("backup.sqlite3"),
+    )
+
+    assert plan.backup_file is None
+    assert apply.apply is True
+    with pytest.raises(FrozenInstanceError):
+        plan.retention_days = 1  # type: ignore[misc]
+
+
+@pytest.mark.parametrize(
+    ("overrides", "exception_type"),
+    [
+        ({"database_file": "catalog.sqlite3"}, TypeError),
+        ({"retention_days": True}, TypeError),
+        ({"retention_days": "90"}, TypeError),
+        ({"retention_days": 0}, ValueError),
+        ({"apply": 1}, TypeError),
+        ({"backup_file": "backup.sqlite3"}, TypeError),
+        ({"apply": True, "backup_file": None}, ValueError),
+        ({"apply": False, "backup_file": Path("backup.sqlite3")}, ValueError),
+    ],
+)
+def test_maintenance_arguments_reject_invalid_fields(
+    overrides: dict[str, object],
+    exception_type: type[Exception],
+) -> None:
+    values: dict[str, object] = {
+        "database_file": Path("catalog.sqlite3"),
+        "retention_days": 90,
+        "apply": False,
+        "backup_file": None,
+    }
+    values.update(overrides)
+
+    with pytest.raises(exception_type):
+        MaintenanceArguments(**values)
 
 
 @pytest.mark.parametrize(

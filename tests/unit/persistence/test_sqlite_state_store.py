@@ -4,6 +4,7 @@ import json
 import sqlite3
 from datetime import timedelta
 from pathlib import Path
+from typing import cast
 
 import pytest
 
@@ -19,6 +20,9 @@ from infrastructure.persistence.sqlite import SqliteStateStore
 from infrastructure.persistence.sqlite.database import (
     SqliteDatabase,
     SqlitePersistenceError,
+)
+from infrastructure.persistence.sqlite.state_store import (
+    _reclaimable_database_bytes,
 )
 from tests.unit.persistence.helpers import (
     OTHER_PRODUCT_ID,
@@ -75,6 +79,7 @@ def test_missing_database_and_unknown_product_return_none_and_empty(
     assert statistics.first_observation_at is None
     assert statistics.last_observation_at is None
     assert statistics.storage_size_bytes > 0
+    assert statistics.reclaimable_size_bytes == 0
     assert path.exists()
 
 
@@ -148,6 +153,7 @@ def test_statistics_use_insertion_boundaries_and_preserve_schema(
             "SELECT COUNT(*) FROM observations"
         ).fetchone() == (3,)
     assert statistics.storage_size_bytes == page_count * page_size
+    assert statistics.reclaimable_size_bytes == 0
 
 
 def test_products_have_independent_histories(tmp_path: Path) -> None:
@@ -419,6 +425,71 @@ def test_statistics_wrap_query_failure_after_open(
         SqliteStateStore(tmp_path / "state.sqlite3").observation_statistics()
 
     assert captured.value.__cause__ is failure
+
+
+@pytest.mark.parametrize(
+    ("free_page_count", "page_size"),
+    [
+        (True, 4096),
+        ("1", 4096),
+        (1, True),
+        (1, "4096"),
+        (-1, 4096),
+        (1, 0),
+    ],
+)
+def test_statistics_wrap_invalid_sqlite_free_page_metrics(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    free_page_count: object,
+    page_size: object,
+) -> None:
+    class _Result:
+        def __init__(self, row: tuple[object, ...]) -> None:
+            self._row = row
+
+        def fetchone(self) -> tuple[object, ...]:
+            return self._row
+
+    class _Connection:
+        def execute(
+            self,
+            statement: str,
+            parameters: tuple[object, ...] = (),
+        ) -> _Result:
+            if statement.startswith("SELECT COUNT"):
+                return _Result((0, 0, None, None))
+            if statement == "PRAGMA page_count":
+                return _Result((10,))
+            if statement == "PRAGMA freelist_count":
+                return _Result((free_page_count,))
+            return _Result((page_size,))
+
+    connection = _Connection()
+    monkeypatch.setattr(SqliteDatabase, "open", lambda database: connection)
+    monkeypatch.setattr(SqliteDatabase, "close", lambda database, value: None)
+
+    with pytest.raises(StateStoreError, match="invalid persisted") as captured:
+        SqliteStateStore(tmp_path / "state.sqlite3").observation_statistics()
+
+    assert captured.value.__cause__ is not None
+
+
+@pytest.mark.parametrize("page_size", [True, "4096"])
+def test_reclaimable_bytes_reject_invalid_page_size(page_size: object) -> None:
+    class _Result:
+        def __init__(self, value: object) -> None:
+            self._value = value
+
+        def fetchone(self) -> tuple[object]:
+            return (self._value,)
+
+    class _Connection:
+        def execute(self, statement: str) -> _Result:
+            return _Result(1 if statement == "PRAGMA freelist_count" else page_size)
+
+    with pytest.raises(TypeError, match="page size"):
+        _reclaimable_database_bytes(cast(sqlite3.Connection, _Connection()))
 
 def test_save_handles_database_failure_before_connection_assignment(
     tmp_path: Path,

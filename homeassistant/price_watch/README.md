@@ -17,3 +17,6 @@ catalog, compatibility, persistence and operation details.
 Catalog installations also publish non-destructive SQLite observation counts,
 boundary timestamps and allocated size through
 `sensor.price_watch_storage`.
+Version 0.24.0 additionally reports reusable SQLite bytes after an explicitly
+invoked external maintenance operation. Normal App cycles never delete or
+compact history.

@@ -14,6 +14,7 @@ from infrastructure.persistence.sqlite import (
     SqliteCatalogStore,
     SqliteDailyDigestReservationStore,
     SqliteNotificationReservationStore,
+    SqliteObservationRetentionManager,
     SqliteStateStore,
 )
 from infrastructure.persistence.sqlite.database import (
@@ -36,6 +37,7 @@ def test_sqlite_public_api_is_explicit_documented_and_typed() -> None:
         "SqliteCatalogStore",
         "SqliteDailyDigestReservationStore",
         "SqliteNotificationReservationStore",
+        "SqliteObservationRetentionManager",
         "SqliteStateStore",
     ]
     assert sqlite_api.SqliteCatalogStore is SqliteCatalogStore
@@ -45,6 +47,10 @@ def test_sqlite_public_api_is_explicit_documented_and_typed() -> None:
     )
     assert sqlite_api.SqliteStateStore is SqliteStateStore
     assert (
+        sqlite_api.SqliteObservationRetentionManager
+        is SqliteObservationRetentionManager
+    )
+    assert (
         sqlite_api.SqliteNotificationReservationStore
         is SqliteNotificationReservationStore
     )
@@ -52,6 +58,7 @@ def test_sqlite_public_api_is_explicit_documented_and_typed() -> None:
         SqliteCatalogStore,
         SqliteDailyDigestReservationStore,
         SqliteNotificationReservationStore,
+        SqliteObservationRetentionManager,
         SqliteStateStore,
     ):
         assert inspect.getdoc(public_class)

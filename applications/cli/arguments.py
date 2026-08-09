@@ -52,6 +52,37 @@ class VersionArguments:
 
 
 @dataclass(frozen=True, slots=True)
+class MaintenanceArguments:
+    """Configure one read-only or explicitly applied retention operation."""
+
+    database_file: Path
+    retention_days: int
+    apply: bool = False
+    backup_file: Path | None = None
+
+    def __post_init__(self) -> None:
+        """Validate paths, retention duration and explicit apply pairing."""
+        if not isinstance(self.database_file, Path):
+            raise TypeError("database_file must be a Path")
+        if isinstance(self.retention_days, bool) or not isinstance(
+            self.retention_days,
+            int,
+        ):
+            raise TypeError("retention_days must be an int")
+        if self.retention_days <= 0:
+            raise ValueError("retention_days must be positive")
+        if not isinstance(self.apply, bool):
+            raise TypeError("apply must be a bool")
+        if self.backup_file is not None and not isinstance(
+            self.backup_file,
+            Path,
+        ):
+            raise TypeError("backup_file must be a Path or None")
+        if self.apply != (self.backup_file is not None):
+            raise ValueError("apply and backup_file must be supplied together")
+
+
+@dataclass(frozen=True, slots=True)
 class WatchArguments:
     """Validated configuration for repeated synchronization."""
 
@@ -111,7 +142,8 @@ class WatchConfigurationArguments:
 
 
 CliArguments: TypeAlias = (
-    SyncArguments
+    MaintenanceArguments
+    | SyncArguments
     | VersionArguments
     | WatchArguments
     | SyncConfigurationArguments

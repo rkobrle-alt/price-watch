@@ -20,7 +20,14 @@ from tests.unit.homeassistant_app.helpers import TIMESTAMP
 
 
 def _statistics() -> ObservationStatistics:
-    return ObservationStatistics(2500, 1879, TIMESTAMP, TIMESTAMP, 1048576)
+    return ObservationStatistics(
+        2500,
+        1879,
+        TIMESTAMP,
+        TIMESTAMP,
+        1048576,
+        262144,
+    )
 
 
 def test_publisher_emits_exact_healthy_storage_state() -> None:
@@ -42,6 +49,7 @@ def test_publisher_emits_exact_healthy_storage_state() -> None:
                 "first_observation_at": TIMESTAMP.isoformat(),
                 "last_observation_at": TIMESTAMP.isoformat(),
                 "storage_size_bytes": 1048576,
+                "reclaimable_size_bytes": 262144,
                 "version": "0.23.0",
             },
         )
@@ -67,6 +75,7 @@ def test_publisher_emits_exact_warning_without_statistics() -> None:
         "first_observation_at": None,
         "last_observation_at": None,
         "storage_size_bytes": None,
+        "reclaimable_size_bytes": None,
         "version": "0.23.0",
     }
 
