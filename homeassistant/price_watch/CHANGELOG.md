@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.23.0
+
+- Add read-only SQLite observation counts and allocated-size diagnostics.
+- Publish storage health through `sensor.price_watch_storage`.
+- Attempt a warning state before propagating catalog persistence failures.
+- Preserve schema version 4 and all retained history without compaction.
+
 ## 0.22.0
 
 - Add a backward-compatible catalog option for individual notifications.
