@@ -414,6 +414,24 @@ Deliverables:
 
 ---
 
+# v0.27.0 — Managed Home Assistant Distribution
+
+Goal:
+
+Install and update Price Watch from its GitHub Home Assistant App repository
+without losing the state of the existing local installation.
+
+Deliverables:
+
+- discoverable repository installation and normal managed updates
+- explicit checksummed state export to the Home Assistant shared directory
+- pre-cycle import into the repository App's independent `/data`
+- preservation of catalog history and notification reservations
+- verified configuration hand-off and unchanged sensor entity IDs
+- retained local installation and Home Assistant backup for rollback
+
+---
+
 # v1.0.0
 
 Stable public release.

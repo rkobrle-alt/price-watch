@@ -101,6 +101,8 @@ infrastructure/
 
         sqlite/
 
+        migration/
+
     notifications/
 
         console/
@@ -164,6 +166,11 @@ it.
 ADR-0027 adds `TimestampedRetentionBackupFileFactory` beside the retention
 adapter. It prepares a unique persistent backup destination but performs no
 retention selection or deletion.
+
+`infrastructure.persistence.migration` contains the ADR-0028 ZIP adapter for
+an explicit Home Assistant local-to-repository state hand-off. It owns ZIP,
+JSON, SQLite-backup, checksum and filesystem effects. It does not alter normal
+State Store behavior or import Applications.
 
 `infrastructure.persistence.snapshot_codec` is a private shared codec used by
 JSON and SQLite persistence. It preserves exact Domain values and is not a
@@ -290,6 +297,10 @@ ADR-0026 composes the optional read-only retention preview. ADR-0027 adds a
 strict one-shot command processor and standard-input listener in the Home
 Assistant Application. They serialize explicit maintenance with normal cycles
 and delegate backup and deletion to existing Infrastructure adapters.
+ADR-0028 routes an independent export command through the same lock and runs a
+configured, checksum-protected migration import before the first repository-
+App cycle. Migration remains an outer deployment concern and changes no Core
+contract.
 
 ---
 

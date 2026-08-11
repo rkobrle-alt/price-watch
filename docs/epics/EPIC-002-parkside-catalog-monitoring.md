@@ -44,6 +44,8 @@ installations may disable individual alerts and use only that daily digest.
 10. manual backup-protected observation retention
 11. optional Home Assistant retention preview
 12. explicit backup-protected Home Assistant retention command
+13. managed Home Assistant repository distribution with state-preserving
+    migration
 
 Each step requires its own accepted ADR when it introduces a new persistence,
 workflow, rule or scheduling contract.
@@ -74,6 +76,9 @@ selected retention window in Home Assistant while retaining CLI-only apply.
 ADR-0027 and STORY-026 define step 12 as a one-shot Supervisor-stdin command
 which replans, rejects stale confirmation and serializes backup-protected apply
 with normal monitoring.
+ADR-0028 and STORY-027 define step 13 as an explicit checksummed hand-off from
+the local App identity to the GitHub-repository identity before its first
+monitoring cycle.
 
 ## Discount Semantics
 
@@ -107,3 +112,5 @@ boundary between durable reservation and Home Assistant delivery.
   enabling destructive maintenance there
 - a reviewed current plan can be applied from an explicit Home Assistant
   action without enabling scheduled or restart-triggered deletion
+- future App versions can be installed and updated from the managed repository
+  without discarding catalog history or reservation state

@@ -135,3 +135,17 @@ The Home Assistant App manifest resides in `homeassistant/price_watch` and
 references `ghcr.io/rkobrle-alt/price-watch`. A root Dockerfile packages the
 existing source tree. Tag publication builds amd64 and aarch64 variants into
 one OCI image manifest.
+
+ADR-0028 makes the root `repository.yaml` and recursively discovered App
+manifest the supported installation and update source. A repository install
+has a different Supervisor identity and `/data` directory from the existing
+`local_price_watch` installation; it is therefore never presented as an
+in-place adoption.
+
+The manifest maps Home Assistant `share` writable solely for an explicit
+handoff through `/share/price-watch-migration`. The local App creates one
+checksummed state bundle under the existing process lock. The repository App
+validates and atomically imports that bundle before composing its first
+monitoring cycle. Exported options are compared with current Supervisor
+options but never replace `/data/options.json`. The unchanged stopped local
+installation remains the immediate rollback path until acceptance succeeds.

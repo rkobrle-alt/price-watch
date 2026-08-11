@@ -189,6 +189,32 @@ SQLite maintenance cannot overlap discovery, refresh, synchronization,
 reservation or status work. The command always reuses the configured preview
 window and never runs because of a restart or scheduled cycle.
 
+ADR-0028 adds a deployment-only hand-off around, not inside, the monitoring
+workflow:
+
+```text
+local App explicit export command
+    |
+    v
+shared-lock SQLite/JSON snapshot + checksummed ZIP in /share
+    |
+    v
+repository App explicit first-start import configuration
+    |
+    v
+archive, option and state integrity validation
+    |
+    v
+atomic install into the new App /data
+    |
+    v
+ordinary composition and first monitoring cycle
+```
+
+The local App's source state is unchanged. A requested import must complete
+before `_compose_homeassistant`; a failed import therefore cannot start an
+empty-state monitoring cycle.
+
 Manual retention is a separate operator flow and never enters the monitoring
 sequence:
 
