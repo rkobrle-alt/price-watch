@@ -21,6 +21,10 @@ from core.state import (
     ObservationRetentionResult,
     StateStoreError,
 )
+from infrastructure.persistence.migration import (
+    MigrationArchiveError,
+    MigrationExportResult,
+)
 from tests.unit.homeassistant_app.helpers import RecordingStream, TIMESTAMP
 
 
@@ -200,6 +204,84 @@ def test_listener_does_not_enter_shared_lock_until_it_is_available() -> None:
     assert published == [TIMESTAMP]
 
 
+def test_listener_exports_migration_and_continues_after_known_failure() -> None:
+    command = (
+        '{"command":"export_migration","confirmation":"wrong"}\n'
+        '{"command":"export_migration","confirmation":"EXPORT_MIGRATION"}\n'
+        '{"command":"export_migration","confirmation":"EXPORT_MIGRATION"}\n'
+    )
+    stdout = RecordingStream()
+    stderr = RecordingStream()
+    lock = _RecordingLock()
+    calls = 0
+
+    def export(timestamp: datetime) -> MigrationExportResult:
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            raise MigrationArchiveError("disk failed")
+        assert timestamp == TIMESTAMP
+        return MigrationExportResult(Path("bundle.zip"), "a" * 64, "state.json")
+
+    listener = _MaintenanceCommandListener(
+        StringIO(command),
+        cast(TextIO, stdout),
+        cast(TextIO, stderr),
+        lambda: TIMESTAMP,
+        lock,
+        None,
+        None,
+        export,
+    )
+
+    listener.listen()
+
+    assert calls == 2
+    assert lock.events == ["enter", "exit"] * 2
+    assert "confirmation must be 'EXPORT_MIGRATION'" in stderr.text
+    assert "migration command error: disk failed" in stderr.text
+    assert stdout.text == (
+        "migration export complete: file=bundle.zip "
+        f"sha256={'a' * 64} state=state.json\n"
+    )
+
+
+def test_listener_reports_unavailable_command_handlers() -> None:
+    retention = (
+        '{"command":"apply_retention","confirmation":"APPLY_RETENTION",'
+        '"expected_removable_observation_count":0}\n'
+    )
+    migration = (
+        '{"command":"export_migration","confirmation":"EXPORT_MIGRATION"}\n'
+    )
+    stderr = RecordingStream()
+    _MaintenanceCommandListener(
+        StringIO(retention),
+        cast(TextIO, RecordingStream()),
+        cast(TextIO, stderr),
+        lambda: TIMESTAMP,
+        _RecordingLock(),
+        None,
+        None,
+        lambda timestamp: MigrationExportResult(
+            Path("bundle.zip"), "a" * 64, "state.json"
+        ),
+    ).listen()
+    assert "retention command is not available" in stderr.text
+
+    stderr = RecordingStream()
+    _MaintenanceCommandListener(
+        StringIO(migration),
+        cast(TextIO, RecordingStream()),
+        cast(TextIO, stderr),
+        lambda: TIMESTAMP,
+        _RecordingLock(),
+        _processor(_RetentionManager(0)),
+        lambda timestamp: True,
+    ).listen()
+    assert "migration export is not available" in stderr.text
+
+
 @pytest.mark.parametrize(
     ("field", "value", "message"),
     [
@@ -210,6 +292,7 @@ def test_listener_does_not_enter_shared_lock_until_it_is_available() -> None:
         ("operation_lock", object(), "operation_lock"),
         ("processor", object(), "processor"),
         ("publish_preview", object(), "publish_preview"),
+        ("migration_exporter", object(), "migration_exporter"),
     ],
 )
 def test_listener_rejects_invalid_dependencies(
@@ -223,8 +306,44 @@ def test_listener_rejects_invalid_dependencies(
         "operation_lock": _RecordingLock(),
         "processor": _processor(_RetentionManager(0)),
         "publish_preview": lambda timestamp: True,
+        "migration_exporter": None,
     }
     values[field] = value
 
     with pytest.raises(TypeError, match=message):
         _MaintenanceCommandListener(**cast(dict, values))
+
+
+@pytest.mark.parametrize(
+    ("processor", "publisher"),
+    [(_processor(_RetentionManager(0)), None), (None, lambda timestamp: True)],
+)
+def test_listener_requires_complete_retention_handler_pair(
+    processor: object, publisher: object
+) -> None:
+    with pytest.raises(ValueError, match="configured together"):
+        _MaintenanceCommandListener(
+            StringIO(""),
+            cast(TextIO, RecordingStream()),
+            cast(TextIO, RecordingStream()),
+            lambda: TIMESTAMP,
+            _RecordingLock(),
+            cast(MaintenanceCommandProcessor | None, processor),
+            cast(object, publisher),
+            lambda timestamp: MigrationExportResult(
+                Path("bundle.zip"), "a" * 64, "state.json"
+            ),
+        )
+
+
+def test_listener_requires_at_least_one_handler() -> None:
+    with pytest.raises(ValueError, match="at least one"):
+        _MaintenanceCommandListener(
+            StringIO(""),
+            cast(TextIO, RecordingStream()),
+            cast(TextIO, RecordingStream()),
+            lambda: TIMESTAMP,
+            _RecordingLock(),
+            None,
+            None,
+        )

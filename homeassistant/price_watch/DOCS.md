@@ -79,6 +79,70 @@ API token at runtime. The token and SMTP credentials are not App options and
 are never stored by Price Watch. The App adds no ingress, exposed port or host
 access.
 
+Version 0.27.0 additionally maps Home Assistant's shared directory writable.
+Price Watch uses only `/share/price-watch-migration`, and only after an
+explicit export command or a fully confirmed import configuration. It does not
+scan the directory for automatic imports.
+
+## Managed repository installation and migration
+
+For a new installation, add this repository URL in the Home Assistant App
+store and install Price Watch:
+
+```text
+https://github.com/rkobrle-alt/price-watch
+```
+
+Home Assistant gives a local App and a GitHub-repository App different full
+slugs and different persistent `/data` directories. Adding the repository does
+not convert `local_price_watch` in place. Use the following hand-off for an
+existing installation.
+
+1. Update the local App to 0.27.0 and create a Home Assistant full or partial
+   backup containing `local_price_watch`.
+2. In Developer Tools, call `hassio.addon_stdin` with:
+
+   ```yaml
+   addon: local_price_watch
+   input: >-
+     {"command":"export_migration","confirmation":"EXPORT_MIGRATION"}
+   ```
+
+3. Wait for `migration export complete` in the App log. Record the complete
+   filename and SHA-256. The ZIP is in `/share/price-watch-migration`; keep an
+   independent copy and inspect its `options.json`.
+4. Stop, but do not uninstall, `local_price_watch`.
+5. Add the repository URL above, reload the App store, install the repository
+   Price Watch App and copy the exported operational settings into its
+   configuration.
+6. Add these three values exactly, using the filename rather than a path:
+
+   ```yaml
+   migration_import_file: price-watch-migration-YYYYMMDDTHHMMSSffffffZ.zip
+   migration_import_sha256: <64 lowercase hexadecimal characters from the log>
+   migration_import_confirmation: IMPORT_MIGRATION
+   ```
+
+7. Start the repository App. Import finishes before its first monitoring
+   cycle. Verify an import-success log, a normal catalog cycle, the previous
+   observation count in `sensor.price_watch_storage`, catalog counts and the
+   next daily digest. Repeated starts with the same values are safe.
+8. Remove all three `migration_import_*` settings after the successful import
+   and first-cycle verification, then restart the repository App. The imported
+   state remains in its `/data` directory and subsequent starts no longer
+   depend on the shared migration bundle.
+9. Update dashboard scripts using `hassio.addon_stdin` to the full App slug
+   displayed for the repository installation. Sensor entity IDs do not
+   change.
+10. Keep the stopped local App and backup through an acceptance period. Remove
+   them only after the managed installation is confirmed healthy.
+
+The import refuses a path, incorrect checksum, different options, damaged
+state, unexpected archive content or any unrelated existing state. It never
+overwrites `options.json`. To roll back, stop the repository App and restart
+the unchanged local App. Do not run both installations simultaneously because
+they publish the same sensor states and may send duplicate mail.
+
 ## Operation
 
 Start the App and inspect its log for catalog or explicit cycle summaries.

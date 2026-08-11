@@ -7,6 +7,7 @@ from datetime import date, timedelta
 from io import StringIO
 from decimal import Decimal
 from typing import TextIO, cast
+from types import SimpleNamespace
 from uuid import UUID, uuid4
 
 import pytest
@@ -269,7 +270,7 @@ def test_catalog_watch_discovers_first_and_at_configured_cadence(
     monkeypatch.setattr(
         _homeassistant_main,
         "parse_homeassistant_options",
-        lambda options, data_directory: object(),
+        lambda options, data_directory: SimpleNamespace(migration_import=None),
     )
     monkeypatch.setattr(
         _homeassistant_main,
@@ -311,7 +312,7 @@ def test_catalog_and_provider_errors_are_reported_and_counted(
     monkeypatch.setattr(
         _homeassistant_main,
         "parse_homeassistant_options",
-        lambda options, data_directory: object(),
+        lambda options, data_directory: SimpleNamespace(migration_import=None),
     )
     monkeypatch.setattr(
         _homeassistant_main,
@@ -516,7 +517,7 @@ def test_injected_command_stream_advertises_explicit_apply(
     monkeypatch.setattr(
         _homeassistant_main,
         "parse_homeassistant_options",
-        lambda options, data_directory: object(),
+        lambda options, data_directory: SimpleNamespace(migration_import=None),
     )
     monkeypatch.setattr(
         _homeassistant_main,
@@ -632,7 +633,7 @@ def test_persistence_failure_publishes_warning_and_returns_operational_exit_code
     monkeypatch.setattr(
         _homeassistant_main,
         "parse_homeassistant_options",
-        lambda options, data_directory: object(),
+        lambda options, data_directory: SimpleNamespace(migration_import=None),
     )
     monkeypatch.setattr(
         _homeassistant_main,
@@ -678,7 +679,7 @@ def test_warning_publication_failure_does_not_mask_persistence_failure(
     monkeypatch.setattr(
         _homeassistant_main,
         "parse_homeassistant_options",
-        lambda options, data_directory: object(),
+        lambda options, data_directory: SimpleNamespace(migration_import=None),
     )
     monkeypatch.setattr(
         _homeassistant_main,

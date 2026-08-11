@@ -11,7 +11,7 @@ def test_app_manifest_has_exact_runtime_identity_and_defaults() -> None:
     manifest = (APP / "config.yaml").read_text(encoding="utf-8")
 
     for required in (
-        'version: "0.26.0"',
+        'version: "0.27.0"',
         "slug: price_watch",
         "  - aarch64",
         "  - amd64",
@@ -19,6 +19,9 @@ def test_app_manifest_has_exact_runtime_identity_and_defaults() -> None:
         "boot: auto",
         "homeassistant_api: true",
         "stdin: true",
+        "map:",
+        "  - type: share",
+        "    read_only: false",
         "catalog_enabled: true",
         "catalog_batch_size: 25",
         "catalog_discovery_interval_cycles: 288",
@@ -28,6 +31,9 @@ def test_app_manifest_has_exact_runtime_identity_and_defaults() -> None:
         "daily_digest_enabled: true",
         'daily_digest_time: "08:00"',
         "individual_notifications_enabled: false",
+        "migration_import_file: str?",
+        "migration_import_sha256: str?",
+        "migration_import_confirmation: str?",
         "image: ghcr.io/rkobrle-alt/price-watch",
     ):
         assert required in manifest
@@ -39,7 +45,6 @@ def test_app_manifest_has_exact_runtime_identity_and_defaults() -> None:
         "full_access:",
         "ingress:",
         "ports:",
-        "map:",
         "SUPERVISOR_TOKEN",
         "password",
     ):
@@ -79,6 +84,10 @@ def test_repository_container_and_operator_documents_are_complete() -> None:
     assert "hassio.addon_stdin" in operator_docs
     assert "APPLY_RETENTION" in operator_docs
     assert "/data/retention-backups" in operator_docs
+    assert "/share/price-watch-migration" in operator_docs
+    assert "export_migration" in operator_docs
+    assert "IMPORT_MIGRATION" in operator_docs
+    assert "local_price_watch" in operator_docs
     for document in ("README.md", "DOCS.md", "CHANGELOG.md"):
         content = (APP / document).read_text(encoding="utf-8")
         assert content.strip()

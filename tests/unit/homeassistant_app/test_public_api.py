@@ -13,29 +13,42 @@ from applications.cli import VERSION as CLI_VERSION
 from applications.homeassistant import (
     HomeAssistantConfig,
     HomeAssistantMaintenanceCommand,
+    HomeAssistantMigrationExportCommand,
+    HomeAssistantMigrationImport,
     MaintenanceCommandError,
     MaintenanceCommandProcessor,
     MaintenanceCommandResult,
     MaintenanceCommandStatus,
+    MigrationCommandError,
     main,
     parse_maintenance_command,
+    parse_migration_export_command,
     parse_homeassistant_options,
     run,
 )
 from applications.version import VERSION
 from infrastructure.configuration.json import JsonConfigurationLoader
+from infrastructure.persistence.migration import (
+    MigrationArchiveError,
+    MigrationExportResult,
+    ZipMigrationArchive,
+)
 
 
 def test_public_apis_are_explicit_documented_and_versioned_once() -> None:
     assert homeassistant_api.__all__ == [
         "HomeAssistantConfig",
         "HomeAssistantMaintenanceCommand",
+        "HomeAssistantMigrationExportCommand",
+        "HomeAssistantMigrationImport",
         "MaintenanceCommandError",
         "MaintenanceCommandProcessor",
         "MaintenanceCommandResult",
         "MaintenanceCommandStatus",
+        "MigrationCommandError",
         "main",
         "parse_maintenance_command",
+        "parse_migration_export_command",
         "parse_homeassistant_options",
         "run",
     ]
@@ -46,16 +59,26 @@ def test_public_apis_are_explicit_documented_and_versioned_once() -> None:
     assert homeassistant_api.run is run
     assert json_api.JsonConfigurationLoader is JsonConfigurationLoader
     assert CLI_VERSION == VERSION
-    assert inspect.getdoc(MaintenanceCommandError)
+    for exception in (
+        MaintenanceCommandError,
+        MigrationArchiveError,
+        MigrationCommandError,
+    ):
+        assert inspect.getdoc(exception)
     for public_object in (
         HomeAssistantConfig,
         HomeAssistantMaintenanceCommand,
+        HomeAssistantMigrationExportCommand,
+        HomeAssistantMigrationImport,
         MaintenanceCommandProcessor,
         MaintenanceCommandResult,
         MaintenanceCommandStatus,
+        MigrationExportResult,
+        ZipMigrationArchive,
         JsonConfigurationLoader,
         main,
         parse_maintenance_command,
+        parse_migration_export_command,
         parse_homeassistant_options,
         run,
     ):
@@ -78,6 +101,7 @@ def test_homeassistant_application_dependency_direction() -> None:
     root = Path(__file__).parents[3]
     core_imports = _imports(root / "core")
     infrastructure_imports = _imports(root / "infrastructure" / "configuration" / "json")
+    infrastructure_imports |= _imports(root / "infrastructure" / "persistence" / "migration")
     cli_imports = _imports(root / "applications" / "cli")
     reusable_imports = _imports(root / "applications" / "synchronization") | _imports(
         root / "applications" / "scheduler"

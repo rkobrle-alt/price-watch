@@ -26,3 +26,9 @@ Version 0.25.0 can optionally publish a read-only retention plan through
 Home Assistant action for applying exactly the reviewed removable count after
 a fresh validation and persistent backup. See `DOCS.md` before enabling the
 action. Retention is never automatic and no vacuum is performed.
+
+Version 0.27.0 supports installation and later updates through the Price Watch
+GitHub App repository. Existing `local_price_watch` users must use the
+documented checksummed export/import hand-off because Home Assistant assigns
+the repository installation a separate persistent App identity. The local App
+is retained, stopped, until the migrated installation has been verified.

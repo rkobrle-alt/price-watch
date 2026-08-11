@@ -28,6 +28,7 @@ from applications.homeassistant.maintenance_command import (
     MaintenanceCommandProcessor,
 )
 from applications.scheduler import IntervalScheduler
+from applications.version import VERSION
 from core.catalog import CatalogStoreError
 from core.configuration import ConfigurationError
 from core.notifications import (
@@ -43,9 +44,14 @@ from infrastructure.scheduler import SystemDelay
 from infrastructure.persistence.sqlite import (
     TimestampedRetentionBackupFileFactory,
 )
+from infrastructure.persistence.migration import (
+    MigrationArchiveError,
+    ZipMigrationArchive,
+)
 
 _DATA_DIRECTORY = Path("/data")
 _OPTIONS_PATH = _DATA_DIRECTORY / "options.json"
+_MIGRATION_DIRECTORY = Path("/share/price-watch-migration")
 
 
 def run(
@@ -60,6 +66,7 @@ def run(
     data_directory: Path = _DATA_DIRECTORY,
     max_cycles: int | None = None,
     command_input: TextIO | None = None,
+    migration_directory: Path = _MIGRATION_DIRECTORY,
 ) -> int:
     """Run the Supervisor-hosted monitor with explicit process dependencies."""
     _validate_dependencies(
@@ -73,12 +80,27 @@ def run(
         data_directory,
         max_cycles,
         command_input,
+        migration_directory,
     )
     if not access_token.strip():
         _write(stderr, "error: SUPERVISOR_TOKEN cannot be blank\n")
         return 2
     try:
         config = parse_homeassistant_options(options, data_directory)
+        migration_archive = ZipMigrationArchive(migration_directory)
+        if config.migration_import is not None:
+            migration_archive.import_state(
+                config.migration_import.archive_file,
+                config.migration_import.archive_sha256,
+                data_directory,
+                options,
+            )
+            _write(
+                stdout,
+                "migration import complete: "
+                f"file={config.migration_import.archive_file} "
+                f"sha256={config.migration_import.archive_sha256}\n",
+            )
         composition = _compose_homeassistant(
             config,
             access_token,
@@ -88,6 +110,9 @@ def run(
     except (ConfigurationError, ValueError) as error:
         _write(stderr, f"error: {error}\n")
         return 2
+    except MigrationArchiveError as error:
+        _write(stderr, f"error: {error}\n")
+        return 1
 
     operation_lock = Lock()
     maintenance_context = composition.maintenance_status
@@ -151,14 +176,22 @@ def run(
             if not status_published:
                 status_error_cycles += 1
 
-    if command_input is not None and maintenance_context is not None:
-        processor = MaintenanceCommandProcessor(
-            maintenance_context.retention_manager,
-            maintenance_context.retention_days,
-            TimestampedRetentionBackupFileFactory(
-                data_directory / "retention-backups"
-            ),
-        )
+    if command_input is not None:
+        processor = None
+        publish_preview = None
+        if maintenance_context is not None:
+            processor = MaintenanceCommandProcessor(
+                maintenance_context.retention_manager,
+                maintenance_context.retention_days,
+                TimestampedRetentionBackupFileFactory(
+                    data_directory / "retention-backups"
+                ),
+            )
+            publish_preview = lambda timestamp: _publish_maintenance_status(
+                composition,
+                timestamp,
+                stderr,
+            )
         _MaintenanceCommandListener(
             command_input,
             stdout,
@@ -166,10 +199,12 @@ def run(
             clock,
             operation_lock,
             processor,
-            lambda timestamp: _publish_maintenance_status(
-                composition,
+            publish_preview,
+            lambda timestamp: migration_archive.export(
+                data_directory,
+                options,
                 timestamp,
-                stderr,
+                VERSION,
             ),
         ).start()
 
@@ -234,6 +269,7 @@ def main() -> int:
         SystemDelay(),
         data_directory=_DATA_DIRECTORY,
         command_input=sys.stdin,
+        migration_directory=_MIGRATION_DIRECTORY,
     )
 
 
@@ -269,6 +305,7 @@ def _validate_dependencies(
     data_directory: object,
     max_cycles: object,
     command_input: object,
+    migration_directory: object,
 ) -> None:
     if not isinstance(options, Mapping):
         raise TypeError("options must be a Mapping")
@@ -295,6 +332,8 @@ def _validate_dependencies(
         raise TypeError(
             "command_input must expose a callable readline method or be None"
         )
+    if not isinstance(migration_directory, Path):
+        raise TypeError("migration_directory must be a Path")
 
 
 def _validate_stream(stream: object, name: str) -> None:

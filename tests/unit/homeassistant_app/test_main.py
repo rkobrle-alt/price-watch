@@ -2,6 +2,7 @@
 
 import importlib
 from datetime import datetime, timedelta
+from io import StringIO
 from pathlib import Path
 from typing import cast
 from uuid import uuid4
@@ -25,6 +26,7 @@ from infrastructure.homeassistant import (
     HomeAssistantError,
     HomeAssistantStatusPublisher,
 )
+from infrastructure.persistence.migration import ZipMigrationArchive
 from tests.unit.homeassistant_app.helpers import (
     TIMESTAMP,
     RecordingDelay,
@@ -313,6 +315,32 @@ def test_run_reports_blank_token_without_composition() -> None:
     assert stderr.text == "error: SUPERVISOR_TOKEN cannot be blank\n"
 
 
+def test_command_stream_without_retention_still_runs_monitoring(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    workflow = FakeWorkflow((_result(),))
+    monkeypatch.setattr(
+        app_main,
+        "_compose_homeassistant",
+        lambda *arguments: _composition(workflow),
+    )
+
+    status = run(
+        create_options(),
+        "token",
+        RecordingStream(),
+        RecordingStream(),
+        lambda: TIMESTAMP,
+        uuid4,
+        RecordingDelay(),
+        max_cycles=1,
+        command_input=StringIO(""),
+    )
+
+    assert status == 0
+    assert workflow.calls == 1
+
+
 def test_run_maps_option_and_composition_configuration_failures(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -365,6 +393,7 @@ def test_run_maps_option_and_composition_configuration_failures(
         ("max_cycles", True, TypeError, "max_cycles"),
         ("max_cycles", 0, ValueError, "max_cycles"),
         ("command_input", object(), TypeError, "command_input"),
+        ("migration_directory", "share", TypeError, "migration_directory"),
     ],
 )
 def test_run_rejects_invalid_public_dependencies(
@@ -384,8 +413,91 @@ def test_run_rejects_invalid_public_dependencies(
         "data_directory": Path("/data"),
         "max_cycles": 1,
         "command_input": None,
+        "migration_directory": Path("share"),
     }
     values[field] = value
 
     with pytest.raises(exception_type, match=message):
         run(**values)
+
+
+def test_requested_migration_import_completes_before_composition(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    options = create_options()
+    source = tmp_path / "source"
+    source.mkdir()
+    (source / "state.json").write_text(
+        '{"schema_version":1,"snapshots":{}}\n',
+        encoding="utf-8",
+    )
+    share = tmp_path / "share"
+    export = ZipMigrationArchive(share).export(
+        source,
+        options,
+        TIMESTAMP,
+        "0.27.0",
+    )
+    target = tmp_path / "target"
+    imported_options = {
+        **options,
+        "migration_import_file": export.archive_file.name,
+        "migration_import_sha256": export.archive_sha256,
+        "migration_import_confirmation": "IMPORT_MIGRATION",
+    }
+
+    def compose(*arguments: object) -> _HomeAssistantComposition:
+        assert (target / "state.json").is_file()
+        return _composition(FakeWorkflow((_result(),)))
+
+    monkeypatch.setattr(app_main, "_compose_homeassistant", compose)
+    stdout = RecordingStream()
+    status = run(
+        imported_options,
+        "token",
+        stdout,
+        RecordingStream(),
+        lambda: TIMESTAMP,
+        uuid4,
+        RecordingDelay(),
+        data_directory=target,
+        migration_directory=share,
+        max_cycles=1,
+    )
+
+    assert status == 0
+    assert "migration import complete" in stdout.text
+
+
+def test_requested_migration_failure_prevents_composition(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    composed = False
+
+    def compose(*arguments: object) -> _HomeAssistantComposition:
+        nonlocal composed
+        composed = True
+        return _composition(FakeWorkflow((_result(),)))
+
+    monkeypatch.setattr(app_main, "_compose_homeassistant", compose)
+    stderr = RecordingStream()
+    status = run(
+        create_options(
+            migration_import_file="missing.zip",
+            migration_import_sha256="a" * 64,
+            migration_import_confirmation="IMPORT_MIGRATION",
+        ),
+        "token",
+        RecordingStream(),
+        stderr,
+        lambda: TIMESTAMP,
+        uuid4,
+        RecordingDelay(),
+        data_directory=tmp_path / "data",
+        migration_directory=tmp_path / "share",
+        max_cycles=1,
+    )
+
+    assert status == 1
+    assert "migration directory must be a regular directory" in stderr.text
+    assert composed is False

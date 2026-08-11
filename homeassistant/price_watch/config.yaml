@@ -12,6 +12,9 @@ boot: auto
 stage: experimental
 homeassistant_api: true
 stdin: true
+map:
+  - type: share
+    read_only: false
 options:
   catalog_enabled: true
   catalog_batch_size: 25
@@ -41,4 +44,7 @@ schema:
   daily_digest_time: str?
   individual_notifications_enabled: bool?
   retention_preview_days: int(1,)?
+  migration_import_file: str?
+  migration_import_sha256: str?
+  migration_import_confirmation: str?
 image: ghcr.io/rkobrle-alt/price-watch

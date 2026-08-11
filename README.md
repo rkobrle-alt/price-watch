@@ -135,6 +135,22 @@ the reviewed count to be sent back through an explicit Home Assistant
 rejects a changed count and creates a complete persistent backup before any
 positive deletion. Retention is never scheduled and SQLite is never vacuumed.
 
+## Home Assistant repository installation
+
+New installations should add
+`https://github.com/rkobrle-alt/price-watch` as a Home Assistant App
+repository and install Price Watch from the App store. The repository manifest
+uses the published amd64/aarch64 GHCR image, so later releases appear as normal
+managed App updates.
+
+An existing `local_price_watch` installation is a different Home Assistant App
+identity and must not be uninstalled before migration. Version 0.27.0 provides
+an explicit checksummed export to `/share/price-watch-migration` and a
+pre-cycle import for the repository App. This preserves the catalog database,
+price and availability history and notification reservations. Follow the
+backup, migration, verification and rollback procedure in the packaged
+`DOCS.md`; adding the repository alone does not transfer `/data`.
+
 ## Development
 
 The project requires Python 3.13 or newer.

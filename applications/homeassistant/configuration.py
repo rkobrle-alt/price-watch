@@ -11,6 +11,10 @@ from typing import cast
 from applications.catalog_monitoring import CatalogMonitoringConfig
 from applications.daily_digest import DailyDigestConfig
 from applications.configuration import ApplicationConfig, parse_configuration
+from applications.homeassistant.migration import (
+    HomeAssistantMigrationImport,
+    _parse_migration_import,
+)
 from core.configuration import ConfigurationError
 from core.domain import Percentage
 
@@ -30,6 +34,9 @@ _ALLOWED_KEYS = frozenset(
         "daily_digest_time",
         "individual_notifications_enabled",
         "retention_preview_days",
+        "migration_import_file",
+        "migration_import_sha256",
+        "migration_import_confirmation",
     }
 )
 _REQUIRED_KEYS = frozenset({"notify_entity", "interval_seconds"})
@@ -58,6 +65,7 @@ class HomeAssistantConfig:
     daily_digest: DailyDigestConfig | None = None
     individual_notifications_enabled: bool = True
     retention_preview_days: int | None = None
+    migration_import: HomeAssistantMigrationImport | None = None
 
     def __post_init__(self) -> None:
         """Validate mode selection and Home Assistant-specific invariants."""
@@ -88,6 +96,13 @@ class HomeAssistantConfig:
             _positive_integer(self.retention_preview_days, "retention_preview_days")
             if self.catalog is None:
                 raise ValueError("retention preview requires catalog monitoring")
+        if self.migration_import is not None and not isinstance(
+            self.migration_import,
+            HomeAssistantMigrationImport,
+        ):
+            raise TypeError(
+                "migration_import must be a HomeAssistantMigrationImport or None"
+            )
         if self.application is not None and self.application.interval is None:
             raise ValueError("application.interval is required")
         if not isinstance(self.notify_entity, str):
@@ -143,6 +158,9 @@ def parse_homeassistant_options(
                     document["retention_preview_days"],
                     "retention_preview_days",
                 )
+            ),
+            migration_import=_parse_migration_import(
+                cast(dict[str, object], document)
             ),
         )
     except (TypeError, ValueError) as error:
