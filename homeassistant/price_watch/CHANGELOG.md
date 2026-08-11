@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.27.1
+
+- Selects the migration export state from the configured monitoring mode.
+- Safely ignores an inactive legacy state artifact left by an earlier mode
+  transition without reading, exporting, modifying or deleting it.
+
 ## 0.27.0
 
 - Add managed Home Assistant repository installation and update guidance.
