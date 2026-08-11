@@ -11,7 +11,7 @@ def test_app_manifest_has_exact_runtime_identity_and_defaults() -> None:
     manifest = (APP / "config.yaml").read_text(encoding="utf-8")
 
     for required in (
-        'version: "0.27.1"',
+        'version: "0.28.0"',
         "slug: price_watch",
         "  - aarch64",
         "  - amd64",
@@ -88,6 +88,8 @@ def test_repository_container_and_operator_documents_are_complete() -> None:
     assert "export_migration" in operator_docs
     assert "IMPORT_MIGRATION" in operator_docs
     assert "local_price_watch" in operator_docs
+    assert "Stop, restart and recovery acceptance" in operator_docs
+    assert "watch stopped" in operator_docs
     for document in ("README.md", "DOCS.md", "CHANGELOG.md"):
         content = (APP / document).read_text(encoding="utf-8")
         assert content.strip()

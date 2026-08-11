@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.28.0
+
+- Treat a Home Assistant Supervisor stop as a graceful process shutdown.
+- Preserve completed-cycle diagnostics and exit successfully on `SIGTERM`.
+- Keep Ctrl+C and all established configuration and operational error codes.
+- Document stop, restart and durable-state production acceptance checks.
+
 ## 0.27.1
 
 - Selects the migration export state from the configured monitoring mode.
