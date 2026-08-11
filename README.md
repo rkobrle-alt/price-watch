@@ -129,8 +129,11 @@ SQLite can reuse without an automatic vacuum.
 Catalog installations may opt into a read-only Home Assistant retention
 preview by adding a positive `retention_preview_days` option. The resulting
 `sensor.price_watch_maintenance` reports the selected cutoff and exact total,
-removable, retained and protected observation counts. The App cannot apply
-the plan, create a backup, delete history or compact SQLite.
+removable, retained and protected observation counts. Version 0.26.0 permits
+the reviewed count to be sent back through an explicit Home Assistant
+`hassio.addon_stdin` action. The App replans under the same lock as monitoring,
+rejects a changed count and creates a complete persistent backup before any
+positive deletion. Retention is never scheduled and SQLite is never vacuumed.
 
 ## Development
 

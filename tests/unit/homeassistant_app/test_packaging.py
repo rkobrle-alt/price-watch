@@ -11,13 +11,14 @@ def test_app_manifest_has_exact_runtime_identity_and_defaults() -> None:
     manifest = (APP / "config.yaml").read_text(encoding="utf-8")
 
     for required in (
-        'version: "0.25.0"',
+        'version: "0.26.0"',
         "slug: price_watch",
         "  - aarch64",
         "  - amd64",
         "startup: application",
         "boot: auto",
         "homeassistant_api: true",
+        "stdin: true",
         "catalog_enabled: true",
         "catalog_batch_size: 25",
         "catalog_discovery_interval_cycles: 288",
@@ -75,6 +76,9 @@ def test_repository_container_and_operator_documents_are_complete() -> None:
     assert "catalog_batch_size" in operator_docs
     assert "daily_digest_enabled" in operator_docs
     assert "individual_notifications_enabled" in operator_docs
+    assert "hassio.addon_stdin" in operator_docs
+    assert "APPLY_RETENTION" in operator_docs
+    assert "/data/retention-backups" in operator_docs
     for document in ("README.md", "DOCS.md", "CHANGELOG.md"):
         content = (APP / document).read_text(encoding="utf-8")
         assert content.strip()

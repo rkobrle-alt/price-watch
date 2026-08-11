@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.26.0
+
+- Add an explicit Supervisor-stdin action for a reviewed retention preview.
+- Replan and reject stale removable counts before every possible mutation.
+- Serialize maintenance with monitoring and back up persistent data first.
+- Republish the maintenance sensor after every accepted command.
+- Keep retention unscheduled and preserve schema version 4 without vacuum.
+
 ## 0.25.0
 
 - Add an opt-in read-only retention preview for catalog installations.

@@ -148,13 +148,41 @@ positive optional `retention_preview_days` value in the App configuration and
 restart the App. After a successful catalog cycle,
 `sensor.price_watch_maintenance` uses the removable observation count as its
 state and reports the exact cutoff, total, retained and protected counts as
-attributes. The sensor also reports `apply_available: false`. Omitting the
-option preserves the previous behavior and does not create the sensor.
+attributes. With version 0.26.0 the sensor reports `apply_available: true`.
+Omitting the option preserves the previous behavior and does not create the
+sensor or enable an apply command.
 
-This preview invokes only the read-only planner. It never creates a backup,
-deletes observations, vacuums SQLite or enables scheduled maintenance. To
-apply a reviewed plan, stop the App and use the separate CLI command with its
-mandatory new backup destination.
+Normal monitoring invokes only the read-only planner. It never schedules
+retention, creates a maintenance backup, deletes observations or vacuums
+SQLite. To apply a reviewed non-zero plan from Home Assistant, create a script
+with this action:
+
+```yaml
+sequence:
+  - action: hassio.addon_stdin
+    data:
+      addon: local_price_watch
+      input: >-
+        {"command":"apply_retention","confirmation":"APPLY_RETENTION","expected_removable_observation_count":{{ states('sensor.price_watch_maintenance') | int(-1) }}}
+mode: single
+```
+
+Expose that script on the dashboard only after reviewing the maintenance
+sensor. Calling it sends the displayed removable count once. The App obtains a
+fresh plan while holding the same lock as catalog synchronization. If the
+count changed, the command is rejected without creating a backup or deleting
+anything. A matching zero count is a successful no-op. A matching positive
+count creates a unique complete database backup below
+`/data/retention-backups` before applying the existing retention policy. The
+sensor is refreshed after each accepted outcome.
+
+The confirmation text is intentionally exact and case-sensitive. Do not build
+an automation or schedule around this script. Retention removes historical
+observations selected by the documented policy; restoring them requires the
+generated App-data backup or a Home Assistant backup. The operation preserves
+the latest observation and historical-high price observations for each product
+and currency, and does not delete catalog references or notification
+reservations. The separate stopped-App CLI maintenance flow remains available.
 
 The REST-created product states are not entity-registry-backed. To test email
 delivery independently, call `notify.send_message` for the configured notify

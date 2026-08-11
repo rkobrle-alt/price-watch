@@ -22,5 +22,7 @@ invoked external maintenance operation. Normal App cycles never delete or
 compact history.
 
 Version 0.25.0 can optionally publish a read-only retention plan through
-`sensor.price_watch_maintenance`. Applying retention remains unavailable in
-the App.
+`sensor.price_watch_maintenance`. Version 0.26.0 adds an explicit, confirmed
+Home Assistant action for applying exactly the reviewed removable count after
+a fresh validation and persistent backup. See `DOCS.md` before enabling the
+action. Retention is never automatic and no vacuum is performed.
