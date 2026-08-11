@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.27.0
+
+- Add managed Home Assistant repository installation and update guidance.
+- Add a serialized, read-only migration export to the shared directory.
+- Add explicit checksum-protected state import before the first managed-App
+  monitoring cycle.
+- Preserve catalog history, alert reservations and daily-digest reservations
+  across the local-to-repository identity hand-off.
+- Retain the stopped local App as the immediate migration rollback path.
+
 ## 0.26.0
 
 - Add an explicit Supervisor-stdin action for a reviewed retention preview.
