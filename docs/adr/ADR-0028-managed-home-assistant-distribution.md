@@ -69,9 +69,13 @@ The local App accepts this strict Supervisor-stdin command:
 ```
 
 The command is serialized by the same process lock as catalog monitoring and
-retention. Export uses the SQLite online backup API for catalog mode and an
-exact validated JSON copy for explicit mode. Exactly one active state artifact
-is required. The resulting ZIP contains:
+retention. Export determines the active state artifact from the already
+validated monitoring mode in `options.json`: catalog mode selects
+`catalog.sqlite3`, while explicit URL mode selects `state.json`. This permits a
+read-only inactive artifact left by an earlier mode transition; it is neither
+exported nor modified. The selected artifact must be a regular non-symbolic
+file. Export uses the SQLite online backup API for catalog mode and an exact
+validated JSON copy for explicit mode. The resulting ZIP contains:
 
 - a versioned manifest;
 - one state artifact (`catalog.sqlite3` or `state.json`);

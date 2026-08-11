@@ -11,8 +11,9 @@ existing `local_price_watch` installation.
 - expose the repository installation path in project and App documentation;
 - add the writable Home Assistant `share` mapping required by migration;
 - add a strict, serialized `export_migration` stdin command;
-- create a versioned, checksummed ZIP from exactly one active state artifact
-  and canonical active options;
+- create a versioned, checksummed ZIP from the state artifact selected by the
+  validated monitoring mode and canonical active options without changing an
+  inactive legacy artifact;
 - add an explicit checksum-protected first-start import configuration;
 - import and verify state before the first monitoring cycle;
 - make repeated import of the same completed bundle idempotent;
@@ -123,10 +124,13 @@ available independently of retention preview. A successful log line contains
 the bundle path and SHA-256. Known migration failures are logged and later
 commands continue.
 
-The archive adapter accepts exactly one of `/data/catalog.sqlite3` and
-`/data/state.json`. Catalog export uses an online SQLite backup followed by
-an integrity check. Explicit state is decoded as JSON before inclusion.
-Options are canonical UTF-8 JSON and exclude only import-only fields.
+The archive adapter selects `/data/catalog.sqlite3` when `catalog_enabled` is
+true and `/data/state.json` otherwise. The selected path must be a regular
+non-symbolic file. An inactive artifact left by an earlier mode transition may
+coexist; export does not read, include, modify or delete it. Catalog export uses
+an online SQLite backup followed by an integrity check. Explicit state is
+decoded as JSON before inclusion. Options are canonical UTF-8 JSON and exclude
+only import-only fields.
 
 The ZIP has fixed allowed member names and a version-1 manifest containing
 application version, timezone-aware creation time, state filename and exact

@@ -84,6 +84,10 @@ Price Watch uses only `/share/price-watch-migration`, and only after an
 explicit export command or a fully confirmed import configuration. It does not
 scan the directory for automatic imports.
 
+Version 0.27.1 selects the exported state from the configured monitoring mode.
+An inactive state artifact left by an earlier mode transition is ignored and
+is never read, exported, modified or deleted.
+
 ## Managed repository installation and migration
 
 For a new installation, add this repository URL in the Home Assistant App
@@ -98,7 +102,7 @@ slugs and different persistent `/data` directories. Adding the repository does
 not convert `local_price_watch` in place. Use the following hand-off for an
 existing installation.
 
-1. Update the local App to 0.27.0 and create a Home Assistant full or partial
+1. Update the local App to 0.27.1 and create a Home Assistant full or partial
    backup containing `local_price_watch`.
 2. In Developer Tools, call `hassio.addon_stdin` with:
 

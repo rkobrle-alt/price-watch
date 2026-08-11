@@ -144,7 +144,7 @@ uses the published amd64/aarch64 GHCR image, so later releases appear as normal
 managed App updates.
 
 An existing `local_price_watch` installation is a different Home Assistant App
-identity and must not be uninstalled before migration. Version 0.27.0 provides
+identity and must not be uninstalled before migration. Version 0.27.1 provides
 an explicit checksummed export to `/share/price-watch-migration` and a
 pre-cycle import for the repository App. This preserves the catalog database,
 price and availability history and notification reservations. Follow the
