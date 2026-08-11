@@ -151,6 +151,11 @@ price and availability history and notification reservations. Follow the
 backup, migration, verification and rollback procedure in the packaged
 `DOCS.md`; adding the repository alone does not transfer `/data`.
 
+Version 0.28.0 treats a Supervisor-requested stop as a successful lifecycle
+event. The packaged operator guide includes a stop/restart acceptance check
+which verifies that catalog history and notification reservations remain
+durable.
+
 ## Development
 
 The project requires Python 3.13 or newer.

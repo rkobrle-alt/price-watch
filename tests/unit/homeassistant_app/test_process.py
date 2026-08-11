@@ -6,6 +6,7 @@ from typing import cast
 
 import pytest
 
+from applications.homeassistant.lifecycle import _TerminationRequested
 from core.configuration import ConfigurationError
 from tests.unit.homeassistant_app.helpers import RecordingStream, create_options
 
@@ -73,6 +74,29 @@ def test_main_supplies_real_process_dependencies(
     assert cast(dict[str, object], captured["keywords"])["data_directory"] == Path(
         "/data"
     )
+
+
+def test_main_maps_termination_before_monitoring_to_success(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    stdout = RecordingStream()
+    monkeypatch.setenv("SUPERVISOR_TOKEN", "injected-token")
+    monkeypatch.setattr(app_main.sys, "stdout", stdout)
+    monkeypatch.setattr(
+        app_main.JsonConfigurationLoader,
+        "load",
+        lambda self, path: create_options(),
+    )
+    monkeypatch.setattr(
+        app_main,
+        "run",
+        lambda *arguments, **keywords: (_ for _ in ()).throw(
+            _TerminationRequested()
+        ),
+    )
+
+    assert app_main.main() == 0
+    assert stdout.text == "shutdown complete: before monitoring\n"
 
 
 def test_main_propagates_unexpected_loader_failure(

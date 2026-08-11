@@ -10,6 +10,7 @@ from uuid import uuid4
 import pytest
 
 from applications.homeassistant.composition import _HomeAssistantComposition
+from applications.homeassistant.lifecycle import _TerminationRequested
 from applications.homeassistant.main import run
 from applications.synchronization import SynchronizationResult, SynchronizationWorkflow
 from core.domain import Product
@@ -282,6 +283,26 @@ def test_run_maps_interruption_after_completed_cycle(
     )
 
     assert status == 130
+    assert stdout.text.endswith(
+        "watch stopped: cycles=1 provider_error_cycles=0 "
+        "status_error_cycles=0\n"
+    )
+    assert stderr.text == ""
+
+
+def test_run_maps_supervisor_termination_to_success_after_completed_cycle(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    delay = RecordingDelay(failure=_TerminationRequested())
+
+    status, stdout, stderr, _ = _run_with_workflow(
+        monkeypatch,
+        FakeWorkflow((_result(),)),
+        delay=delay,
+        max_cycles=2,
+    )
+
+    assert status == 0
     assert stdout.text.endswith(
         "watch stopped: cycles=1 provider_error_cycles=0 "
         "status_error_cycles=0\n"

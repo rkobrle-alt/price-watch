@@ -255,3 +255,24 @@ reservations. The separate stopped-App CLI maintenance flow remains available.
 The REST-created product states are not entity-registry-backed. To test email
 delivery independently, call `notify.send_message` for the configured notify
 entity in Home Assistant Developer Tools.
+
+## Stop, restart and recovery acceptance
+
+Version 0.28.0 handles the Supervisor termination request as a normal App
+shutdown. To verify a managed installation before the stable release:
+
+1. wait for a healthy cycle and record the `observation_count` attribute from
+   `sensor.price_watch_storage`;
+2. stop Price Watch from its App information page and confirm that its latest
+   log ends with `watch stopped` rather than an application error;
+3. start Price Watch again and wait for the next completed catalog cycle;
+4. confirm `sensor.price_watch_catalog` is `ok`, the existing sensor entity IDs
+   are unchanged, and `observation_count` is not lower than the recorded value;
+5. confirm the daily digest is not sent again for a local date already
+   reserved before the restart.
+
+Keep the Home Assistant backup and the checksummed migration ZIP created for
+the v0.27 migration throughout this acceptance period. They remain the
+supported recovery artifacts. Do not replace `/data/catalog.sqlite3` while the
+App is running and do not uninstall the retained local App until acceptance is
+complete.

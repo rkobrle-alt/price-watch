@@ -32,3 +32,7 @@ GitHub App repository. Existing `local_price_watch` users must use the
 documented checksummed export/import hand-off because Home Assistant assigns
 the repository installation a separate persistent App identity. The local App
 is retained, stopped, until the migrated installation has been verified.
+
+Version 0.28.0 handles a Home Assistant Supervisor stop as a successful,
+prompt shutdown. Restart continues from the same persistent catalog and
+notification-reservation state.

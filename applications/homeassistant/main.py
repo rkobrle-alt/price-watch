@@ -24,6 +24,10 @@ from applications.homeassistant.cycle import (
     publish_maintenance_status as _publish_maintenance_status,
     publish_storage_warning as _publish_storage_warning,
 )
+from applications.homeassistant.lifecycle import (
+    _TerminationRequested,
+    _termination_signal_handler,
+)
 from applications.homeassistant.maintenance_command import (
     MaintenanceCommandProcessor,
 )
@@ -211,6 +215,17 @@ def run(
     scheduler = IntervalScheduler(cycle, delay)
     try:
         result = scheduler.run(composition.interval, max_cycles)
+    except _TerminationRequested:
+        _write_watch_outcome(
+            stdout,
+            "watch stopped",
+            completed,
+            provider_error_cycles,
+            catalog_error_cycles,
+            status_error_cycles,
+            composition.catalog_workflow is not None,
+        )
+        return 0
     except KeyboardInterrupt:
         _write_watch_outcome(
             stdout,
@@ -259,18 +274,23 @@ def main() -> int:
     except ConfigurationError as error:
         _write(sys.stderr, f"error: {error}\n")
         return 2
-    return run(
-        options,
-        access_token,
-        sys.stdout,
-        sys.stderr,
-        lambda: datetime.now(UTC),
-        uuid4,
-        SystemDelay(),
-        data_directory=_DATA_DIRECTORY,
-        command_input=sys.stdin,
-        migration_directory=_MIGRATION_DIRECTORY,
-    )
+    with _termination_signal_handler():
+        try:
+            return run(
+                options,
+                access_token,
+                sys.stdout,
+                sys.stderr,
+                lambda: datetime.now(UTC),
+                uuid4,
+                SystemDelay(),
+                data_directory=_DATA_DIRECTORY,
+                command_input=sys.stdin,
+                migration_directory=_MIGRATION_DIRECTORY,
+            )
+        except _TerminationRequested:
+            _write(sys.stdout, "shutdown complete: before monitoring\n")
+            return 0
 
 
 def _write_watch_outcome(
