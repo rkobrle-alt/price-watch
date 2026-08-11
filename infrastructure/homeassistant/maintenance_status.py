@@ -18,6 +18,7 @@ class MaintenanceStatus:
     timestamp: datetime
     retention_days: int
     plan: ObservationRetentionPlan
+    apply_available: bool = False
 
     def __post_init__(self) -> None:
         """Validate the complete immutable maintenance representation."""
@@ -34,6 +35,8 @@ class MaintenanceStatus:
             raise ValueError("retention_days must be positive")
         if not isinstance(self.plan, ObservationRetentionPlan):
             raise TypeError("plan must be an ObservationRetentionPlan")
+        if not isinstance(self.apply_available, bool):
+            raise TypeError("apply_available must be a bool")
 
 
 class HomeAssistantMaintenanceStatusPublisher:
@@ -74,7 +77,7 @@ class HomeAssistantMaintenanceStatusPublisher:
                 "protected_observation_count": (
                     plan.protected_observation_count
                 ),
-                "apply_available": False,
+                "apply_available": status.apply_available,
                 "version": self._version,
             },
         )

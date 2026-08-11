@@ -23,11 +23,14 @@ def _plan() -> ObservationRetentionPlan:
     return ObservationRetentionPlan(TIMESTAMP, 100, 60, 40, 10)
 
 
-def test_publisher_emits_exact_read_only_preview() -> None:
+@pytest.mark.parametrize("apply_available", [False, True])
+def test_publisher_emits_exact_read_only_preview(apply_available: bool) -> None:
     client = RecordingStateClient()
     publisher = HomeAssistantMaintenanceStatusPublisher(client, "0.25.0")
 
-    publisher.publish(MaintenanceStatus(TIMESTAMP, 90, _plan()))
+    publisher.publish(
+        MaintenanceStatus(TIMESTAMP, 90, _plan(), apply_available)
+    )
 
     assert client.calls == [
         (
@@ -43,7 +46,7 @@ def test_publisher_emits_exact_read_only_preview() -> None:
                 "removable_observation_count": 60,
                 "retained_observation_count": 40,
                 "protected_observation_count": 10,
-                "apply_available": False,
+                "apply_available": apply_available,
                 "version": "0.25.0",
             },
         )
@@ -84,6 +87,7 @@ def test_publisher_rejects_invalid_configuration(
         (TIMESTAMP, "90", _plan(), TypeError, "retention_days"),
         (TIMESTAMP, 0, _plan(), ValueError, "positive"),
         (TIMESTAMP, 90, object(), TypeError, "plan"),
+        (TIMESTAMP, 90, _plan(), TypeError, "apply_available"),
     ],
 )
 def test_status_rejects_invalid_values(
@@ -98,6 +102,7 @@ def test_status_rejects_invalid_values(
             cast(datetime, timestamp),
             cast(int, days),
             cast(ObservationRetentionPlan, plan),
+            cast(bool, "yes") if message == "apply_available" else False,
         )
 
 

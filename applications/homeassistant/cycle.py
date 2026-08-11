@@ -159,7 +159,7 @@ def execute_catalog_cycle(
         timestamp,
         stderr,
     )
-    maintenance_status_published = _publish_maintenance_status(
+    maintenance_status_published = publish_maintenance_status(
         composition,
         timestamp,
         stderr,
@@ -226,11 +226,12 @@ def _publish_storage_status(
     return True
 
 
-def _publish_maintenance_status(
+def publish_maintenance_status(
     composition: _HomeAssistantComposition,
     timestamp: datetime,
     stderr: TextIO,
 ) -> bool:
+    """Publish the configured current retention plan without applying it."""
     context = composition.maintenance_status
     if context is None:
         return True
@@ -238,7 +239,12 @@ def _publish_maintenance_status(
     plan = context.retention_manager.plan(cutoff)
     try:
         context.publisher.publish(
-            MaintenanceStatus(timestamp, context.retention_days, plan)
+            MaintenanceStatus(
+                timestamp,
+                context.retention_days,
+                plan,
+                context.apply_available,
+            )
         )
     except HomeAssistantError as error:
         _write(stderr, f"maintenance status error: {error}\n")

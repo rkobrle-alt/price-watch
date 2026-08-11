@@ -10,6 +10,9 @@ from infrastructure.persistence.sqlite.notification_reservation_store import (
 from infrastructure.persistence.sqlite.retention import (
     SqliteObservationRetentionManager,
 )
+from infrastructure.persistence.sqlite.retention_backup import (
+    TimestampedRetentionBackupFileFactory,
+)
 from infrastructure.persistence.sqlite.state_store import SqliteStateStore
 
 __all__ = [
@@ -18,4 +21,5 @@ __all__ = [
     "SqliteNotificationReservationStore",
     "SqliteObservationRetentionManager",
     "SqliteStateStore",
+    "TimestampedRetentionBackupFileFactory",
 ]

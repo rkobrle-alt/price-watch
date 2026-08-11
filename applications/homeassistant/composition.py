@@ -110,11 +110,12 @@ class _StorageStatusComposition:
 
 @dataclass(frozen=True, slots=True)
 class _MaintenanceStatusComposition:
-    """Hold collaborators for a read-only observation-retention preview."""
+    """Hold collaborators for observation-retention status and commands."""
 
     publisher: HomeAssistantMaintenanceStatusPublisher
     retention_manager: ObservationRetentionManager
     retention_days: int
+    apply_available: bool = False
 
     def __post_init__(self) -> None:
         if isinstance(self.retention_days, bool) or not isinstance(
@@ -124,6 +125,8 @@ class _MaintenanceStatusComposition:
             raise TypeError("retention_days must be an int")
         if self.retention_days <= 0:
             raise ValueError("retention_days must be positive")
+        if not isinstance(self.apply_available, bool):
+            raise TypeError("apply_available must be a bool")
 
 
 class _LidlCatalogBatchSynchronizer:

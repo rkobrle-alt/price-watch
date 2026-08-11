@@ -3,8 +3,10 @@
 import os
 import sys
 from collections.abc import Callable, Mapping
+from dataclasses import replace
 from datetime import UTC, datetime
 from pathlib import Path
+from threading import Lock
 from typing import TextIO
 from uuid import UUID, uuid4
 
@@ -12,11 +14,18 @@ from applications.homeassistant.composition import (
     _HomeAssistantComposition,
     _compose_homeassistant,
 )
+from applications.homeassistant.command_listener import (
+    _MaintenanceCommandListener,
+)
 from applications.homeassistant.configuration import parse_homeassistant_options
 from applications.homeassistant.cycle import (
     execute_catalog_cycle as _execute_catalog_cycle,
     execute_explicit_cycle as _execute_cycle,
+    publish_maintenance_status as _publish_maintenance_status,
     publish_storage_warning as _publish_storage_warning,
+)
+from applications.homeassistant.maintenance_command import (
+    MaintenanceCommandProcessor,
 )
 from applications.scheduler import IntervalScheduler
 from core.catalog import CatalogStoreError
@@ -31,6 +40,9 @@ from core.scheduler import Delay, SchedulerError
 from core.state import StateStoreError
 from infrastructure.configuration.json import JsonConfigurationLoader
 from infrastructure.scheduler import SystemDelay
+from infrastructure.persistence.sqlite import (
+    TimestampedRetentionBackupFileFactory,
+)
 
 _DATA_DIRECTORY = Path("/data")
 _OPTIONS_PATH = _DATA_DIRECTORY / "options.json"
@@ -47,6 +59,7 @@ def run(
     *,
     data_directory: Path = _DATA_DIRECTORY,
     max_cycles: int | None = None,
+    command_input: TextIO | None = None,
 ) -> int:
     """Run the Supervisor-hosted monitor with explicit process dependencies."""
     _validate_dependencies(
@@ -59,6 +72,7 @@ def run(
         delay,
         data_directory,
         max_cycles,
+        command_input,
     )
     if not access_token.strip():
         _write(stderr, "error: SUPERVISOR_TOKEN cannot be blank\n")
@@ -75,6 +89,18 @@ def run(
         _write(stderr, f"error: {error}\n")
         return 2
 
+    operation_lock = Lock()
+    maintenance_context = composition.maintenance_status
+    if command_input is not None and maintenance_context is not None:
+        maintenance_context = replace(
+            maintenance_context,
+            apply_available=True,
+        )
+        composition = replace(
+            composition,
+            maintenance_status=maintenance_context,
+        )
+
     completed = 0
     provider_error_cycles = 0
     catalog_error_cycles = 0
@@ -83,45 +109,69 @@ def run(
     def cycle() -> None:
         nonlocal completed, provider_error_cycles
         nonlocal catalog_error_cycles, status_error_cycles
-        timestamp = clock()
-        if composition.catalog_workflow is None:
-            result, status_published = _execute_cycle(
-                composition,
-                stdout,
-                stderr,
-                timestamp,
-            )
-            has_provider_errors = bool(result.provider_errors)
-            has_catalog_error = False
-        else:
-            try:
-                catalog_result, status_published = _execute_catalog_cycle(
+        with operation_lock:
+            timestamp = clock()
+            if composition.catalog_workflow is None:
+                result, status_published = _execute_cycle(
                     composition,
                     stdout,
                     stderr,
                     timestamp,
-                    completed % composition.discovery_interval_cycles == 0,
                 )
-            except (
-                CatalogStoreError,
-                DailyDigestReservationError,
-                NotificationReservationError,
-                StateStoreError,
-            ):
-                _publish_storage_warning(composition, timestamp, stderr)
-                raise
-            synchronization = catalog_result.synchronization
-            has_provider_errors = bool(
-                synchronization is not None and synchronization.provider_errors
-            )
-            has_catalog_error = catalog_result.catalog_error is not None
-        completed += 1
-        if has_provider_errors:
-            provider_error_cycles += 1
-        if has_catalog_error:
-            catalog_error_cycles += 1
-        if not status_published:
-            status_error_cycles += 1
+                has_provider_errors = bool(result.provider_errors)
+                has_catalog_error = False
+            else:
+                try:
+                    catalog_result, status_published = _execute_catalog_cycle(
+                        composition,
+                        stdout,
+                        stderr,
+                        timestamp,
+                        completed % composition.discovery_interval_cycles == 0,
+                    )
+                except (
+                    CatalogStoreError,
+                    DailyDigestReservationError,
+                    NotificationReservationError,
+                    StateStoreError,
+                ):
+                    _publish_storage_warning(composition, timestamp, stderr)
+                    raise
+                synchronization = catalog_result.synchronization
+                has_provider_errors = bool(
+                    synchronization is not None
+                    and synchronization.provider_errors
+                )
+                has_catalog_error = catalog_result.catalog_error is not None
+            completed += 1
+            if has_provider_errors:
+                provider_error_cycles += 1
+            if has_catalog_error:
+                catalog_error_cycles += 1
+            if not status_published:
+                status_error_cycles += 1
+
+    if command_input is not None and maintenance_context is not None:
+        processor = MaintenanceCommandProcessor(
+            maintenance_context.retention_manager,
+            maintenance_context.retention_days,
+            TimestampedRetentionBackupFileFactory(
+                data_directory / "retention-backups"
+            ),
+        )
+        _MaintenanceCommandListener(
+            command_input,
+            stdout,
+            stderr,
+            clock,
+            operation_lock,
+            processor,
+            lambda timestamp: _publish_maintenance_status(
+                composition,
+                timestamp,
+                stderr,
+            ),
+        ).start()
 
     scheduler = IntervalScheduler(cycle, delay)
     try:
@@ -183,6 +233,7 @@ def main() -> int:
         uuid4,
         SystemDelay(),
         data_directory=_DATA_DIRECTORY,
+        command_input=sys.stdin,
     )
 
 
@@ -217,6 +268,7 @@ def _validate_dependencies(
     delay: object,
     data_directory: object,
     max_cycles: object,
+    command_input: object,
 ) -> None:
     if not isinstance(options, Mapping):
         raise TypeError("options must be a Mapping")
@@ -237,6 +289,12 @@ def _validate_dependencies(
             raise TypeError("max_cycles must be an int or None")
         if max_cycles <= 0:
             raise ValueError("max_cycles must be positive")
+    if command_input is not None and not callable(
+        getattr(command_input, "readline", None)
+    ):
+        raise TypeError(
+            "command_input must expose a callable readline method or be None"
+        )
 
 
 def _validate_stream(stream: object, name: str) -> None:

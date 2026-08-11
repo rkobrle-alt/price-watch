@@ -12,7 +12,13 @@ import infrastructure.configuration.json as json_api
 from applications.cli import VERSION as CLI_VERSION
 from applications.homeassistant import (
     HomeAssistantConfig,
+    HomeAssistantMaintenanceCommand,
+    MaintenanceCommandError,
+    MaintenanceCommandProcessor,
+    MaintenanceCommandResult,
+    MaintenanceCommandStatus,
     main,
+    parse_maintenance_command,
     parse_homeassistant_options,
     run,
 )
@@ -23,7 +29,13 @@ from infrastructure.configuration.json import JsonConfigurationLoader
 def test_public_apis_are_explicit_documented_and_versioned_once() -> None:
     assert homeassistant_api.__all__ == [
         "HomeAssistantConfig",
+        "HomeAssistantMaintenanceCommand",
+        "MaintenanceCommandError",
+        "MaintenanceCommandProcessor",
+        "MaintenanceCommandResult",
+        "MaintenanceCommandStatus",
         "main",
+        "parse_maintenance_command",
         "parse_homeassistant_options",
         "run",
     ]
@@ -34,10 +46,16 @@ def test_public_apis_are_explicit_documented_and_versioned_once() -> None:
     assert homeassistant_api.run is run
     assert json_api.JsonConfigurationLoader is JsonConfigurationLoader
     assert CLI_VERSION == VERSION
+    assert inspect.getdoc(MaintenanceCommandError)
     for public_object in (
         HomeAssistantConfig,
+        HomeAssistantMaintenanceCommand,
+        MaintenanceCommandProcessor,
+        MaintenanceCommandResult,
+        MaintenanceCommandStatus,
         JsonConfigurationLoader,
         main,
+        parse_maintenance_command,
         parse_homeassistant_options,
         run,
     ):

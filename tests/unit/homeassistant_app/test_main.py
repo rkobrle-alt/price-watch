@@ -364,6 +364,7 @@ def test_run_maps_option_and_composition_configuration_failures(
         ("data_directory", "data", TypeError, "data_directory"),
         ("max_cycles", True, TypeError, "max_cycles"),
         ("max_cycles", 0, ValueError, "max_cycles"),
+        ("command_input", object(), TypeError, "command_input"),
     ],
 )
 def test_run_rejects_invalid_public_dependencies(
@@ -382,6 +383,7 @@ def test_run_rejects_invalid_public_dependencies(
         "delay": RecordingDelay(),
         "data_directory": Path("/data"),
         "max_cycles": 1,
+        "command_input": None,
     }
     values[field] = value
 

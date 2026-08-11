@@ -192,6 +192,16 @@ def test_maintenance_composition_validates_retention_days(
         )
 
 
+def test_maintenance_composition_validates_apply_availability() -> None:
+    with pytest.raises(TypeError, match="apply_available"):
+        _MaintenanceStatusComposition(
+            publisher=cast(object, object()),
+            retention_manager=cast(object, object()),
+            retention_days=90,
+            apply_available=cast(bool, "yes"),
+        )
+
+
 def test_explicit_composition_rejects_maintenance_status() -> None:
     maintenance = _MaintenanceStatusComposition(
         publisher=cast(object, object()),

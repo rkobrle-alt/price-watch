@@ -4,6 +4,7 @@ import importlib
 from dataclasses import dataclass, field
 from dataclasses import replace
 from datetime import date, timedelta
+from io import StringIO
 from decimal import Decimal
 from typing import TextIO, cast
 from uuid import UUID, uuid4
@@ -498,6 +499,45 @@ def test_retention_preview_uses_exact_cutoff_without_applying() -> None:
     assert manager.cutoffs == [cutoff]
     assert manager.apply_calls == 0
     assert publisher.calls == [MaintenanceStatus(TIMESTAMP, 90, plan)]
+
+
+def test_injected_command_stream_advertises_explicit_apply(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    cutoff = TIMESTAMP - timedelta(days=90)
+    plan = ObservationRetentionPlan(cutoff, 1, 0, 1, 0)
+    manager = _RetentionManager(plan)
+    publisher = _MaintenanceStatusPublisher()
+    composition = _composition(
+        _CatalogWorkflow([_result()]),
+        retention_manager=manager,
+        maintenance_publisher=publisher,
+    )
+    monkeypatch.setattr(
+        _homeassistant_main,
+        "parse_homeassistant_options",
+        lambda options, data_directory: object(),
+    )
+    monkeypatch.setattr(
+        _homeassistant_main,
+        "_compose_homeassistant",
+        lambda config, token, clock, factory: composition,
+    )
+
+    exit_code = run(
+        {},
+        "token",
+        cast(TextIO, RecordingStream()),
+        cast(TextIO, RecordingStream()),
+        lambda: TIMESTAMP,
+        uuid4,
+        RecordingDelay(),
+        max_cycles=1,
+        command_input=StringIO(""),
+    )
+
+    assert exit_code == 0
+    assert publisher.calls == [MaintenanceStatus(TIMESTAMP, 90, plan, True)]
 
 
 def test_retention_preview_publication_failure_is_non_fatal() -> None:
