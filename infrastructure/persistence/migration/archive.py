@@ -55,7 +55,10 @@ class ZipMigrationArchive:
         try:
             self._directory.mkdir(parents=True, exist_ok=True)
             _validate_directory(self._directory)
-            state_name = active_state_name(data_directory)
+            state_name = active_state_name(
+                data_directory,
+                options.get("catalog_enabled", False),
+            )
             archive_file = self._archive_file(timestamp)
             if archive_file.exists():
                 raise MigrationArchiveError(

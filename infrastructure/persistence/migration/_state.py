@@ -23,19 +23,17 @@ SCHEMA_VERSION = 1
 MARKER_FILE_NAME = ".price-watch-migration.json"
 
 
-def active_state_name(data_directory: Path) -> str:
-    """Return the only regular supported state artifact."""
-    active = [
-        name
-        for name in STATE_FILE_NAMES
-        if (data_directory / name).is_file()
-        and not (data_directory / name).is_symlink()
-    ]
-    if len(active) != 1:
+def active_state_name(data_directory: Path, catalog_enabled: object) -> str:
+    """Return the regular state artifact selected by monitoring mode."""
+    if not isinstance(catalog_enabled, bool):
+        raise MigrationArchiveError("catalog_enabled must be a boolean")
+    state_name = STATE_FILE_NAMES[0] if catalog_enabled else STATE_FILE_NAMES[1]
+    state_path = data_directory / state_name
+    if state_path.is_symlink() or not state_path.is_file():
         raise MigrationArchiveError(
-            "exactly one regular active state file is required"
+            f"configured active state file is not a regular file: {state_name}"
         )
-    return active[0]
+    return state_name
 
 
 def copy_state(source: Path, destination: Path) -> None:

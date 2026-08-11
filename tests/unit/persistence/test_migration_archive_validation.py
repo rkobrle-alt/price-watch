@@ -213,6 +213,18 @@ def test_json_state_validation_decodes_complete_snapshot(tmp_path: Path) -> None
     state_module.validate_json_state(path.read_bytes())
 
 
+def test_active_state_rejects_symbolic_configured_file(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    state = tmp_path / "state.json"
+    state.write_text('{"schema_version":1,"snapshots":{}}', encoding="utf-8")
+    monkeypatch.setattr(Path, "is_symlink", lambda self: self == state)
+
+    with pytest.raises(MigrationArchiveError, match="regular file"):
+        state_module.active_state_name(tmp_path, False)
+
+
 def test_export_finalization_never_overwrites_racing_destination(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:

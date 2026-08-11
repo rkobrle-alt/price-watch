@@ -45,7 +45,12 @@ def _export(tmp_path: Path, *, state: str = "catalog.sqlite3") -> tuple[
             '{"schema_version":1,"snapshots":{}}\n', encoding="utf-8"
         )
     manager = ZipMigrationArchive(tmp_path / "share")
-    return manager, manager.export(source, OPTIONS, TIMESTAMP, "0.27.0"), source
+    options = (
+        OPTIONS
+        if state == "catalog.sqlite3"
+        else {**OPTIONS, "catalog_enabled": False}
+    )
+    return manager, manager.export(source, options, TIMESTAMP, "0.27.0"), source
 
 
 def test_catalog_export_and_import_preserve_database_and_are_idempotent(
@@ -94,6 +99,7 @@ def test_explicit_json_export_filters_import_options_and_recovers_marker(
     target = tmp_path / "target"
     import_options = {
         **OPTIONS,
+        "catalog_enabled": False,
         "migration_import_file": result.archive_file.name,
         "migration_import_sha256": result.archive_sha256,
         "migration_import_confirmation": "IMPORT_MIGRATION",
@@ -121,7 +127,7 @@ def test_explicit_json_export_filters_import_options_and_recovers_marker(
     with zipfile.ZipFile(result.archive_file) as archive:
         exported_options = json.loads(archive.read("options.json"))
         manifest = json.loads(archive.read("manifest.json"))
-    assert exported_options == OPTIONS
+    assert exported_options == {**OPTIONS, "catalog_enabled": False}
     assert manifest["state"]["name"] == "state.json"
     assert manifest["created_at"] == TIMESTAMP.isoformat()
 
@@ -144,24 +150,56 @@ def test_result_is_frozen_slotted_and_validates_members(tmp_path: Path) -> None:
             MigrationExportResult(*cast(tuple, values))
 
 
-def test_export_rejects_missing_multiple_symlink_and_existing_bundle(
+def test_export_selects_configured_state_and_rejects_missing_active_file(
     tmp_path: Path,
 ) -> None:
     manager = ZipMigrationArchive(tmp_path / "share")
     empty = tmp_path / "empty"
     empty.mkdir()
-    with pytest.raises(MigrationArchiveError, match="exactly one"):
+    with pytest.raises(MigrationArchiveError, match="active state file"):
         manager.export(empty, OPTIONS, TIMESTAMP, "0.27.0")
 
     _catalog(empty / "catalog.sqlite3")
-    (empty / "state.json").write_text("{}", encoding="utf-8")
-    with pytest.raises(MigrationArchiveError, match="exactly one"):
-        manager.export(empty, OPTIONS, TIMESTAMP, "0.27.0")
+    inactive_json = b'not read or changed'
+    (empty / "state.json").write_bytes(inactive_json)
+    result = manager.export(empty, OPTIONS, TIMESTAMP, "0.27.0")
 
-    (empty / "state.json").unlink()
-    manager.export(empty, OPTIONS, TIMESTAMP, "0.27.0")
+    assert result.state_file_name == "catalog.sqlite3"
+    assert (empty / "state.json").read_bytes() == inactive_json
     with pytest.raises(MigrationArchiveError, match="already exists"):
         manager.export(empty, OPTIONS, TIMESTAMP, "0.27.0")
+
+
+def test_explicit_export_ignores_inactive_catalog_and_validates_mode(
+    tmp_path: Path,
+) -> None:
+    source = tmp_path / "source"
+    source.mkdir()
+    _catalog(source / "catalog.sqlite3", "inactive")
+    (source / "state.json").write_text(
+        '{"schema_version":1,"snapshots":{}}\n', encoding="utf-8"
+    )
+    manager = ZipMigrationArchive(tmp_path / "share")
+
+    result = manager.export(
+        source,
+        {**OPTIONS, "catalog_enabled": False},
+        TIMESTAMP,
+        "0.27.1",
+    )
+
+    assert result.state_file_name == "state.json"
+    with closing(sqlite3.connect(source / "catalog.sqlite3")) as connection:
+        assert connection.execute("SELECT value FROM sample").fetchone() == (
+            "inactive",
+        )
+    with pytest.raises(MigrationArchiveError, match="must be a boolean"):
+        manager.export(
+            source,
+            {**OPTIONS, "catalog_enabled": "true"},
+            TIMESTAMP.replace(microsecond=123457),
+            "0.27.1",
+        )
 
 
 @pytest.mark.parametrize(
