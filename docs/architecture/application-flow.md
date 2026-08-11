@@ -158,6 +158,37 @@ storage diagnostics and before the daily digest. It uses the injected cycle
 timestamp and configured whole-day window, calls only the ADR-0025 planner and
 adds no apply, backup, deletion or compaction path to Home Assistant.
 
+ADR-0027 adds a separate one-shot Home Assistant command flow. It does not
+enter or modify the scheduled sequence:
+
+```text
+hassio.addon_stdin explicit JSON action
+    |
+    v
+strict command parsing
+    |
+    v
+shared monitoring/maintenance lock
+    |
+    v
+fresh retention plan
+    |
+    +--> stale expected count: no mutation
+    |
+    +--> zero removable count: no mutation
+    |
+    +--> matching positive count
+            |
+            +--> unique persistent backup
+            |
+            +--> transactional ADR-0025 apply
+```
+
+The App command listener and every monitoring cycle acquire the same lock, so
+SQLite maintenance cannot overlap discovery, refresh, synchronization,
+reservation or status work. The command always reuses the configured preview
+window and never runs because of a restart or scheduled cycle.
+
 Manual retention is a separate operator flow and never enters the monitoring
 sequence:
 

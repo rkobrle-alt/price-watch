@@ -30,6 +30,7 @@ applications.homeassistant
     +--> HomeAssistantCatalogStatusPublisher (catalog mode only)
     +--> HomeAssistantStorageStatusPublisher (catalog mode only)
     +--> optional HomeAssistantMaintenanceStatusPublisher (catalog mode only)
+    +--> optional serialized retention command listener (catalog mode only)
 ```
 
 The first cycle starts immediately. Later cycles use fixed delay and never
@@ -43,8 +44,17 @@ cycle refreshes one persisted, fairly ordered batch.
 An optional positive `retention_preview_days` catalog setting composes the
 existing ADR-0025 planner and publishes `sensor.price_watch_maintenance` after
 healthy storage diagnostics. Omitting it creates neither planner nor entity.
-The App cannot apply retention, create the mandatory backup, delete history or
-compact SQLite; destructive maintenance remains an explicit CLI boundary.
+ADR-0027 additionally permits an explicit Supervisor-stdin command only when
+that preview is configured. The command replans, compares the operator's
+expected removable count and either rejects a stale plan, reports no changes
+or invokes the existing backup-protected apply operation. It never runs during
+startup merely because an option is present and never compacts SQLite.
+
+The App manifest enables `stdin: true`. It adds no ingress, port, host mapping,
+MQTT dependency or new API permission. A Home Assistant script may call
+`hassio.addon_stdin`; the App accepts only the documented strict JSON object.
+Scheduled cycles and commands share one lock and therefore never access the
+catalog database concurrently.
 
 After a workflow cycle completes, `HomeAssistantStatusPublisher` writes one
 cycle status and one monetary sensor state for every successfully fetched
@@ -69,7 +79,9 @@ read produces `ok`; an approved persistence failure attempts `warning` before
 the original error stops the process. No diagnostic operation mutates data.
 ADR-0025 adds exact reclaimable SQLite bytes to that representation after a
 manual retention operation. The Home Assistant application never plans or
-applies retention and exposes no deletion option.
+applies retention automatically. ADR-0027 confines apply to the explicit
+standard-input action, creates a unique backup below
+`/data/retention-backups` and republishes the preview after accepted commands.
 
 ---
 

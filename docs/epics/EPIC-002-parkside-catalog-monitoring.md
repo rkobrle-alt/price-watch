@@ -43,6 +43,7 @@ installations may disable individual alerts and use only that daily digest.
 9. non-destructive observation storage diagnostics
 10. manual backup-protected observation retention
 11. optional Home Assistant retention preview
+12. explicit backup-protected Home Assistant retention command
 
 Each step requires its own accepted ADR when it introduces a new persistence,
 workflow, rule or scheduling contract.
@@ -70,6 +71,9 @@ preserves current state and historical-high price references, requires a
 pre-deletion backup and is never scheduled by Home Assistant.
 ADR-0026 and STORY-025 define step 11 as an opt-in read-only projection of a
 selected retention window in Home Assistant while retaining CLI-only apply.
+ADR-0027 and STORY-026 define step 12 as a one-shot Supervisor-stdin command
+which replans, rejects stale confirmation and serializes backup-protected apply
+with normal monitoring.
 
 ## Discount Semantics
 
@@ -101,3 +105,5 @@ boundary between durable reservation and Home Assistant delivery.
   the durable historical-high discount reference
 - a selected retention window can be assessed in Home Assistant without
   enabling destructive maintenance there
+- a reviewed current plan can be applied from an explicit Home Assistant
+  action without enabling scheduled or restart-triggered deletion

@@ -4,6 +4,10 @@
 
 Accepted
 
+ADR-0027 resolves only the deferred manual-retention control through a strict
+Supervisor-stdin command. State representations remain read-only and do not
+become registered command entities.
+
 ---
 
 ## Context

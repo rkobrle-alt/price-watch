@@ -161,6 +161,9 @@ ADR-0025 adds a separate `SqliteObservationRetentionManager`. It performs
 previewable, explicitly requested and backup-protected observation deletion
 without changing schema version 4. Normal State Store operations never invoke
 it.
+ADR-0027 adds `TimestampedRetentionBackupFileFactory` beside the retention
+adapter. It prepares a unique persistent backup destination but performs no
+retention selection or deletion.
 
 `infrastructure.persistence.snapshot_codec` is a private shared codec used by
 JSON and SQLite persistence. It preserves exact Domain values and is not a
@@ -283,6 +286,10 @@ same catalog representation; Applications still perform no Home Assistant
 formatting or discount calculation.
 ADR-0024 composes read-only SQLite observation statistics and Home Assistant
 storage-health publication only in catalog mode.
+ADR-0026 composes the optional read-only retention preview. ADR-0027 adds a
+strict one-shot command processor and standard-input listener in the Home
+Assistant Application. They serialize explicit maintenance with normal cycles
+and delegate backup and deletion to existing Infrastructure adapters.
 
 ---
 

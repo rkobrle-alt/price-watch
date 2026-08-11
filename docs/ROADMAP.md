@@ -395,6 +395,25 @@ Deliverables:
 
 ---
 
+# v0.26.0 — Home Assistant Retention Command
+
+Goal:
+
+Apply a freshly revalidated retention preview through an explicit Home
+Assistant action without scheduling deletion or opening another network
+surface.
+
+Deliverables:
+
+- strict one-shot JSON command through Supervisor-managed App stdin
+- stale-plan count confirmation before mutation
+- serialized monitoring and maintenance database access
+- unique complete backup in persistent App storage before deletion
+- refreshed maintenance representation after the command
+- unchanged schema version 4 and no automatic vacuum
+
+---
+
 # v1.0.0
 
 Stable public release.

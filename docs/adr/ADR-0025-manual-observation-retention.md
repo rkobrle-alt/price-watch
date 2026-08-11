@@ -4,6 +4,10 @@
 
 Accepted
 
+ADR-0027 extends explicit application to a one-shot Home Assistant App stdin
+command. The backup, preservation and no-vacuum semantics in this decision
+remain authoritative, and scheduled monitoring still never invokes apply.
+
 ## Context
 
 Catalog monitoring appends exact observations indefinitely. ADR-0024 makes

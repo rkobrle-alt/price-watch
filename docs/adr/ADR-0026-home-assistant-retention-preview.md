@@ -4,6 +4,10 @@
 
 Accepted
 
+ADR-0027 supersedes only the earlier absence of an App command. Preview remains
+read-only during every monitoring cycle; explicit Supervisor-stdin composition
+may advertise `apply_available: true` and invoke ADR-0025 after replanning.
+
 ## Context
 
 ADR-0025 provides an explicit CLI-only retention operation with read-only
