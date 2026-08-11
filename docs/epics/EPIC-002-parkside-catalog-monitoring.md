@@ -46,6 +46,7 @@ installations may disable individual alerts and use only that daily digest.
 12. explicit backup-protected Home Assistant retention command
 13. managed Home Assistant repository distribution with state-preserving
     migration
+14. graceful managed-App shutdown and restart acceptance
 
 Each step requires its own accepted ADR when it introduces a new persistence,
 workflow, rule or scheduling contract.
@@ -79,6 +80,8 @@ with normal monitoring.
 ADR-0028 and STORY-027 define step 13 as an explicit checksummed hand-off from
 the local App identity to the GitHub-repository identity before its first
 monitoring cycle.
+ADR-0029 and STORY-028 define step 14 as process-edge `SIGTERM` handling with a
+successful exit and an explicit check that restart preserves durable state.
 
 ## Discount Semantics
 
@@ -114,3 +117,5 @@ boundary between durable reservation and Home Assistant delivery.
   action without enabling scheduled or restart-triggered deletion
 - future App versions can be installed and updated from the managed repository
   without discarding catalog history or reservation state
+- a Supervisor-requested stop exits successfully and a restart resumes from
+  the same durable catalog and reservation state

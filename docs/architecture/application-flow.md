@@ -215,6 +215,12 @@ The local App's source state is unchanged. A requested import must complete
 before `_compose_homeassistant`; a failed import therefore cannot start an
 empty-state monitoring cycle.
 
+ADR-0029 wraps the managed Home Assistant process flow with one private
+`SIGTERM` boundary. A Supervisor stop interrupts the current cycle or delay,
+uses the existing completed-cycle outcome when available and exits
+successfully. It does not add a step to the reusable workflow, and a later App
+start follows the same durable-state composition shown above.
+
 Manual retention is a separate operator flow and never enters the monitoring
 sequence:
 

@@ -301,6 +301,11 @@ ADR-0028 routes an independent export command through the same lock and runs a
 configured, checksum-protected migration import before the first repository-
 App cycle. Migration remains an outer deployment concern and changes no Core
 contract.
+ADR-0029 keeps Supervisor `SIGTERM` handling in a private
+`applications.homeassistant` lifecycle module. The executable adapter installs
+and restores the handler; the existing application run boundary maps that
+termination to a successful stopped outcome. No reusable scheduler or Core
+contract depends on operating-system signals.
 
 ---
 

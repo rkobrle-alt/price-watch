@@ -36,6 +36,14 @@ applications.homeassistant
 The first cycle starts immediately. Later cycles use fixed delay and never
 overlap.
 
+ADR-0029 makes Supervisor `SIGTERM` a private process-lifecycle event at this
+same executable boundary. It interrupts an active cycle or delay, reports the
+completed-cycle counters when available and exits successfully. Interactive
+`KeyboardInterrupt` and every established configuration or operational failure
+retain their existing result codes. The handler is restored after the
+programmatic `main()` call and introduces no cancellation contract into Core or
+the reusable scheduler.
+
 Existing option documents without `catalog_enabled` remain in explicit mode.
 New packaged defaults enable catalog mode. The first catalog cycle discovers
 the sitemap; later discovery follows the configured cycle cadence while every
@@ -149,3 +157,6 @@ validates and atomically imports that bundle before composing its first
 monitoring cycle. Exported options are compared with current Supervisor
 options but never replace `/data/options.json`. The unchanged stopped local
 installation remains the immediate rollback path until acceptance succeeds.
+Managed stop and restart acceptance additionally verifies that durable catalog
+history and notification reservations remain present; it introduces no new
+restore format beyond the ADR-0028 archive and Home Assistant backup.

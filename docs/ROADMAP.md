@@ -432,6 +432,23 @@ Deliverables:
 
 ---
 
+# v0.28.0 — Home Assistant Production Readiness
+
+Goal:
+
+Make a Supervisor-requested App stop a prompt, successful lifecycle event and
+verify that managed stop and restart preserve durable monitoring state.
+
+Deliverables:
+
+- process-local `SIGTERM` handling at the Home Assistant executable boundary
+- successful exit status for Supervisor-requested shutdown
+- unchanged interactive-interrupt and operational-failure exit semantics
+- documented managed-App stop, restart and state-preservation acceptance check
+- unchanged Core, persistence formats, schema version 4 and public APIs
+
+---
+
 # v1.0.0
 
 Stable public release.
