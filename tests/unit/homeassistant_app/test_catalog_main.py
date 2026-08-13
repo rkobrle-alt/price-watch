@@ -595,7 +595,12 @@ def test_retention_preview_planning_failure_propagates() -> None:
 def test_enabled_digest_runs_after_status_and_is_reported() -> None:
     workflow = _CatalogWorkflow([_result()])
     digest = _DigestWorkflow(
-        DailyDigestResult(date(2026, 8, 1), DailyDigestStatus.SENT, 3)
+        DailyDigestResult(
+            date(2026, 8, 1),
+            DailyDigestStatus.SENT,
+            3,
+            True,
+        )
     )
     composition = _composition(workflow, digest)
     stdout = RecordingStream()
@@ -609,7 +614,10 @@ def test_enabled_digest_runs_after_status_and_is_reported() -> None:
     )
 
     assert digest.timestamps == [TIMESTAMP]
-    assert "digest_status=sent digest_products=3" in stdout.text
+    assert (
+        "digest_status=sent digest_products=3 digest_promotion=true"
+        in stdout.text
+    )
 
 
 @pytest.mark.parametrize(

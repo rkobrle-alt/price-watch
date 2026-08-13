@@ -10,6 +10,7 @@ class DailyDigestStatus(str, Enum):
 
     NOT_DUE = "not_due"
     ALREADY_SENT = "already_sent"
+    PROMOTION_UNAVAILABLE = "promotion_unavailable"
     SENT = "sent"
 
 
@@ -20,6 +21,7 @@ class DailyDigestResult:
     calendar_date: date
     status: DailyDigestStatus
     product_count: int = 0
+    promotion_included: bool = False
 
     def __post_init__(self) -> None:
         """Validate result values and count semantics."""
@@ -39,3 +41,7 @@ class DailyDigestResult:
             raise ValueError("product_count cannot be negative")
         if self.status is not DailyDigestStatus.SENT and self.product_count:
             raise ValueError("non-delivery result cannot contain products")
+        if not isinstance(self.promotion_included, bool):
+            raise TypeError("promotion_included must be a bool")
+        if self.status is not DailyDigestStatus.SENT and self.promotion_included:
+            raise ValueError("non-delivery result cannot include a promotion")

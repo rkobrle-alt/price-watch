@@ -46,6 +46,14 @@ repeat it. The digest uses `price_drop_percentage`, includes only available
 products with an approved reference price, and sends an explicit empty summary
 when none qualify.
 
+The digest also reads the current yellow marketing offer from the Lidl Czech
+Republic storefront home page. When present, its text and validated Lidl link
+appear before the product summary. If the storefront request fails or the
+published offer is malformed, Price Watch releases that date's reservation
+and retries the digest on a later monitoring cycle. Product discovery,
+refresh, persistence and dashboard publishing continue normally. If Lidl
+publishes no offer banner, the ordinary digest is sent without that section.
+
 `individual_notifications_enabled` controls immediate per-product price-drop
 and back-in-stock messages in catalog mode. It defaults to `true` when omitted
 so existing option documents remain compatible. New packaged installations

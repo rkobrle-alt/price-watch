@@ -54,7 +54,11 @@ from infrastructure.persistence.sqlite import (
     SqliteObservationRetentionManager,
     SqliteStateStore,
 )
-from infrastructure.providers.lidl import LidlParksideCatalog, LidlParksideProvider
+from infrastructure.providers.lidl import (
+    LidlMarketingPromotionSource,
+    LidlParksideCatalog,
+    LidlParksideProvider,
+)
 
 _SUPERVISOR_CORE_API = "http://supervisor/core/api"
 _PRICE_DROP_RULE_ID = UUID("70000000-0000-4000-8000-000000000001")
@@ -337,6 +341,7 @@ def _compose_catalog(
             homeassistant_client,
             notify_entity,
             notification_title,
+            LidlMarketingPromotionSource(text_client),
         ),
         catalog_status=_CatalogStatusComposition(
             publisher=HomeAssistantCatalogStatusPublisher(

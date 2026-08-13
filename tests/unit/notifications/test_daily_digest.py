@@ -9,6 +9,7 @@ import pytest
 
 from core.domain import Currency, Money, Percentage, Product, ProductId, ProviderId
 from core.notifications import DailyDiscountDigest, DailyDiscountDigestEngine
+from core.promotions import DailyPromotion
 from core.state import StateSnapshot
 
 _TIMESTAMP = datetime(2026, 8, 8, 6, 0, tzinfo=UTC)
@@ -104,6 +105,37 @@ def test_engine_generates_explicit_empty_digest() -> None:
     )
 
 
+def test_engine_formats_promotion_with_optional_url_in_every_digest() -> None:
+    with_url = DailyPromotion(
+        "Online | Today only",
+        "https://www.lidl.cz/c/offer/s1",
+    )
+    promoted = DailyDiscountDigestEngine().generate(
+        (),
+        Percentage(Decimal("20")),
+        _DATE,
+        _TIMESTAMP,
+        with_url,
+    )
+    without_url = DailyDiscountDigestEngine().generate(
+        (),
+        Percentage(Decimal("20")),
+        _DATE,
+        _TIMESTAMP,
+        DailyPromotion("Weekend offer"),
+    )
+
+    assert promoted.promotion is with_url
+    assert promoted.message.startswith(
+        "Parkside daily discount digest — 2026-08-08\n"
+        "Lidl daily offer: Online | Today only\n"
+        "Offer URL: https://www.lidl.cz/c/offer/s1\n"
+        "Minimum discount: 20%"
+    )
+    assert "Lidl daily offer: Weekend offer\nMinimum discount: 20%" in (
+        without_url.message
+    )
+
 @pytest.mark.parametrize(
     ("field", "value", "error"),
     [
@@ -115,6 +147,7 @@ def test_engine_generates_explicit_empty_digest() -> None:
         ("products", (object(),), TypeError),
         ("message", 1, TypeError),
         ("message", "  ", ValueError),
+        ("promotion", object(), TypeError),
     ],
 )
 def test_digest_rejects_invalid_values(
@@ -127,6 +160,7 @@ def test_digest_rejects_invalid_values(
         "created_at": _TIMESTAMP,
         "products": (),
         "message": "digest",
+        "promotion": None,
     }
     values[field] = value
 
@@ -171,6 +205,7 @@ def test_engine_rejects_duplicate_product_identifiers() -> None:
         ("calendar_date", "today", TypeError),
         ("timestamp", "now", TypeError),
         ("timestamp", datetime(2026, 8, 8), ValueError),
+        ("promotion", object(), TypeError),
     ],
 )
 def test_engine_rejects_invalid_scalar_arguments(
@@ -183,6 +218,7 @@ def test_engine_rejects_invalid_scalar_arguments(
         "minimum_discount": Percentage(Decimal("20")),
         "calendar_date": _DATE,
         "timestamp": _TIMESTAMP,
+        "promotion": None,
     }
     values[field] = value
     with pytest.raises(error):

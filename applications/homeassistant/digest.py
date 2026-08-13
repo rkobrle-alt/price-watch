@@ -8,6 +8,7 @@ from applications.daily_digest import (
     DailyDigestWorkflow,
 )
 from core.notifications import DailyDiscountDigestEngine
+from core.promotions import DailyPromotionSource
 from infrastructure.homeassistant import HomeAssistantClient
 from infrastructure.notifications.homeassistant import (
     HomeAssistantDailyDiscountDigestChannel,
@@ -25,6 +26,7 @@ def compose_daily_digest(
     client: HomeAssistantClient,
     notify_entity: str,
     notification_title: str,
+    promotion_source: DailyPromotionSource | None = None,
 ) -> DailyDigestWorkflow | None:
     """Compose the optional catalog digest with shared durable state."""
     if config is None:
@@ -41,6 +43,7 @@ def compose_daily_digest(
         channel,
         config,
         _prague_timezone(),
+        promotion_source=promotion_source,
     )
 
 

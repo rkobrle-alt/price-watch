@@ -45,7 +45,10 @@ from infrastructure.persistence.sqlite import (
     SqliteObservationRetentionManager,
     SqliteStateStore,
 )
-from infrastructure.providers.lidl import LidlParksideCatalog
+from infrastructure.providers.lidl import (
+    LidlMarketingPromotionSource,
+    LidlParksideCatalog,
+)
 from tests.unit.homeassistant_app.helpers import TIMESTAMP
 
 
@@ -241,6 +244,14 @@ def test_catalog_composition_assembles_optional_daily_digest() -> None:
     assert workflow._digest_channel._entity_id == "notify.gmail_parkside"
     assert workflow._digest_channel._title == "Parkside Catalog Daily Digest"
     assert str(workflow._timezone) == "Europe/Prague"
+    assert isinstance(
+        workflow._promotion_source,
+        LidlMarketingPromotionSource,
+    )
+    assert (
+        workflow._promotion_source._http_client
+        is result.catalog_workflow._batch_synchronizer._http_client
+    )
 
 
 def test_catalog_composition_can_disable_only_individual_notifications() -> None:

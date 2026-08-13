@@ -69,6 +69,8 @@ class _DigestChangingTextClient:
         self._prices = iter(("100.00", "80.00", "80.00"))
 
     def get(self, url: str) -> str:
+        if url == "https://www.lidl.cz/":
+            return ""
         return _page(price=next(self._prices), availability="InStock")
 
 

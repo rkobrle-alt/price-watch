@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 from typing import TextIO
 
 from applications.catalog_monitoring import CatalogMonitoringResult
-from applications.daily_digest import DailyDigestResult
+from applications.daily_digest import DailyDigestResult, DailyDigestStatus
 from applications.homeassistant.composition import _HomeAssistantComposition
 from applications.synchronization import SynchronizationResult
 from core.domain import Product
@@ -265,10 +265,15 @@ def _run_daily_digest(
 def _digest_summary(result: DailyDigestResult | None) -> str:
     if result is None:
         return ""
-    return (
+    summary = (
         f"digest_status={result.status.value} "
         f"digest_products={result.product_count} "
     )
+    if result.status is DailyDigestStatus.SENT:
+        summary += (
+            f"digest_promotion={str(result.promotion_included).lower()} "
+        )
+    return summary
 
 
 def _result_products(result: SynchronizationResult) -> tuple[Product, ...]:

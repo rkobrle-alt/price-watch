@@ -10,6 +10,8 @@ New installations send one daily discount digest at 08:00 Europe/Prague and
 disable separate per-product email. Existing installations retain their
 current behavior until `daily_digest_enabled` and
 `individual_notifications_enabled` are configured.
+The digest includes the current yellow Lidl Czech Republic daily offer and a
+validated Lidl link when the storefront publishes one.
 
 Existing explicit product URL monitoring remains supported. See `DOCS.md` for
 catalog, compatibility, persistence and operation details.
@@ -36,3 +38,7 @@ is retained, stopped, until the migrated installation has been verified.
 Version 0.28.0 handles a Home Assistant Supervisor stop as a successful,
 prompt shutdown. Restart continues from the same persistent catalog and
 notification-reservation state.
+
+Version 0.29.0 adds the current Lidl Czech Republic daily offer to the daily
+discount digest. A temporary offer retrieval failure is retried on a later
+cycle without interrupting product monitoring.

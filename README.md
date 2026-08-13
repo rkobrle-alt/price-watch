@@ -113,6 +113,11 @@ durable local-date reservation prevents repeated daily email after later
 cycles or App restart. Existing option documents remain opted out until
 `daily_digest_enabled` is added.
 
+The digest also includes the current yellow Lidl Czech Republic daily offer
+and its validated Lidl link. A temporary retrieval or parsing failure delays
+the digest for retry on a later monitoring cycle, while product monitoring
+continues normally.
+
 New packaged installations disable individual product notifications and send
 qualifying discounts together in that one daily digest. Existing option
 documents retain individual alerts unless

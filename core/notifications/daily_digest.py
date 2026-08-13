@@ -5,6 +5,7 @@ from datetime import date, datetime
 from typing import cast
 
 from core.domain import Money, Percentage, Product
+from core.promotions import DailyPromotion
 from core.state import StateSnapshot
 
 _EMPTY_MESSAGE = "No currently available products match the discount threshold."
@@ -18,6 +19,7 @@ class DailyDiscountDigest:
     created_at: datetime
     products: tuple[Product, ...]
     message: str
+    promotion: DailyPromotion | None = None
 
     def __post_init__(self) -> None:
         """Validate digest values without performing side effects."""
@@ -28,6 +30,11 @@ class DailyDiscountDigest:
             raise TypeError("message must be a string")
         if not self.message.strip():
             raise ValueError("message cannot be blank")
+        if self.promotion is not None and not isinstance(
+            self.promotion,
+            DailyPromotion,
+        ):
+            raise TypeError("promotion must be a DailyPromotion or None")
 
 
 class DailyDiscountDigestEngine:
@@ -39,6 +46,7 @@ class DailyDiscountDigestEngine:
         minimum_discount: Percentage,
         calendar_date: date,
         timestamp: datetime,
+        promotion: DailyPromotion | None = None,
     ) -> DailyDiscountDigest:
         """Generate a digest from validated latest product snapshots."""
         _validate_snapshots(snapshots)
@@ -46,6 +54,8 @@ class DailyDiscountDigestEngine:
             raise TypeError("minimum_discount must be a Percentage")
         _validate_date(calendar_date, "calendar_date")
         _validate_timestamp(timestamp, "timestamp")
+        if promotion is not None and not isinstance(promotion, DailyPromotion):
+            raise TypeError("promotion must be a DailyPromotion or None")
         products = tuple(
             sorted(
                 (
@@ -64,7 +74,13 @@ class DailyDiscountDigestEngine:
             calendar_date=calendar_date,
             created_at=timestamp,
             products=products,
-            message=_format_message(calendar_date, minimum_discount, products),
+            message=_format_message(
+                calendar_date,
+                minimum_discount,
+                products,
+                promotion,
+            ),
+            promotion=promotion,
         )
 
 
@@ -80,12 +96,22 @@ def _format_message(
     calendar_date: date,
     minimum_discount: Percentage,
     products: tuple[Product, ...],
+    promotion: DailyPromotion | None,
 ) -> str:
-    header = (
-        f"Parkside daily discount digest — {calendar_date.isoformat()}\n"
-        f"Minimum discount: {minimum_discount.value}%\n"
-        f"Discounted products: {len(products)}"
+    header_lines = [
+        f"Parkside daily discount digest — {calendar_date.isoformat()}"
+    ]
+    if promotion is not None:
+        header_lines.append(f"Lidl daily offer: {promotion.text}")
+        if promotion.url is not None:
+            header_lines.append(f"Offer URL: {promotion.url}")
+    header_lines.extend(
+        (
+            f"Minimum discount: {minimum_discount.value}%",
+            f"Discounted products: {len(products)}",
+        )
     )
+    header = "\n".join(header_lines)
     if not products:
         return f"{header}\n\n{_EMPTY_MESSAGE}"
     blocks = tuple(

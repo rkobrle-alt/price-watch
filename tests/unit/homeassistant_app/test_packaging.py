@@ -90,6 +90,7 @@ def test_repository_container_and_operator_documents_are_complete() -> None:
     assert "local_price_watch" in operator_docs
     assert "Stop, restart and recovery acceptance" in operator_docs
     assert "watch stopped" in operator_docs
+    assert "yellow marketing offer" in operator_docs
     for document in ("README.md", "DOCS.md", "CHANGELOG.md"):
         content = (APP / document).read_text(encoding="utf-8")
         assert content.strip()

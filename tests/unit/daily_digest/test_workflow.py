@@ -22,6 +22,7 @@ from core.notifications import (
     DailyDiscountDigestEngine,
     DailyDigestReservationStore,
 )
+from core.promotions import DailyPromotion, DailyPromotionSource, PromotionError
 from core.state import LatestSnapshotReader, StateSnapshot
 
 _PRAGUE = ZoneInfo("Europe/Prague")
@@ -70,6 +71,19 @@ class _Channel:
         self.digests.append(digest)
 
 
+class _PromotionSource:
+    def __init__(self, value: object = None) -> None:
+        self.value = value
+        self.calls = 0
+        self.error: Exception | None = None
+
+    def current(self) -> DailyPromotion | None:
+        self.calls += 1
+        if self.error is not None:
+            raise self.error
+        return cast(DailyPromotion | None, self.value)
+
+
 class _WrongEngine(DailyDiscountDigestEngine):
     def generate(self, *args: object, **kwargs: object) -> DailyDiscountDigest:
         return cast(DailyDiscountDigest, object())
@@ -82,6 +96,7 @@ def _workflow(
     *,
     engine: DailyDiscountDigestEngine | None = None,
     delivery_time: time = time(8, 0),
+    promotion_source: _PromotionSource | None = None,
 ) -> DailyDigestWorkflow:
     return DailyDigestWorkflow(
         cast(LatestSnapshotReader, reader or _Reader()),
@@ -90,6 +105,10 @@ def _workflow(
         cast(DailyDiscountDigestChannel, channel or _Channel()),
         DailyDigestConfig(delivery_time, Percentage(Decimal("20"))),
         _PRAGUE,
+        promotion_source=cast(
+            DailyPromotionSource | None,
+            promotion_source,
+        ),
     )
 
 
@@ -97,8 +116,14 @@ def test_before_local_delivery_time_has_no_side_effects() -> None:
     reader = _Reader()
     reservations = _Reservations()
     channel = _Channel()
+    source = _PromotionSource(DailyPromotion("Offer"))
 
-    result = _workflow(reader, reservations, channel).run(
+    result = _workflow(
+        reader,
+        reservations,
+        channel,
+        promotion_source=source,
+    ).run(
         datetime(2026, 8, 8, 5, 59, tzinfo=UTC)
     )
 
@@ -106,6 +131,7 @@ def test_before_local_delivery_time_has_no_side_effects() -> None:
     assert reader.calls == 0
     assert reservations.reserve_calls == []
     assert channel.digests == []
+    assert source.calls == 0
 
 
 def test_exact_local_time_sends_empty_digest() -> None:
@@ -124,12 +150,85 @@ def test_existing_date_suppresses_query_and_delivery() -> None:
     reader = _Reader()
     reservations = _Reservations(False)
     channel = _Channel()
+    source = _PromotionSource(DailyPromotion("Offer"))
 
-    result = _workflow(reader, reservations, channel).run(_TIMESTAMP)
+    result = _workflow(
+        reader,
+        reservations,
+        channel,
+        promotion_source=source,
+    ).run(_TIMESTAMP)
 
     assert result == DailyDigestResult(_DATE, DailyDigestStatus.ALREADY_SENT)
     assert reader.calls == 0
     assert channel.digests == []
+    assert source.calls == 0
+
+
+def test_promotion_is_loaded_only_for_new_due_date_and_included() -> None:
+    promotion = DailyPromotion("Today only", "https://www.lidl.cz/offer")
+    source = _PromotionSource(promotion)
+    channel = _Channel()
+
+    result = _workflow(channel=channel, promotion_source=source).run(_TIMESTAMP)
+
+    assert result == DailyDigestResult(
+        _DATE,
+        DailyDigestStatus.SENT,
+        0,
+        True,
+    )
+    assert source.calls == 1
+    assert channel.digests[0].promotion is promotion
+
+
+def test_absent_promotion_sends_ordinary_digest() -> None:
+    source = _PromotionSource()
+
+    result = _workflow(promotion_source=source).run(_TIMESTAMP)
+
+    assert result == DailyDigestResult(_DATE, DailyDigestStatus.SENT, 0, False)
+    assert source.calls == 1
+
+
+def test_promotion_failure_releases_reservation_and_returns_retry_outcome() -> None:
+    source = _PromotionSource()
+    source.error = PromotionError("offline")
+    reader = _Reader()
+    reservations = _Reservations()
+    channel = _Channel()
+
+    result = _workflow(
+        reader,
+        reservations,
+        channel,
+        promotion_source=source,
+    ).run(_TIMESTAMP)
+
+    assert result == DailyDigestResult(
+        _DATE,
+        DailyDigestStatus.PROMOTION_UNAVAILABLE,
+    )
+    assert reservations.release_calls == [_DATE]
+    assert reader.calls == 0
+    assert channel.digests == []
+
+
+@pytest.mark.parametrize("value", [object(), RuntimeError("bug")])
+def test_unexpected_promotion_failure_releases_and_propagates(value: object) -> None:
+    source = _PromotionSource(value)
+    if isinstance(value, Exception):
+        source.value = None
+        source.error = value
+    reservations = _Reservations()
+
+    with pytest.raises((TypeError, RuntimeError)):
+        _workflow(
+            reservations=reservations,
+            promotion_source=source,
+        ).run(_TIMESTAMP)
+
+    assert reservations.release_calls == [_DATE]
 
 
 def test_timezone_conversion_handles_winter_and_summer_dates() -> None:
@@ -228,6 +327,7 @@ def test_config_rejects_invalid_values(
         ("product_count", True, TypeError),
         ("product_count", Decimal("1"), TypeError),
         ("product_count", -1, ValueError),
+        ("promotion_included", 1, TypeError),
     ],
 )
 def test_result_rejects_invalid_values(
@@ -239,6 +339,7 @@ def test_result_rejects_invalid_values(
         "calendar_date": _DATE,
         "status": DailyDigestStatus.SENT,
         "product_count": 0,
+        "promotion_included": False,
     }
     values[field] = value
     with pytest.raises(error):
@@ -248,6 +349,12 @@ def test_result_rejects_invalid_values(
 def test_non_delivery_result_rejects_nonzero_count() -> None:
     with pytest.raises(ValueError, match="non-delivery"):
         DailyDigestResult(_DATE, DailyDigestStatus.NOT_DUE, 1)
+    with pytest.raises(ValueError, match="cannot include"):
+        DailyDigestResult(
+            _DATE,
+            DailyDigestStatus.PROMOTION_UNAVAILABLE,
+            promotion_included=True,
+        )
 
 
 @pytest.mark.parametrize(
@@ -280,6 +387,11 @@ def test_constructor_rejects_invalid_dependencies(
         DailyDigestWorkflow(*arguments)  # type: ignore[arg-type]
 
 
+def test_constructor_rejects_invalid_promotion_source() -> None:
+    with pytest.raises(TypeError, match="promotion_source"):
+        _workflow(promotion_source=cast(_PromotionSource, object()))
+
+
 def test_public_api_is_explicit_documented_typed_and_immutable() -> None:
     assert digest_api.__all__ == [
         "DailyDigestConfig",
@@ -290,6 +402,7 @@ def test_public_api_is_explicit_documented_typed_and_immutable() -> None:
     assert tuple(DailyDigestStatus) == (
         DailyDigestStatus.NOT_DUE,
         DailyDigestStatus.ALREADY_SENT,
+        DailyDigestStatus.PROMOTION_UNAVAILABLE,
         DailyDigestStatus.SENT,
     )
     config = DailyDigestConfig(time(8), Percentage(Decimal("20")))

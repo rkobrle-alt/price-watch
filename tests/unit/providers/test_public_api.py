@@ -13,7 +13,11 @@ from infrastructure.http import (
     UrllibBinaryHttpClient,
     UrllibTextHttpClient,
 )
-from infrastructure.providers.lidl import LidlParksideCatalog, LidlParksideProvider
+from infrastructure.providers.lidl import (
+    LidlMarketingPromotionSource,
+    LidlParksideCatalog,
+    LidlParksideProvider,
+)
 
 
 def test_http_public_api_is_explicit() -> None:
@@ -32,7 +36,12 @@ def test_http_public_api_is_explicit() -> None:
 
 
 def test_lidl_public_api_is_explicit() -> None:
-    assert lidl_api.__all__ == ["LidlParksideCatalog", "LidlParksideProvider"]
+    assert lidl_api.__all__ == [
+        "LidlMarketingPromotionSource",
+        "LidlParksideCatalog",
+        "LidlParksideProvider",
+    ]
+    assert lidl_api.LidlMarketingPromotionSource is LidlMarketingPromotionSource
     assert lidl_api.LidlParksideCatalog is LidlParksideCatalog
     assert lidl_api.LidlParksideProvider is LidlParksideProvider
 
@@ -55,6 +64,9 @@ def test_public_objects_have_docstrings_and_annotations() -> None:
     assert inspect.getdoc(LidlParksideProvider)
     assert inspect.getdoc(LidlParksideProvider.__init__)
     assert inspect.getdoc(LidlParksideProvider.fetch)
+    assert inspect.getdoc(LidlMarketingPromotionSource)
+    assert inspect.getdoc(LidlMarketingPromotionSource.__init__)
+    assert inspect.getdoc(LidlMarketingPromotionSource.current)
     assert inspect.signature(BinaryHttpClient.get).return_annotation is bytes
     assert inspect.signature(UrllibBinaryHttpClient.get).return_annotation is bytes
     assert inspect.signature(TextHttpClient.get).return_annotation is str
