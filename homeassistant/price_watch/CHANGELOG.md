@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.29.0
+
+- Read the current Lidl Czech Republic daily marketing offer from the public
+  storefront home page.
+- Include the offer text and its validated Lidl link in the single daily
+  discount digest.
+- Retry the digest after a temporary or malformed promotion response instead
+  of sending an incomplete summary.
+
 ## 0.28.0
 
 - Treat a Home Assistant Supervisor stop as a graceful process shutdown.
