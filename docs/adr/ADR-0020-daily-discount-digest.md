@@ -105,6 +105,11 @@ class DailyDigestReservationStore(Protocol):
 
 `DailyDigestReservationError` reports digest-reservation persistence failures.
 
+ADR-0030 extends the digest with an optional provider-neutral
+`DailyPromotion`, adds a backward-compatible optional promotion argument to
+the engine and stores the supplied promotion on `DailyDiscountDigest`. Product
+selection and all calls which omit the promotion remain unchanged.
+
 The engine includes only products which are available, expose an approved
 `original_price`, and have `discount_percent` greater than or equal to the
 minimum. Products are ordered by descending discount, then case-insensitive
@@ -181,6 +186,10 @@ class DailyDigestResult:
 
 `product_count` is the number included in a sent digest and zero for the two
 non-delivery statuses.
+
+ADR-0030 adds `PROMOTION_UNAVAILABLE` and the backward-compatible
+`promotion_included` result flag. The new status is a non-delivery retry
+outcome and therefore also has zero products.
 
 ```python
 DailyDigestWorkflow(
@@ -267,6 +276,9 @@ cycle summary as `digest_status` and `digest_products`. Disabled catalog output
 remains unchanged.
 Digest persistence and delivery failures retain their subsystem exceptions and
 stop the scheduler like other mandatory configured notification failures.
+ADR-0030 makes only an operational promotion lookup failure non-fatal: its new
+reservation is released and a later catalog cycle retries before any digest is
+sent. All other failures retain this behavior.
 
 ---
 

@@ -134,6 +134,10 @@ Infrastructure contains all external integrations and concrete implementations.
 explicitly configured Lidl Czech Republic Parkside product pages. ADR-0016
 adds a separate sitemap catalog implementation which discovers references
 without changing the existing product provider.
+ADR-0030 adds a separate global marketing-promotion source in the same
+Infrastructure package. It translates the public Lidl navigation banner into
+the provider-neutral `core.promotions` contract and does not change Product or
+the Provider SDK.
 
 `infrastructure.http` contains the injectable text HTTP boundary and its
 standard-library reference implementation. ADR-0016 adds an independently
@@ -285,6 +289,9 @@ reservations only in that catalog composition.
 `applications.daily_digest` contains deterministic calendar eligibility and
 orchestration over injected Core contracts. ADR-0020 composes it only in Home
 Assistant catalog mode when explicitly enabled.
+ADR-0030 adds an optional injected promotion source and a non-fatal retry
+outcome before snapshot loading. Network and HTML behavior remain in
+Infrastructure.
 ADR-0021 additionally composes durable catalog statistics, latest snapshots,
 the existing discount engine and aggregate Home Assistant publication in
 catalog mode.

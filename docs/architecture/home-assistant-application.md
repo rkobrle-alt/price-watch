@@ -125,6 +125,13 @@ The digest reuses the configured price threshold and notify entity, reads the
 latest SQLite state for every observed product and reserves one Europe/Prague
 calendar date before delivery. It is unavailable in explicit mode.
 
+ADR-0030 composes the Lidl global marketing-promotion source into that same
+optional catalog digest. The source uses the existing text HTTP client and is
+queried only for a newly eligible digest date. A temporary promotion failure
+releases the date and returns a non-fatal retry outcome; ordinary catalog
+monitoring continues. A missing banner is valid and sends the digest without a
+promotion. No App option, sensor or persistent schema is added.
+
 The Supervisor token is constructor input to the REST client only. It is not
 part of `HomeAssistantConfig`, TOML, App options, logs or errors.
 

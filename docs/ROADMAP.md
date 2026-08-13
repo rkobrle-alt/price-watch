@@ -449,6 +449,23 @@ Deliverables:
 
 ---
 
+# v0.29.0 — Daily Lidl Promotion
+
+Goal:
+
+Include the current global Lidl Czech Republic marketing message and its
+actionable link in the existing daily Parkside discount email.
+
+Deliverables:
+
+- provider-neutral immutable daily-promotion contract
+- server-rendered Lidl marketing-banner adapter
+- deterministic promotion block in empty and non-empty daily digests
+- non-fatal reservation-releasing retry on temporary promotion lookup failure
+- unchanged product, Provider SDK, Rule Engine, schema and App options
+
+---
+
 # v1.0.0
 
 Stable public release.

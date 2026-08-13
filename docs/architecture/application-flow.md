@@ -221,6 +221,22 @@ uses the existing completed-cycle outcome when available and exits
 successfully. It does not add a step to the reusable workflow, and a later App
 start follows the same durable-state composition shown above.
 
+ADR-0030 extends only the eligible daily-digest branch:
+
+```text
+new local-date reservation
+    |
+    v
+current Lidl marketing promotion lookup
+    |
+    +--> unavailable: release date and retry on a later catalog cycle
+    |
+    +--> absent or present: load latest snapshots and format one digest
+```
+
+The lookup is not run before the delivery time or after an existing date
+reservation. It never enters product synchronization or catalog discovery.
+
 Manual retention is a separate operator flow and never enters the monitoring
 sequence:
 

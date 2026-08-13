@@ -125,6 +125,12 @@ an explicit empty state. `DailyDiscountDigestChannel` and
 `DailyDigestReservationStore` are Protocols; Core performs neither delivery nor
 persistence.
 
+ADR-0030 optionally supplies one immutable provider-neutral `DailyPromotion`
+to the same engine. Its text and optional HTTPS URL are formatted before the
+discount threshold. `DailyPromotionSource` is a Core Protocol; the Lidl HTML
+implementation remains in Infrastructure. A source is not part of the product
+Provider SDK.
+
 ---
 
 ## Infrastructure Public API
