@@ -466,6 +466,25 @@ Deliverables:
 
 ---
 
+# v0.30.0 — Operational Resilience and Recovery
+
+Goal:
+
+Distinguish transient product failures from sustained provider incidents and
+make health, recovery and daily-digest delivery durable and actionable.
+
+Deliverables:
+
+- deterministic three-cycle `ok/degraded/failed` operational state machine
+- transport, provider-data, total, partial, catalog and promotion failure kinds
+- transactional SQLite schema 4 to 5 migration and restart-safe health state
+- one retryable sustained-failure email and one meaningful recovery email
+- `sensor.price_watch_health` and `sensor.price_watch_daily_digest`
+- last successful digest time, count and promotion diagnostics
+- unchanged existing sensors, product behavior, CLI and App permissions
+
+---
+
 # v1.0.0
 
 Stable public release.

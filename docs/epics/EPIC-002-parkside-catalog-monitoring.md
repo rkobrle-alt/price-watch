@@ -48,6 +48,7 @@ installations may disable individual alerts and use only that daily digest.
     migration
 14. graceful managed-App shutdown and restart acceptance
 15. current Lidl marketing promotion in the daily digest
+16. durable operational health, incident and recovery diagnostics
 
 Each step requires its own accepted ADR when it introduces a new persistence,
 workflow, rule or scheduling contract.
@@ -85,6 +86,9 @@ ADR-0029 and STORY-028 define step 14 as process-edge `SIGTERM` handling with a
 successful exit and an explicit check that restart preserves durable state.
 ADR-0030 and STORY-029 define step 15 as a provider-neutral current promotion
 lookup composed into the existing daily email with non-fatal cycle retries.
+ADR-0031 and STORY-030 define step 16 as durable provider-neutral health
+transitions, classified provider failures, low-noise incident/recovery
+notification and restart-safe daily-digest diagnostics.
 
 ## Discount Semantics
 
@@ -124,3 +128,6 @@ boundary between durable reservation and Home Assistant delivery.
   the same durable catalog and reservation state
 - the daily email includes the current global Lidl marketing message and link
   when Lidl publishes one
+- sustained provider failures and their recovery are reported once while
+  transient errors remain visible without email noise
+- the last successful daily-digest delivery remains visible after App restart

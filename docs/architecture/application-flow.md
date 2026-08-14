@@ -237,6 +237,26 @@ current Lidl marketing promotion lookup
 The lookup is not run before the delivery time or after an existing date
 reservation. It never enters product synchronization or catalog discovery.
 
+ADR-0031 adds a final catalog-mode operational stage:
+
+```text
+completed catalog cycle + daily-digest result
+    |
+    v
+classify check and transition durable operational state
+    |
+    v
+save before optional incident/recovery delivery
+    |
+    +--> delivery failed: retain pending message for next cycle
+    |
+    v
+publish digest diagnostics, then health state
+```
+
+This stage consumes immutable results and does not alter product, rule,
+observation, reservation or digest decisions.
+
 Manual retention is a separate operator flow and never enters the monitoring
 sequence:
 

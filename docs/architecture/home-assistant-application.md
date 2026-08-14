@@ -167,3 +167,11 @@ installation remains the immediate rollback path until acceptance succeeds.
 Managed stop and restart acceptance additionally verifies that durable catalog
 history and notification reservations remain present; it introduces no new
 restore format beyond the ADR-0028 archive and Home Assistant backup.
+
+ADR-0031 adds a separate durable operational representation without changing
+the established `sensor.price_watch_status` or `sensor.price_watch_catalog`
+contracts. Catalog mode persists provider-neutral health in the shared SQLite
+database, publishes `sensor.price_watch_health` and
+`sensor.price_watch_daily_digest`, and uses the configured notify entity for
+one retryable sustained-incident message and one acknowledged-incident
+recovery message. The fixed threshold is three failed catalog cycles.

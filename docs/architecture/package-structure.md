@@ -29,6 +29,8 @@ core/
 
     notifications/
 
+    operations/
+
     scheduler/
 
     configuration/
@@ -70,6 +72,11 @@ For notifications, `core.notifications` contains:
 - the deterministic price-drop reservation policy
 
 It contains no concrete notification channel.
+
+For operational resilience, `core.operations` contains immutable health,
+digest-delivery and notification values, the deterministic transition engine,
+and persistence and delivery Protocols. It contains no SQLite, HTTP, Home
+Assistant, clock or provider-specific code.
 
 For scheduling, `core.scheduler` contains only:
 
@@ -170,6 +177,9 @@ it.
 ADR-0027 adds `TimestampedRetentionBackupFileFactory` beside the retention
 adapter. It prepares a unique persistent backup destination but performs no
 retention selection or deletion.
+ADR-0031 adds `SqliteOperationalStateStore` and migrates valid schema version
+4 databases to version 5. It stores one versioned operational-state document
+without modifying observation, catalog or reservation rows.
 
 `infrastructure.persistence.migration` contains the ADR-0028 ZIP adapter for
 an explicit Home Assistant local-to-repository state hand-off. It owns ZIP,
@@ -230,6 +240,8 @@ applications/
     catalog_monitoring/
 
     daily_digest/
+
+    operational_monitoring/
 
     synchronization/
 
@@ -292,6 +304,10 @@ Assistant catalog mode when explicitly enabled.
 ADR-0030 adds an optional injected promotion source and a non-fatal retry
 outcome before snapshot loading. Network and HTML behavior remain in
 Infrastructure.
+`applications.operational_monitoring` contains ADR-0031 state-transition
+persistence and pending-notification orchestration over injected Core
+contracts. Provider classification and Home Assistant composition remain at
+the outer application boundary.
 ADR-0021 additionally composes durable catalog statistics, latest snapshots,
 the existing discount engine and aggregate Home Assistant publication in
 catalog mode.
@@ -313,6 +329,11 @@ ADR-0029 keeps Supervisor `SIGTERM` handling in a private
 and restores the handler; the existing application run boundary maps that
 termination to a successful stopped outcome. No reusable scheduler or Core
 contract depends on operating-system signals.
+ADR-0031 adds `core.operations` for deterministic operational state and
+Protocols, `applications.operational_monitoring` for persistence and delivery
+orchestration, `infrastructure.persistence.sqlite` for the schema-5 adapter,
+and `infrastructure.homeassistant` for operational state publication and
+notify delivery. Existing packages do not reverse their dependencies.
 
 ---
 
