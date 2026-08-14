@@ -118,6 +118,12 @@ and its validated Lidl link. A temporary retrieval or parsing failure delays
 the digest for retry on a later monitoring cycle, while product monitoring
 continues normally.
 
+Catalog mode durably distinguishes a transient problem from a sustained
+three-cycle incident. Home Assistant receives separate health and daily-digest
+diagnostic sensors. A sustained failure produces one retryable operational
+email, and a later healthy cycle produces one recovery email after the
+incident alert was successfully delivered.
+
 New packaged installations disable individual product notifications and send
 qualifying discounts together in that one daily digest. Existing option
 documents retain individual alerts unless

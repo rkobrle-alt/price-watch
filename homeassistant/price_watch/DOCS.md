@@ -64,15 +64,16 @@ entities.
 ## Persistence
 
 Catalog mode stores membership, refresh ordering, complete append-only
-observations, notification reservations and daily digest reservations in
-`/data/catalog.sqlite3`.
+observations, notification reservations, daily digest reservations and
+operational health in `/data/catalog.sqlite3`.
 Explicit mode stores its latest
 snapshots in `/data/state.json`. Supervisor preserves both App-owned paths
 across restarts and upgrades.
 
 A valid schema-version-1 catalog database is migrated transactionally through
-versions 2, 3 and 4. Valid version-2 and version-3 databases continue through
-the remaining migrations. Price Watch performs no automatic history deletion.
+versions 2, 3, 4 and 5. Valid version-2, version-3 and version-4 databases
+continue through the remaining migrations. Price Watch performs no automatic
+history deletion.
 
 SQLite reservation and Home Assistant SMTP delivery cannot share one atomic
 transaction. Ordinary reported delivery failures release the reservation for
@@ -188,6 +189,30 @@ The discounted-products attributes include retained, observed and available
 counts together with successfully delivered and durably suppressed individual
 alert counts. The established `sensor.price_watch_catalog` state remains
 `ok/degraded` for backward compatibility.
+
+## Operational health and digest diagnostics
+
+Catalog mode publishes `sensor.price_watch_health` independently from the
+backward-compatible catalog sensor. Its state is `ok`, `degraded` or `failed`.
+Attributes identify the latest failure kind, consecutive failed-cycle count,
+incident and recovery timestamps, notification state and App version.
+
+One or two consecutive unhealthy cycles are `degraded` and do not send an
+operational email. The third consecutive unhealthy cycle is `failed` and sends
+one message through the configured notify entity. Further failed cycles do not
+repeat an acknowledged incident message. Delivery failure leaves the message
+pending for retry. One healthy cycle resets the counter and sends one recovery
+message only when the incident alert was successfully acknowledged.
+
+Failure diagnostics distinguish catalog discovery, provider transport,
+provider data compatibility, generic total provider failure, partial provider
+failure and daily-promotion retrieval. Changes between these causes do not
+reset the consecutive failure count.
+
+`sensor.price_watch_daily_digest` reports the current cycle's digest status
+and retains the date, delivery time, product count and promotion flag from the
+last successfully sent digest. Both sensors and pending operational messages
+are reconstructed from SQLite after an App restart.
 
 If percentage monitoring is disabled in favor of a fixed price amount, the
 percentage threshold is unavailable and the qualifying percentage count is

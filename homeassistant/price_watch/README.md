@@ -42,3 +42,7 @@ notification-reservation state.
 Version 0.29.0 adds the current Lidl Czech Republic daily offer to the daily
 discount digest. A temporary offer retrieval failure is retried on a later
 cycle without interrupting product monitoring.
+
+Version 0.30.0 adds durable operational health and daily-digest diagnostics.
+One or two consecutive failed cycles are degraded; the third is failed and
+sends one operational alert. A later healthy cycle sends one recovery message.

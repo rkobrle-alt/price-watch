@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.30.0
+
+- Add durable `ok`, `degraded` and `failed` operational health across restarts.
+- Distinguish catalog, transport, provider-data, total, partial and promotion
+  failures.
+- Send one retryable sustained-failure email and one acknowledged-incident
+  recovery email.
+- Publish `sensor.price_watch_health` and
+  `sensor.price_watch_daily_digest` without changing existing sensors.
+- Migrate SQLite schema 4 to 5 while preserving catalog, observations and
+  notification reservations.
+
 ## 0.29.0
 
 - Read the current Lidl Czech Republic daily marketing offer from the public
