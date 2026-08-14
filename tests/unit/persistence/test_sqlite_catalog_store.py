@@ -42,7 +42,7 @@ def test_empty_discovery_initializes_schema_and_returns_empty(tmp_path: Path) ->
 
     assert SqliteCatalogStore(path).record_discovery((), _FIRST) == ()
     with open_database(path) as connection:
-        assert connection.execute("PRAGMA user_version").fetchone() == (4,)
+        assert connection.execute("PRAGMA user_version").fetchone() == (5,)
         tables = {
             row[0]
             for row in connection.execute(

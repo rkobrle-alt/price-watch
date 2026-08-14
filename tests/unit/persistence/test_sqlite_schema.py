@@ -39,6 +39,7 @@ def test_sqlite_public_api_is_explicit_documented_and_typed() -> None:
         "SqliteDailyDigestReservationStore",
         "SqliteNotificationReservationStore",
         "SqliteObservationRetentionManager",
+        "SqliteOperationalStateStore",
         "SqliteStateStore",
         "TimestampedRetentionBackupFileFactory",
     ]

@@ -3,7 +3,7 @@
 import sqlite3
 from pathlib import Path
 
-SCHEMA_VERSION = 4
+SCHEMA_VERSION = 5
 
 _CATALOG_COLUMNS_V1 = (
     "sequence",
@@ -23,9 +23,11 @@ _RESERVATION_COLUMNS = (
     "reserved_at",
 )
 _DIGEST_RESERVATION_COLUMNS = ("calendar_date", "reserved_at")
+_OPERATIONAL_STATE_COLUMNS = ("id", "payload")
 _LEGACY_TABLES = {"catalog_entries", "observations"}
 _VERSION_THREE_TABLES = _LEGACY_TABLES | {"notification_reservations"}
-_REQUIRED_TABLES = _VERSION_THREE_TABLES | {"daily_digest_reservations"}
+_VERSION_FOUR_TABLES = _VERSION_THREE_TABLES | {"daily_digest_reservations"}
+_REQUIRED_TABLES = _VERSION_FOUR_TABLES | {"operational_state"}
 
 
 class SqlitePersistenceError(Exception):
@@ -97,6 +99,15 @@ class SqliteDatabase:
                 False,
             )
             _migrate_version_three(connection)
+            _validate_schema_columns(
+                connection,
+                _CATALOG_COLUMNS,
+                _VERSION_FOUR_TABLES,
+                True,
+                True,
+                False,
+            )
+            _migrate_version_four(connection)
         elif version == 2:
             _validate_schema_columns(
                 connection,
@@ -113,6 +124,15 @@ class SqliteDatabase:
                 False,
             )
             _migrate_version_three(connection)
+            _validate_schema_columns(
+                connection,
+                _CATALOG_COLUMNS,
+                _VERSION_FOUR_TABLES,
+                True,
+                True,
+                False,
+            )
+            _migrate_version_four(connection)
         elif version == 3:
             _validate_schema_columns(
                 connection,
@@ -122,6 +142,25 @@ class SqliteDatabase:
                 False,
             )
             _migrate_version_three(connection)
+            _validate_schema_columns(
+                connection,
+                _CATALOG_COLUMNS,
+                _VERSION_FOUR_TABLES,
+                True,
+                True,
+                False,
+            )
+            _migrate_version_four(connection)
+        elif version == 4:
+            _validate_schema_columns(
+                connection,
+                _CATALOG_COLUMNS,
+                _VERSION_FOUR_TABLES,
+                True,
+                True,
+                False,
+            )
+            _migrate_version_four(connection)
         elif version != SCHEMA_VERSION:
             raise SqlitePersistenceError(
                 f"unsupported SQLite schema version: {version}"
@@ -184,6 +223,7 @@ def _create_schema(connection: sqlite3.Connection) -> None:
             _create_refresh_index(connection)
             _create_reservation_table(connection)
             _create_digest_reservation_table(connection)
+            _create_operational_state_table(connection)
             connection.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
     except sqlite3.Error as error:
         raise SqlitePersistenceError("failed to initialize SQLite schema") from error
@@ -218,6 +258,16 @@ def _migrate_version_three(connection: sqlite3.Connection) -> None:
         with connection:
             connection.execute("BEGIN IMMEDIATE")
             _create_digest_reservation_table(connection)
+            connection.execute("PRAGMA user_version = 4")
+    except sqlite3.Error as error:
+        raise SqlitePersistenceError("failed to migrate SQLite schema") from error
+
+
+def _migrate_version_four(connection: sqlite3.Connection) -> None:
+    try:
+        with connection:
+            connection.execute("BEGIN IMMEDIATE")
+            _create_operational_state_table(connection)
             connection.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
     except sqlite3.Error as error:
         raise SqlitePersistenceError("failed to migrate SQLite schema") from error
@@ -253,11 +303,21 @@ def _create_digest_reservation_table(connection: sqlite3.Connection) -> None:
     )
 
 
+def _create_operational_state_table(connection: sqlite3.Connection) -> None:
+    connection.execute(
+        "CREATE TABLE operational_state ("
+        "id INTEGER PRIMARY KEY CHECK(id = 1), "
+        "payload TEXT NOT NULL"
+        ")"
+    )
+
+
 def _validate_schema(connection: sqlite3.Connection) -> None:
     _validate_schema_columns(
         connection,
         _CATALOG_COLUMNS,
         _REQUIRED_TABLES,
+        True,
         True,
         True,
     )
@@ -269,6 +329,7 @@ def _validate_schema_columns(
     required_tables: set[str],
     validate_reservations: bool,
     validate_digest_reservations: bool = False,
+    validate_operational_state: bool = False,
 ) -> None:
     tables = _user_tables(connection)
     if not required_tables.issubset(tables):
@@ -291,6 +352,11 @@ def _validate_schema_columns(
         raise SqlitePersistenceError(
             "daily_digest_reservations schema is incompatible"
         )
+    if validate_operational_state and (
+        _table_columns(connection, "operational_state")
+        != _OPERATIONAL_STATE_COLUMNS
+    ):
+        raise SqlitePersistenceError("operational_state schema is incompatible")
 
 
 def _table_columns(

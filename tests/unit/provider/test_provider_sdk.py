@@ -227,9 +227,11 @@ class ProviderPublicApiTests(TestCase):
         expected = {
             "FetchResult",
             "Provider",
+            "ProviderDataError",
             "ProviderError",
             "ProviderMetadata",
             "ProviderRegistry",
+            "ProviderTransportError",
         }
 
         self.assertEqual(set(provider_api.__all__), expected)

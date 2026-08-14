@@ -8,7 +8,12 @@ from urllib.parse import urlparse
 from uuid import NAMESPACE_URL, uuid5
 
 from core.domain import Product, ProviderId
-from core.provider import FetchResult, ProviderError
+from core.provider import (
+    FetchResult,
+    ProviderDataError,
+    ProviderError,
+    ProviderTransportError,
+)
 from infrastructure.http import HttpClientError, TextHttpClient
 from infrastructure.providers.lidl.parser import (
     LidlProductDataError,
@@ -52,8 +57,10 @@ class LidlParksideProvider:
             try:
                 html = self._http_client.get(url)
                 products.append(parse_lidl_product(html, url, self.id, started_at))
-            except (HttpClientError, LidlProductDataError) as error:
-                errors.append(ProviderError(f"{url}: {error}"))
+            except HttpClientError as error:
+                errors.append(ProviderTransportError(f"{url}: {error}"))
+            except LidlProductDataError as error:
+                errors.append(ProviderDataError(f"{url}: {error}"))
 
         finished_at = self._read_clock()
         if finished_at < started_at:

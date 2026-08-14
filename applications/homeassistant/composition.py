@@ -14,6 +14,7 @@ from applications.catalog_monitoring import (
 from applications.daily_digest import DailyDigestConfig, DailyDigestWorkflow
 from applications.homeassistant.digest import compose_daily_digest
 from applications.homeassistant.configuration import HomeAssistantConfig
+from applications.operational_monitoring import OperationalMonitoringWorkflow
 from applications.configuration import ApplicationConfig
 from applications.synchronization import SynchronizationResult, SynchronizationWorkflow
 from applications.version import VERSION
@@ -25,6 +26,7 @@ from core.notifications import (
     NotificationReservationStore,
     PriceDropReservationPolicy,
 )
+from core.operations import OperationalHealthEngine
 from core.rules import EvaluatorRegistry, PriceReferencePolicy, RuleEngine
 from core.rules.evaluators import BackInStockEvaluator, PriceDropEvaluator
 from core.state import (
@@ -37,6 +39,8 @@ from core.state import (
 from infrastructure.homeassistant import (
     HomeAssistantCatalogStatusPublisher,
     HomeAssistantMaintenanceStatusPublisher,
+    HomeAssistantOperationalNotificationChannel,
+    HomeAssistantOperationalStatusPublisher,
     HomeAssistantStatusPublisher,
     HomeAssistantStorageStatusPublisher,
     UrllibHomeAssistantClient,
@@ -52,6 +56,7 @@ from infrastructure.persistence.sqlite import (
     SqliteCatalogStore,
     SqliteNotificationReservationStore,
     SqliteObservationRetentionManager,
+    SqliteOperationalStateStore,
     SqliteStateStore,
 )
 from infrastructure.providers.lidl import (
@@ -79,6 +84,7 @@ class _HomeAssistantComposition:
     catalog_status: "_CatalogStatusComposition | None" = None
     storage_status: "_StorageStatusComposition | None" = None
     maintenance_status: "_MaintenanceStatusComposition | None" = None
+    operational: "_OperationalComposition | None" = None
 
     def __post_init__(self) -> None:
         if (self.workflow is None) == (self.catalog_workflow is None):
@@ -91,6 +97,8 @@ class _HomeAssistantComposition:
             raise ValueError("storage status requires catalog workflow")
         if self.maintenance_status is not None and self.catalog_workflow is None:
             raise ValueError("maintenance status requires catalog workflow")
+        if (self.operational is None) != (self.catalog_workflow is None):
+            raise ValueError("operational monitoring requires catalog workflow")
 
 
 @dataclass(frozen=True, slots=True)
@@ -131,6 +139,14 @@ class _MaintenanceStatusComposition:
             raise ValueError("retention_days must be positive")
         if not isinstance(self.apply_available, bool):
             raise TypeError("apply_available must be a bool")
+
+
+@dataclass(frozen=True, slots=True)
+class _OperationalComposition:
+    """Hold operational workflow and Home Assistant state publisher."""
+
+    workflow: OperationalMonitoringWorkflow
+    publisher: HomeAssistantOperationalStatusPublisher
 
 
 class _LidlCatalogBatchSynchronizer:
@@ -377,6 +393,21 @@ def _compose_catalog(
                 ),
                 retention_days=retention_preview_days,
             )
+        ),
+        operational=_OperationalComposition(
+            workflow=OperationalMonitoringWorkflow(
+                SqliteOperationalStateStore(catalog_config.database_file),
+                OperationalHealthEngine(),
+                HomeAssistantOperationalNotificationChannel(
+                    homeassistant_client,
+                    notify_entity,
+                    notification_title,
+                ),
+            ),
+            publisher=HomeAssistantOperationalStatusPublisher(
+                homeassistant_client,
+                VERSION,
+            ),
         ),
     )
 

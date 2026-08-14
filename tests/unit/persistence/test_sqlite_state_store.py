@@ -148,7 +148,7 @@ def test_statistics_use_insertion_boundaries_and_preserve_schema(
     with open_database(path) as connection:
         page_count = connection.execute("PRAGMA page_count").fetchone()[0]
         page_size = connection.execute("PRAGMA page_size").fetchone()[0]
-        assert connection.execute("PRAGMA user_version").fetchone() == (4,)
+        assert connection.execute("PRAGMA user_version").fetchone() == (5,)
         assert connection.execute(
             "SELECT COUNT(*) FROM observations"
         ).fetchone() == (3,)

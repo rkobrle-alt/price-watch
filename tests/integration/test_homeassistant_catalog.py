@@ -146,7 +146,7 @@ def test_catalog_mode_discovers_and_rotates_durable_batches(
     assert catalog_count == (2,)
     assert attempted_count == (2,)
     assert observation_count == (2,)
-    assert version == (4,)
+    assert version == (5,)
     assert stdout.text.count("catalog sync complete:") == 2
     assert "selected=1" in stdout.text
     assert stderr.text == ""

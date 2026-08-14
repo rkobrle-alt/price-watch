@@ -7,7 +7,12 @@ from uuid import uuid5
 import pytest
 
 from core.domain import Currency, ProductId
-from core.provider import Provider, ProviderError
+from core.provider import (
+    Provider,
+    ProviderDataError,
+    ProviderError,
+    ProviderTransportError,
+)
 from infrastructure.http import HttpClientError
 from infrastructure.providers.lidl import LidlParksideProvider
 from infrastructure.providers.lidl.parser import (
@@ -239,6 +244,8 @@ def test_fetch_keeps_successes_and_reports_supported_failures_in_order() -> None
     ]
     assert len(result.errors) == 2
     assert all(isinstance(error, ProviderError) for error in result.errors)
+    assert isinstance(result.errors[0], ProviderTransportError)
+    assert isinstance(result.errors[1], ProviderDataError)
     assert LIDL_URL in str(result.errors[0])
     assert "offline" in str(result.errors[0])
     assert SECOND_LIDL_URL in str(result.errors[1])

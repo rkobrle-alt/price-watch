@@ -40,6 +40,7 @@ from core.notifications import (
     NotificationError,
     NotificationReservationError,
 )
+from core.operations import OperationalStateError
 from core.rules import RuleError
 from core.scheduler import Delay, SchedulerError
 from core.state import StateStoreError
@@ -162,6 +163,7 @@ def run(
                     CatalogStoreError,
                     DailyDigestReservationError,
                     NotificationReservationError,
+                    OperationalStateError,
                     StateStoreError,
                 ):
                     _publish_storage_warning(composition, timestamp, stderr)
@@ -244,6 +246,7 @@ def run(
         RuleError,
         NotificationError,
         NotificationReservationError,
+        OperationalStateError,
         SchedulerError,
     ) as error:
         _write(stderr, f"error: {error}\n")

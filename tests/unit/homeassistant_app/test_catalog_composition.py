@@ -19,9 +19,11 @@ from applications.homeassistant.composition import (
     _HomeAssistantComposition,
     _LidlCatalogBatchSynchronizer,
     _MaintenanceStatusComposition,
+    _OperationalComposition,
     _StorageStatusComposition,
     _compose_homeassistant,
 )
+from applications.operational_monitoring import OperationalMonitoringWorkflow
 from core.catalog import ProductReference
 from core.domain import Percentage, ProviderId, Rule, RuleType
 from core.notifications import NotificationEngine
@@ -35,6 +37,8 @@ from infrastructure.notifications.homeassistant import (
 from infrastructure.homeassistant import (
     HomeAssistantCatalogStatusPublisher,
     HomeAssistantMaintenanceStatusPublisher,
+    HomeAssistantOperationalNotificationChannel,
+    HomeAssistantOperationalStatusPublisher,
     HomeAssistantStorageStatusPublisher,
 )
 from infrastructure.persistence.memory import InMemoryStateStore
@@ -43,6 +47,7 @@ from infrastructure.persistence.sqlite import (
     SqliteDailyDigestReservationStore,
     SqliteNotificationReservationStore,
     SqliteObservationRetentionManager,
+    SqliteOperationalStateStore,
     SqliteStateStore,
 )
 from infrastructure.providers.lidl import (
@@ -156,6 +161,21 @@ def test_catalog_composition_assembles_shared_sqlite_stack() -> None:
     )
     assert result.storage_status.statistics_reader is synchronizer._state_store
     assert result.maintenance_status is None
+    operational = result.operational
+    assert isinstance(operational, _OperationalComposition)
+    assert isinstance(operational.workflow, OperationalMonitoringWorkflow)
+    assert isinstance(
+        operational.workflow._state_store,
+        SqliteOperationalStateStore,
+    )
+    assert isinstance(
+        operational.workflow._notification_channel,
+        HomeAssistantOperationalNotificationChannel,
+    )
+    assert isinstance(
+        operational.publisher,
+        HomeAssistantOperationalStatusPublisher,
+    )
 
 
 def test_catalog_composition_assembles_optional_retention_preview() -> None:
@@ -219,6 +239,28 @@ def test_explicit_composition_rejects_maintenance_status() -> None:
             rules=(),
             interval=timedelta(minutes=5),
             maintenance_status=maintenance,
+        )
+
+
+def test_composition_requires_operational_context_only_for_catalog() -> None:
+    explicit = _HomeAssistantComposition(
+        workflow=cast(object, object()),
+        status_publisher=cast(object, object()),
+        rules=(),
+        interval=timedelta(minutes=5),
+    )
+    operational = _OperationalComposition(
+        workflow=cast(object, object()),
+        publisher=cast(object, object()),
+    )
+
+    with pytest.raises(ValueError, match="operational monitoring"):
+        _HomeAssistantComposition(
+            workflow=explicit.workflow,
+            status_publisher=explicit.status_publisher,
+            rules=(),
+            interval=explicit.interval,
+            operational=operational,
         )
 
 

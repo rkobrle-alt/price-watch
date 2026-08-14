@@ -6,9 +6,17 @@ from typing import TextIO
 from applications.catalog_monitoring import CatalogMonitoringResult
 from applications.daily_digest import DailyDigestResult, DailyDigestStatus
 from applications.homeassistant.composition import _HomeAssistantComposition
+from applications.operational_monitoring import OperationalMonitoringResult
 from applications.synchronization import SynchronizationResult
 from core.domain import Product
 from core.notifications import DailyDiscountDigestEngine
+from core.operations import (
+    DailyDigestDelivery,
+    OperationalCheck,
+    OperationalFailureKind,
+    OperationalNotificationKind,
+)
+from core.provider import ProviderDataError, ProviderTransportError
 from infrastructure.homeassistant import (
     CatalogStatus,
     HomeAssistantError,
@@ -171,6 +179,15 @@ def execute_catalog_cycle(
         and maintenance_status_published
     )
     digest_result = _run_daily_digest(composition, timestamp)
+    operational_result, operational_published = _run_operational_monitoring(
+        composition,
+        result,
+        products,
+        digest_result,
+        timestamp,
+        stderr,
+    )
+    status_published = status_published and operational_published
     digest_text = _digest_summary(digest_result)
     _write(
         stdout,
@@ -187,6 +204,11 @@ def execute_catalog_cycle(
         f"provider_errors={provider_error_count} "
         f"catalog_errors={catalog_error_count} "
         f"{digest_text}"
+        f"health_status={operational_result.state.status.value} "
+        "health_failures="
+        f"{operational_result.state.consecutive_failure_cycles} "
+        "operational_notification="
+        f"{_operational_notification_summary(operational_result)} "
         f"status_published={str(status_published).lower()}\n",
     )
     return result, status_published
@@ -260,6 +282,92 @@ def _run_daily_digest(
     if workflow is None:
         return None
     return workflow.run(timestamp)
+
+
+def _run_operational_monitoring(
+    composition: _HomeAssistantComposition,
+    catalog_result: CatalogMonitoringResult,
+    products: tuple[Product, ...],
+    digest_result: DailyDigestResult | None,
+    timestamp: datetime,
+    stderr: TextIO,
+) -> tuple[OperationalMonitoringResult, bool]:
+    context = composition.operational
+    if context is None:
+        raise ValueError("operational composition is required")
+    failure_kind = _operational_failure_kind(
+        catalog_result,
+        products,
+        digest_result,
+    )
+    delivery = (
+        DailyDigestDelivery(
+            digest_result.calendar_date,
+            timestamp,
+            digest_result.product_count,
+            digest_result.promotion_included,
+        )
+        if digest_result is not None
+        and digest_result.status is DailyDigestStatus.SENT
+        else None
+    )
+    result = context.workflow.run(
+        OperationalCheck(timestamp, failure_kind),
+        delivery,
+    )
+    notification_ok = result.notification_error is None
+    if result.notification_error is not None:
+        _write(
+            stderr,
+            f"operational notification error: {result.notification_error}\n",
+        )
+    digest_status = (
+        "disabled" if digest_result is None else digest_result.status.value
+    )
+    try:
+        context.publisher.publish(result.state, digest_status)
+    except HomeAssistantError as error:
+        _write(stderr, f"operational status error: {error}\n")
+        return result, False
+    return result, notification_ok
+
+
+def _operational_failure_kind(
+    result: CatalogMonitoringResult,
+    products: tuple[Product, ...],
+    digest_result: DailyDigestResult | None,
+) -> OperationalFailureKind | None:
+    if result.catalog_error is not None:
+        return OperationalFailureKind.CATALOG_UNAVAILABLE
+    synchronization = result.synchronization
+    errors = () if synchronization is None else synchronization.provider_errors
+    selected_count = len(result.refresh_references)
+    if errors and len(errors) == selected_count and not products:
+        if all(isinstance(error, ProviderDataError) for error in errors):
+            return OperationalFailureKind.PROVIDER_DATA_INCOMPATIBLE
+        if all(isinstance(error, ProviderTransportError) for error in errors):
+            return OperationalFailureKind.PROVIDER_UNAVAILABLE
+        return OperationalFailureKind.PROVIDER_FAILURE
+    if errors:
+        return OperationalFailureKind.PARTIAL_PROVIDER_FAILURE
+    if (
+        digest_result is not None
+        and digest_result.status is DailyDigestStatus.PROMOTION_UNAVAILABLE
+    ):
+        return OperationalFailureKind.PROMOTION_UNAVAILABLE
+    return None
+
+
+def _operational_notification_summary(
+    result: OperationalMonitoringResult,
+) -> str:
+    if result.notification_error is not None:
+        return "retry"
+    if result.notification_sent is OperationalNotificationKind.FAILURE:
+        return "failure"
+    if result.notification_sent is OperationalNotificationKind.RECOVERY:
+        return "recovery"
+    return "none"
 
 
 def _digest_summary(result: DailyDigestResult | None) -> str:

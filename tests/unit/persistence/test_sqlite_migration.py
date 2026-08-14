@@ -161,7 +161,7 @@ def test_version_one_database_migrates_without_data_loss(tmp_path: Path) -> None
         attempt = connection.execute(
             "SELECT last_refresh_attempt_at FROM catalog_entries"
         ).fetchone()
-    assert version == (4,)
+    assert version == (5,)
     assert columns == _V1_CATALOG_COLUMNS + ("last_refresh_attempt_at",)
     assert attempt == (None,)
 
@@ -183,7 +183,7 @@ def test_version_two_database_migrates_without_data_loss(tmp_path: Path) -> None
         observation_count = connection.execute(
             "SELECT COUNT(*) FROM observations"
         ).fetchone()
-    assert version == (4,)
+    assert version == (5,)
     assert reservation_columns == (
         "product_id",
         "rule_type",
@@ -201,7 +201,7 @@ def test_version_three_database_migrates_without_data_loss(tmp_path: Path) -> No
     assert SqliteStateStore(path).load(PRODUCT_ID) == create_snapshot()
 
     with open_database(path) as connection:
-        assert connection.execute("PRAGMA user_version").fetchone() == (4,)
+        assert connection.execute("PRAGMA user_version").fetchone() == (5,)
         assert connection.execute(
             "SELECT product_id, rule_type, currency, price_amount, reserved_at "
             "FROM notification_reservations"

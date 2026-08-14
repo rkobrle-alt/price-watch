@@ -17,19 +17,38 @@ from applications.daily_digest import DailyDigestResult, DailyDigestStatus
 from applications.homeassistant.composition import _HomeAssistantComposition
 from applications.homeassistant.composition import _CatalogStatusComposition
 from applications.homeassistant.composition import _MaintenanceStatusComposition
+from applications.homeassistant.composition import _OperationalComposition
 from applications.homeassistant.composition import _StorageStatusComposition
-from applications.homeassistant.cycle import publish_storage_warning
+from applications.homeassistant.cycle import (
+    _operational_failure_kind,
+    _operational_notification_summary,
+    publish_storage_warning,
+)
 from applications.homeassistant.main import (
     _execute_catalog_cycle,
     _execute_cycle,
     run,
 )
 from applications.synchronization import SynchronizationResult
-from core.catalog import CatalogError, CatalogStatistics, CatalogStoreError
+from applications.operational_monitoring import OperationalMonitoringResult
+from core.catalog import (
+    CatalogError,
+    CatalogStatistics,
+    CatalogStoreError,
+    ProductReference,
+)
 from core.domain import Money, Notification, Percentage
 from core.notifications import (
     DailyDigestReservationError,
     NotificationReservationError,
+)
+from core.operations import (
+    OperationalCheck,
+    OperationalFailureKind,
+    OperationalHealthEngine,
+    OperationalNotificationError,
+    OperationalNotificationKind,
+    OperationalState,
 )
 from core.state import (
     ObservationRetentionPlan,
@@ -45,7 +64,7 @@ from infrastructure.homeassistant import (
     StorageStatus,
 )
 from infrastructure.providers.lidl import LidlParksideCatalog
-from core.provider import ProviderError
+from core.provider import ProviderDataError, ProviderError, ProviderTransportError
 from tests.unit.homeassistant_app.helpers import (
     RecordingDelay,
     RecordingStream,
@@ -181,6 +200,37 @@ class _DigestWorkflow:
         return self.result
 
 
+@dataclass(slots=True)
+class _OperationalWorkflow:
+    calls: list[tuple[OperationalCheck, object]] = field(default_factory=list)
+    result: OperationalMonitoringResult | None = None
+
+    def run(
+        self,
+        check: OperationalCheck,
+        delivery: object = None,
+    ) -> OperationalMonitoringResult:
+        self.calls.append((check, delivery))
+        if self.result is not None:
+            return self.result
+        state = OperationalHealthEngine().evaluate(
+            OperationalState.initial(),
+            check,
+        )
+        return OperationalMonitoringResult(state)
+
+
+@dataclass(slots=True)
+class _OperationalPublisher:
+    calls: list[tuple[OperationalState, str]] = field(default_factory=list)
+    failure: HomeAssistantError | None = None
+
+    def publish(self, state: OperationalState, digest_status: str) -> None:
+        if self.failure is not None:
+            raise self.failure
+        self.calls.append((state, digest_status))
+
+
 def _result(
     *,
     catalog_error: CatalogError | None = None,
@@ -223,6 +273,8 @@ def _composition(
     retention_manager: _RetentionManager | None = None,
     snapshots: tuple[StateSnapshot, ...] = (),
     minimum_discount: Percentage | None = Percentage(Decimal("20.00")),
+    operational_workflow: _OperationalWorkflow | None = None,
+    operational_publisher: _OperationalPublisher | None = None,
 ) -> _HomeAssistantComposition:
     aggregate_publisher = catalog_publisher or _CatalogStatusPublisher()
     return _HomeAssistantComposition(
@@ -258,6 +310,10 @@ def _composition(
                 retention_manager=cast(object, retention_manager),
                 retention_days=90,
             )
+        ),
+        operational=_OperationalComposition(
+            cast(object, operational_workflow or _OperationalWorkflow()),
+            cast(object, operational_publisher or _OperationalPublisher()),
         ),
     )
 
@@ -618,6 +674,168 @@ def test_enabled_digest_runs_after_status_and_is_reported() -> None:
         "digest_status=sent digest_products=3 digest_promotion=true"
         in stdout.text
     )
+    operational = composition.operational
+    assert operational is not None
+    operational_workflow = cast(_OperationalWorkflow, operational.workflow)
+    assert operational_workflow.calls[0][1] is not None
+
+
+def _catalog_result_with_errors(
+    errors: tuple[ProviderError, ...],
+    selected_count: int,
+) -> CatalogMonitoringResult:
+    references = tuple(
+        ProductReference(
+            LidlParksideCatalog.id,
+            f"product-{index}",
+            f"https://www.lidl.cz/p/product-{index}",
+        )
+        for index in range(selected_count)
+    )
+    return replace(
+        _result(provider_errors=errors),
+        refresh_references=references,
+    )
+
+
+@pytest.mark.parametrize(
+    ("result", "products", "digest", "expected"),
+    [
+        (
+            replace(_result(), catalog_error=CatalogError("catalog failed")),
+            (),
+            None,
+            OperationalFailureKind.CATALOG_UNAVAILABLE,
+        ),
+        (
+            _catalog_result_with_errors((ProviderDataError("data"),), 1),
+            (),
+            None,
+            OperationalFailureKind.PROVIDER_DATA_INCOMPATIBLE,
+        ),
+        (
+            _catalog_result_with_errors((ProviderTransportError("http"),), 1),
+            (),
+            None,
+            OperationalFailureKind.PROVIDER_UNAVAILABLE,
+        ),
+        (
+            _catalog_result_with_errors(
+                (ProviderDataError("data"), ProviderTransportError("http")),
+                2,
+            ),
+            (),
+            None,
+            OperationalFailureKind.PROVIDER_FAILURE,
+        ),
+        (
+            _catalog_result_with_errors((ProviderError("partial"),), 2),
+            (create_product(),),
+            None,
+            OperationalFailureKind.PARTIAL_PROVIDER_FAILURE,
+        ),
+        (
+            _result(),
+            (),
+            DailyDigestResult(
+                date(2026, 8, 14),
+                DailyDigestStatus.PROMOTION_UNAVAILABLE,
+            ),
+            OperationalFailureKind.PROMOTION_UNAVAILABLE,
+        ),
+        (_result(synchronization=False), (), None, None),
+    ],
+)
+def test_operational_failure_classification_priority(
+    result: CatalogMonitoringResult,
+    products: tuple,
+    digest: DailyDigestResult | None,
+    expected: OperationalFailureKind | None,
+) -> None:
+    assert _operational_failure_kind(result, products, digest) is expected
+
+
+@pytest.mark.parametrize(
+    ("result", "expected"),
+    [
+        (
+            OperationalMonitoringResult(
+                OperationalState.initial(),
+                notification_error=OperationalNotificationError("delivery failed"),
+            ),
+            "retry",
+        ),
+        (
+            OperationalMonitoringResult(
+                OperationalState.initial(),
+                notification_sent=OperationalNotificationKind.FAILURE,
+            ),
+            "failure",
+        ),
+        (
+            OperationalMonitoringResult(
+                OperationalState.initial(),
+                notification_sent=OperationalNotificationKind.RECOVERY,
+            ),
+            "recovery",
+        ),
+        (OperationalMonitoringResult(OperationalState.initial()), "none"),
+    ],
+)
+def test_operational_notification_summary(
+    result: OperationalMonitoringResult,
+    expected: str,
+) -> None:
+    assert _operational_notification_summary(result) == expected
+
+
+def test_operational_delivery_and_publication_failures_are_non_fatal() -> None:
+    delivery_error = OperationalNotificationError("delivery failed")
+    workflow = _OperationalWorkflow(
+        result=OperationalMonitoringResult(
+            OperationalState.initial(),
+            notification_error=delivery_error,
+        )
+    )
+    publisher = _OperationalPublisher(
+        failure=HomeAssistantError("publish failed")
+    )
+    composition = _composition(
+        _CatalogWorkflow([_result()]),
+        operational_workflow=workflow,
+        operational_publisher=publisher,
+    )
+    stdout = RecordingStream()
+    stderr = RecordingStream()
+
+    _, published = _execute_catalog_cycle(
+        composition,
+        cast(TextIO, stdout),
+        cast(TextIO, stderr),
+        TIMESTAMP,
+        False,
+    )
+
+    assert published is False
+    assert "operational_notification=retry" in stdout.text
+    assert stderr.text == (
+        "operational notification error: delivery failed\n"
+        "operational status error: publish failed\n"
+    )
+
+
+def test_catalog_cycle_requires_operational_composition() -> None:
+    composition = _composition(_CatalogWorkflow([_result()]))
+    object.__setattr__(composition, "operational", None)
+
+    with pytest.raises(ValueError, match="operational composition"):
+        _execute_catalog_cycle(
+            composition,
+            cast(TextIO, RecordingStream()),
+            cast(TextIO, RecordingStream()),
+            TIMESTAMP,
+            False,
+        )
 
 
 @pytest.mark.parametrize(
