@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.31.0
+
+- Separate newly qualifying and returning discounts from already listed
+  discounts within the same daily email.
+- Establish the first post-upgrade digest as a quiet comparison baseline.
+- Persist canonical daily digest memberships across App restarts.
+- Migrate SQLite schema 5 to 6 without changing existing catalog, observation,
+  reservation or operational-health rows.
+
 ## 0.30.0
 
 - Add durable `ok`, `degraded` and `failed` operational health across restarts.

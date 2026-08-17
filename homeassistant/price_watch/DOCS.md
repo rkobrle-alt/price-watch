@@ -46,6 +46,14 @@ repeat it. The digest uses `price_drop_percentage`, includes only available
 products with an approved reference price, and sends an explicit empty summary
 when none qualify.
 
+For a non-empty result, the single email has two possible sections:
+`🆕 NOVĚ VE SLEVĚ` and `OSTATNÍ AKTUÁLNÍ SLEVY`. A product is new when it was
+not present in the most recent earlier retained digest baseline. This includes
+newly discovered products, known products which newly meet the threshold and
+products returning after they stopped qualifying. Empty sections are omitted.
+The first eligible digest after upgrading to 0.31.0 establishes the durable
+baseline and intentionally marks no product as new.
+
 The digest also reads the current yellow marketing offer from the Lidl Czech
 Republic storefront home page. When present, its text and validated Lidl link
 appear before the product summary. If the storefront request fails or the
@@ -64,16 +72,18 @@ entities.
 ## Persistence
 
 Catalog mode stores membership, refresh ordering, complete append-only
-observations, notification reservations, daily digest reservations and
-operational health in `/data/catalog.sqlite3`.
+observations, notification reservations, daily digest reservations, daily
+digest membership baselines and operational health in
+`/data/catalog.sqlite3`.
 Explicit mode stores its latest
 snapshots in `/data/state.json`. Supervisor preserves both App-owned paths
 across restarts and upgrades.
 
 A valid schema-version-1 catalog database is migrated transactionally through
-versions 2, 3, 4 and 5. Valid version-2, version-3 and version-4 databases
-continue through the remaining migrations. Price Watch performs no automatic
-history deletion.
+versions 2, 3, 4, 5 and 6. Valid version-2 through version-5 databases
+continue through the remaining migrations. Schema 6 adds only the daily
+digest membership baseline table. Price Watch performs no automatic history
+deletion.
 
 SQLite reservation and Home Assistant SMTP delivery cannot share one atomic
 transaction. Ordinary reported delivery failures release the reservation for

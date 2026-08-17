@@ -46,3 +46,8 @@ cycle without interrupting product monitoring.
 Version 0.30.0 adds durable operational health and daily-digest diagnostics.
 One or two consecutive failed cycles are degraded; the third is failed and
 sends one operational alert. A later healthy cycle sends one recovery message.
+
+Version 0.31.0 separates newly qualifying and returning discounts from
+previously listed discounts inside the same daily email. The first digest
+after upgrade establishes the comparison baseline without marking existing
+items as new.
