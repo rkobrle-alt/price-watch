@@ -49,6 +49,7 @@ installations may disable individual alerts and use only that daily digest.
 14. graceful managed-App shutdown and restart acceptance
 15. current Lidl marketing promotion in the daily digest
 16. durable operational health, incident and recovery diagnostics
+17. newly qualifying product distinction in the daily digest
 
 Each step requires its own accepted ADR when it introduces a new persistence,
 workflow, rule or scheduling contract.
@@ -89,6 +90,8 @@ lookup composed into the existing daily email with non-fatal cycle retries.
 ADR-0031 and STORY-030 define step 16 as durable provider-neutral health
 transitions, classified provider failures, low-noise incident/recovery
 notification and restart-safe daily-digest diagnostics.
+ADR-0032 and STORY-031 define step 17 as a durable comparison between the
+current qualifying set and the preceding retained daily-digest baseline.
 
 ## Discount Semantics
 
@@ -131,3 +134,5 @@ boundary between durable reservation and Home Assistant delivery.
 - sustained provider failures and their recovery are reported once while
   transient errors remain visible without email noise
 - the last successful daily-digest delivery remains visible after App restart
+- newly qualifying and returning discounts are visually separated in the
+  daily email without adding another message

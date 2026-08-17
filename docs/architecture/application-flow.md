@@ -237,6 +237,26 @@ current Lidl marketing promotion lookup
 The lookup is not run before the delivery time or after an existing date
 reservation. It never enters product synchronization or catalog discovery.
 
+ADR-0032 extends the same branch after snapshot loading:
+
+```text
+latest qualifying products + preceding retained digest IDs
+    |
+    v
+deterministic new/existing section generation
+    |
+    v
+stage current digest IDs
+    |
+    v
+existing Home Assistant digest delivery
+```
+
+The first missing baseline marks no product new. A reported generation,
+baseline or delivery failure releases both current baseline and date
+reservation. The established reservation-before-delivery hard-stop boundary
+is unchanged.
+
 ADR-0031 adds a final catalog-mode operational stage:
 
 ```text

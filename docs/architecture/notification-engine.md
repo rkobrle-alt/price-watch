@@ -131,6 +131,12 @@ discount threshold. `DailyPromotionSource` is a Core Protocol; the Lidl HTML
 implementation remains in Infrastructure. A source is not part of the product
 Provider SDK.
 
+ADR-0032 supplies an optional preceding digest membership to the deterministic
+engine. `DailyDiscountDigest` retains the resulting new product IDs and its
+message separates new discounts from qualifying products already present in
+the preceding baseline. `DailyDigestBaselineStore` is a Core Protocol;
+persistence remains in Infrastructure.
+
 ---
 
 ## Infrastructure Public API

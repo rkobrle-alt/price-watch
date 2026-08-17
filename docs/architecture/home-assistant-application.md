@@ -132,6 +132,12 @@ releases the date and returns a non-fatal retry outcome; ordinary catalog
 monitoring continues. A missing banner is valid and sends the digest without a
 promotion. No App option, sensor or persistent schema is added.
 
+ADR-0032 composes the shared SQLite daily-digest baseline adapter whenever the
+catalog digest is enabled. The message separates newly qualifying or returning
+products from discounts present in the preceding retained digest. The first
+post-migration digest establishes a baseline, and no App option, permission,
+sensor or additional email is introduced.
+
 The Supervisor token is constructor input to the REST client only. It is not
 part of `HomeAssistantConfig`, TOML, App options, logs or errors.
 

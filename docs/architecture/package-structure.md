@@ -180,6 +180,9 @@ retention selection or deletion.
 ADR-0031 adds `SqliteOperationalStateStore` and migrates valid schema version
 4 databases to version 5. It stores one versioned operational-state document
 without modifying observation, catalog or reservation rows.
+ADR-0032 adds `SqliteDailyDigestBaselineStore` and migrates valid schema
+version 5 databases to version 6. It stores canonical product-ID membership
+for prior digests without modifying observations or existing reservations.
 
 `infrastructure.persistence.migration` contains the ADR-0028 ZIP adapter for
 an explicit Home Assistant local-to-repository state hand-off. It owns ZIP,
@@ -304,6 +307,9 @@ Assistant catalog mode when explicitly enabled.
 ADR-0030 adds an optional injected promotion source and a non-fatal retry
 outcome before snapshot loading. Network and HTML behavior remain in
 Infrastructure.
+ADR-0032 adds an optional injected baseline store. The workflow loads the
+preceding membership, stages the current membership and retains all comparison
+logic in deterministic Core.
 `applications.operational_monitoring` contains ADR-0031 state-transition
 persistence and pending-notification orchestration over injected Core
 contracts. Provider classification and Home Assistant composition remain at

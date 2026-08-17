@@ -485,6 +485,23 @@ Deliverables:
 
 ---
 
+# v0.31.0 — New Discounts in Daily Digest
+
+Goal:
+
+Make newly qualifying or returning discounts immediately distinguishable from
+products already present in the preceding daily email.
+
+Deliverables:
+
+- deterministic comparison with the previous retained digest membership
+- separate new and existing discount sections in the same daily email
+- first-run baseline without a noisy all-new migration result
+- transactional SQLite schema 5 to 6 migration and restart-safe membership
+- unchanged qualification, scheduling, promotion, sensor and App options
+
+---
+
 # v1.0.0
 
 Stable public release.
