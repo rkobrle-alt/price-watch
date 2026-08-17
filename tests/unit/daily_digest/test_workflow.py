@@ -17,6 +17,7 @@ from applications.daily_digest import (
 )
 from core.domain import Percentage
 from core.notifications import (
+    DailyDigestBaselineStore,
     DailyDiscountDigest,
     DailyDiscountDigestChannel,
     DailyDiscountDigestEngine,
@@ -71,6 +72,36 @@ class _Channel:
         self.digests.append(digest)
 
 
+class _Baselines:
+    def __init__(self, previous: object = None) -> None:
+        self.previous = previous
+        self.previous_calls: list[date] = []
+        self.stage_calls: list[tuple[date, tuple[object, ...]]] = []
+        self.release_calls: list[date] = []
+        self.error: Exception | None = None
+        self.release_error: Exception | None = None
+
+    def previous_product_ids(self, calendar_date: date) -> object:
+        self.previous_calls.append(calendar_date)
+        if self.error is not None:
+            raise self.error
+        return self.previous
+
+    def stage(
+        self,
+        calendar_date: date,
+        product_ids: tuple[object, ...],
+    ) -> None:
+        self.stage_calls.append((calendar_date, product_ids))
+        if self.error is not None:
+            raise self.error
+
+    def release(self, calendar_date: date) -> None:
+        self.release_calls.append(calendar_date)
+        if self.release_error is not None:
+            raise self.release_error
+
+
 class _PromotionSource:
     def __init__(self, value: object = None) -> None:
         self.value = value
@@ -97,6 +128,7 @@ def _workflow(
     engine: DailyDiscountDigestEngine | None = None,
     delivery_time: time = time(8, 0),
     promotion_source: _PromotionSource | None = None,
+    baseline_store: _Baselines | None = None,
 ) -> DailyDigestWorkflow:
     return DailyDigestWorkflow(
         cast(LatestSnapshotReader, reader or _Reader()),
@@ -108,6 +140,10 @@ def _workflow(
         promotion_source=cast(
             DailyPromotionSource | None,
             promotion_source,
+        ),
+        baseline_store=cast(
+            DailyDigestBaselineStore | None,
+            baseline_store,
         ),
     )
 
@@ -146,23 +182,39 @@ def test_exact_local_time_sends_empty_digest() -> None:
     assert channel.digests[0].calendar_date == _DATE
 
 
+def test_due_digest_reads_and_stages_baseline_before_delivery() -> None:
+    baseline = _Baselines(())
+    channel = _Channel()
+
+    result = _workflow(channel=channel, baseline_store=baseline).run(_TIMESTAMP)
+
+    assert result.status is DailyDigestStatus.SENT
+    assert baseline.previous_calls == [_DATE]
+    assert baseline.stage_calls == [(_DATE, ())]
+    assert baseline.release_calls == []
+
+
 def test_existing_date_suppresses_query_and_delivery() -> None:
     reader = _Reader()
     reservations = _Reservations(False)
     channel = _Channel()
     source = _PromotionSource(DailyPromotion("Offer"))
+    baseline = _Baselines(())
 
     result = _workflow(
         reader,
         reservations,
         channel,
         promotion_source=source,
+        baseline_store=baseline,
     ).run(_TIMESTAMP)
 
     assert result == DailyDigestResult(_DATE, DailyDigestStatus.ALREADY_SENT)
     assert reader.calls == 0
     assert channel.digests == []
     assert source.calls == 0
+    assert baseline.previous_calls == []
+    assert baseline.stage_calls == []
 
 
 def test_promotion_is_loaded_only_for_new_due_date_and_included() -> None:
@@ -197,12 +249,14 @@ def test_promotion_failure_releases_reservation_and_returns_retry_outcome() -> N
     reader = _Reader()
     reservations = _Reservations()
     channel = _Channel()
+    baseline = _Baselines(())
 
     result = _workflow(
         reader,
         reservations,
         channel,
         promotion_source=source,
+        baseline_store=baseline,
     ).run(_TIMESTAMP)
 
     assert result == DailyDigestResult(
@@ -212,6 +266,7 @@ def test_promotion_failure_releases_reservation_and_returns_retry_outcome() -> N
     assert reservations.release_calls == [_DATE]
     assert reader.calls == 0
     assert channel.digests == []
+    assert baseline.release_calls == []
 
 
 @pytest.mark.parametrize("value", [object(), RuntimeError("bug")])
@@ -246,16 +301,49 @@ def test_failure_releases_date_for_retry(failure_source: str) -> None:
     reader = _Reader()
     channel = _Channel()
     reservations = _Reservations()
+    baseline = _Baselines(())
     if failure_source == "reader":
         reader.error = failure
     else:
         channel.error = failure
 
     with pytest.raises(RuntimeError) as captured:
-        _workflow(reader, reservations, channel).run(_TIMESTAMP)
+        _workflow(
+            reader,
+            reservations,
+            channel,
+            baseline_store=baseline,
+        ).run(_TIMESTAMP)
 
     assert captured.value is failure
     assert reservations.release_calls == [_DATE]
+    assert baseline.release_calls == [_DATE]
+
+
+def test_baseline_failure_releases_baseline_and_date_for_retry() -> None:
+    failure = RuntimeError("baseline failed")
+    baseline = _Baselines(())
+    baseline.error = failure
+    reservations = _Reservations()
+
+    with pytest.raises(RuntimeError) as captured:
+        _workflow(
+            reservations=reservations,
+            baseline_store=baseline,
+        ).run(_TIMESTAMP)
+
+    assert captured.value is failure
+    assert baseline.release_calls == [_DATE]
+    assert reservations.release_calls == [_DATE]
+
+
+def test_baseline_release_failure_propagates_from_compensation() -> None:
+    baseline = _Baselines(())
+    baseline.error = RuntimeError("load failed")
+    baseline.release_error = RuntimeError("baseline release failed")
+
+    with pytest.raises(RuntimeError, match="baseline release failed"):
+        _workflow(baseline_store=baseline).run(_TIMESTAMP)
 
 
 def test_release_failure_propagates_from_compensation() -> None:
@@ -390,6 +478,20 @@ def test_constructor_rejects_invalid_dependencies(
 def test_constructor_rejects_invalid_promotion_source() -> None:
     with pytest.raises(TypeError, match="promotion_source"):
         _workflow(promotion_source=cast(_PromotionSource, object()))
+
+
+@pytest.mark.parametrize("missing", ["previous_product_ids", "stage", "release"])
+def test_constructor_rejects_invalid_baseline_store(missing: str) -> None:
+    methods = {
+        "previous_product_ids": lambda *args: None,
+        "stage": lambda *args: None,
+        "release": lambda *args: None,
+    }
+    del methods[missing]
+    invalid = type("InvalidBaseline", (), methods)()
+
+    with pytest.raises(TypeError, match="baseline_store"):
+        _workflow(baseline_store=cast(_Baselines, invalid))
 
 
 def test_public_api_is_explicit_documented_typed_and_immutable() -> None:

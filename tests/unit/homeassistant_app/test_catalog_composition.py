@@ -44,6 +44,7 @@ from infrastructure.homeassistant import (
 from infrastructure.persistence.memory import InMemoryStateStore
 from infrastructure.persistence.sqlite import (
     SqliteCatalogStore,
+    SqliteDailyDigestBaselineStore,
     SqliteDailyDigestReservationStore,
     SqliteNotificationReservationStore,
     SqliteObservationRetentionManager,
@@ -279,6 +280,14 @@ def test_catalog_composition_assembles_optional_daily_digest() -> None:
         workflow._reservation_store,
         SqliteDailyDigestReservationStore,
     )
+    assert isinstance(
+        workflow._baseline_store,
+        SqliteDailyDigestBaselineStore,
+    )
+    assert workflow._baseline_store._database._path == Path(
+        "/data/catalog.sqlite3"
+    )
+    assert workflow._baseline_store._database._timeout_seconds == 12
     assert isinstance(
         workflow._digest_channel,
         HomeAssistantDailyDiscountDigestChannel,

@@ -14,6 +14,7 @@ from infrastructure.notifications.homeassistant import (
     HomeAssistantDailyDiscountDigestChannel,
 )
 from infrastructure.persistence.sqlite import (
+    SqliteDailyDigestBaselineStore,
     SqliteDailyDigestReservationStore,
     SqliteStateStore,
 )
@@ -27,6 +28,7 @@ def compose_daily_digest(
     notify_entity: str,
     notification_title: str,
     promotion_source: DailyPromotionSource | None = None,
+    timeout_seconds: int = 5,
 ) -> DailyDigestWorkflow | None:
     """Compose the optional catalog digest with shared durable state."""
     if config is None:
@@ -44,6 +46,10 @@ def compose_daily_digest(
         config,
         _prague_timezone(),
         promotion_source=promotion_source,
+        baseline_store=SqliteDailyDigestBaselineStore(
+            database_file,
+            timeout_seconds,
+        ),
     )
 
 

@@ -49,7 +49,7 @@ def test_store_initializes_lazily_and_returns_initial_state(tmp_path: Path) -> N
     assert not path.exists()
     assert store.load() == OperationalState.initial()
     with open_database(path) as connection:
-        assert connection.execute("PRAGMA user_version").fetchone() == (5,)
+        assert connection.execute("PRAGMA user_version").fetchone() == (6,)
         assert connection.execute(
             "SELECT COUNT(*) FROM operational_state"
         ).fetchone() == (0,)
@@ -73,17 +73,18 @@ def test_store_round_trips_and_replaces_exact_state(tmp_path: Path) -> None:
     assert '"schema_version":1' in rows[0][1]
 
 
-def test_version_four_schema_migrates_to_five(tmp_path: Path) -> None:
+def test_version_four_schema_migrates_to_six(tmp_path: Path) -> None:
     path = tmp_path / "catalog.sqlite3"
     SqliteOperationalStateStore(path).load()
     with open_database(path) as connection:
         connection.execute("DROP TABLE operational_state")
+        connection.execute("DROP TABLE daily_digest_baselines")
         connection.execute("PRAGMA user_version = 4")
         connection.commit()
 
     assert SqliteOperationalStateStore(path).load() == OperationalState.initial()
     with open_database(path) as connection:
-        assert connection.execute("PRAGMA user_version").fetchone() == (5,)
+        assert connection.execute("PRAGMA user_version").fetchone() == (6,)
         columns = tuple(
             row[1]
             for row in connection.execute(
@@ -321,7 +322,7 @@ def test_unsupported_schema_and_failed_v4_migration_are_wrapped(
     unsupported = tmp_path / "unsupported.sqlite3"
     SqliteOperationalStateStore(unsupported).load()
     with open_database(unsupported) as connection:
-        connection.execute("PRAGMA user_version = 6")
+        connection.execute("PRAGMA user_version = 7")
         connection.commit()
     with pytest.raises(OperationalStateError, match="load"):
         SqliteOperationalStateStore(unsupported).load()

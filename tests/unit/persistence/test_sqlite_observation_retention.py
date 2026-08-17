@@ -140,7 +140,7 @@ def test_apply_backs_up_complete_database_then_deletes_only_planned_rows(
     assert SqliteStateStore(path).history(OTHER_PRODUCT_ID) == (observations[4],)
     assert SqliteStateStore(path).load(PRODUCT_ID) == observations[6]
     with open_database(path) as connection:
-        assert connection.execute("PRAGMA user_version").fetchone() == (5,)
+        assert connection.execute("PRAGMA user_version").fetchone() == (6,)
         assert connection.execute(
             "SELECT COUNT(*) FROM notification_reservations"
         ).fetchone() == (0,)

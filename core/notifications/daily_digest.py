@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from datetime import date, datetime
 from typing import cast
 
-from core.domain import Money, Percentage, Product
+from core.domain import Money, Percentage, Product, ProductId
 from core.promotions import DailyPromotion
 from core.state import StateSnapshot
 
@@ -20,6 +20,7 @@ class DailyDiscountDigest:
     products: tuple[Product, ...]
     message: str
     promotion: DailyPromotion | None = None
+    new_product_ids: tuple[ProductId, ...] = ()
 
     def __post_init__(self) -> None:
         """Validate digest values without performing side effects."""
@@ -35,6 +36,7 @@ class DailyDiscountDigest:
             DailyPromotion,
         ):
             raise TypeError("promotion must be a DailyPromotion or None")
+        _validate_new_product_ids(self.new_product_ids, self.products)
 
 
 class DailyDiscountDigestEngine:
@@ -47,6 +49,7 @@ class DailyDiscountDigestEngine:
         calendar_date: date,
         timestamp: datetime,
         promotion: DailyPromotion | None = None,
+        previous_product_ids: tuple[ProductId, ...] | None = None,
     ) -> DailyDiscountDigest:
         """Generate a digest from validated latest product snapshots."""
         _validate_snapshots(snapshots)
@@ -56,6 +59,7 @@ class DailyDiscountDigestEngine:
         _validate_timestamp(timestamp, "timestamp")
         if promotion is not None and not isinstance(promotion, DailyPromotion):
             raise TypeError("promotion must be a DailyPromotion or None")
+        _validate_previous_product_ids(previous_product_ids)
         products = tuple(
             sorted(
                 (
@@ -70,6 +74,7 @@ class DailyDiscountDigestEngine:
                 ),
             )
         )
+        new_product_ids = _new_product_ids(products, previous_product_ids)
         return DailyDiscountDigest(
             calendar_date=calendar_date,
             created_at=timestamp,
@@ -79,8 +84,10 @@ class DailyDiscountDigestEngine:
                 minimum_discount,
                 products,
                 promotion,
+                new_product_ids,
             ),
             promotion=promotion,
+            new_product_ids=new_product_ids,
         )
 
 
@@ -97,6 +104,7 @@ def _format_message(
     minimum_discount: Percentage,
     products: tuple[Product, ...],
     promotion: DailyPromotion | None,
+    new_product_ids: tuple[ProductId, ...],
 ) -> str:
     header_lines = [
         f"Parkside daily discount digest — {calendar_date.isoformat()}"
@@ -114,11 +122,29 @@ def _format_message(
     header = "\n".join(header_lines)
     if not products:
         return f"{header}\n\n{_EMPTY_MESSAGE}"
+    new_identifiers = set(new_product_ids)
+    new_products = tuple(
+        product for product in products if product.id in new_identifiers
+    )
+    other_products = tuple(
+        product for product in products if product.id not in new_identifiers
+    )
+    sections = []
+    if new_products:
+        sections.append(_format_section("🆕 NOVĚ VE SLEVĚ", new_products))
+    if other_products:
+        sections.append(
+            _format_section("OSTATNÍ AKTUÁLNÍ SLEVY", other_products)
+        )
+    return f"{header}\n\n" + "\n\n".join(sections)
+
+
+def _format_section(title: str, products: tuple[Product, ...]) -> str:
     blocks = tuple(
         _format_product(index, product)
         for index, product in enumerate(products, start=1)
     )
-    return f"{header}\n\n" + "\n\n".join(blocks)
+    return f"{title} ({len(products)})\n\n" + "\n\n".join(blocks)
 
 
 def _format_product(index: int, product: Product) -> str:
@@ -149,6 +175,43 @@ def _validate_products(value: object) -> None:
         raise TypeError("products must be a tuple")
     if not all(isinstance(product, Product) for product in value):
         raise TypeError("products must contain Product values")
+
+
+def _validate_previous_product_ids(
+    value: tuple[ProductId, ...] | None,
+) -> None:
+    if value is None:
+        return
+    _validate_product_ids(value, "previous_product_ids")
+
+
+def _validate_new_product_ids(
+    value: object,
+    products: tuple[Product, ...],
+) -> None:
+    _validate_product_ids(value, "new_product_ids")
+    product_identifiers = {product.id for product in products}
+    if not set(value).issubset(product_identifiers):
+        raise ValueError("new_product_ids must identify digest products")
+
+
+def _validate_product_ids(value: object, name: str) -> None:
+    if not isinstance(value, tuple):
+        raise TypeError(f"{name} must be a tuple")
+    if not all(isinstance(identifier, ProductId) for identifier in value):
+        raise TypeError(f"{name} must contain ProductId values")
+    if len(set(value)) != len(value):
+        raise ValueError(f"{name} must contain unique identifiers")
+
+
+def _new_product_ids(
+    products: tuple[Product, ...],
+    previous_product_ids: tuple[ProductId, ...] | None,
+) -> tuple[ProductId, ...]:
+    if previous_product_ids is None:
+        return ()
+    previous = set(previous_product_ids)
+    return tuple(product.id for product in products if product.id not in previous)
 
 
 def _validate_date(value: object, name: str) -> None:

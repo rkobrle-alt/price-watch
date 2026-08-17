@@ -73,6 +73,7 @@ def test_engine_filters_orders_and_formats_qualifying_products() -> None:
         "Parkside daily discount digest — 2026-08-08\n"
         "Minimum discount: 20.00%\n"
         "Discounted products: 3\n\n"
+        "OSTATNÍ AKTUÁLNÍ SLEVY (3)\n\n"
         "1. Alpha\n"
         "Current price: 80.00 CZK\n"
         "Reference price: 100.00 CZK\n"
@@ -89,6 +90,61 @@ def test_engine_filters_orders_and_formats_qualifying_products() -> None:
         "Discount: 20.00%\n"
         "URL: https://example.test/2"
     )
+
+
+def test_engine_marks_new_products_and_formats_separate_sections() -> None:
+    products = (
+        _product(1, "New drill", "30.00"),
+        _product(2, "Existing battery", "25.00"),
+        _product(3, "New charger", "20.00"),
+    )
+
+    digest = DailyDiscountDigestEngine().generate(
+        tuple(_snapshot(product) for product in products),
+        Percentage(Decimal("20.00")),
+        _DATE,
+        _TIMESTAMP,
+        previous_product_ids=(products[1].id,),
+    )
+
+    assert digest.new_product_ids == (products[0].id, products[2].id)
+    assert "🆕 NOVĚ VE SLEVĚ (2)\n\n1. New drill" in digest.message
+    assert "\n\n2. New charger" in digest.message
+    assert "OSTATNÍ AKTUÁLNÍ SLEVY (1)\n\n1. Existing battery" in (
+        digest.message
+    )
+
+
+def test_absent_baseline_establishes_without_marking_products_new() -> None:
+    product = _product(1, "Baseline drill", "30.00")
+
+    digest = DailyDiscountDigestEngine().generate(
+        (_snapshot(product),),
+        Percentage(Decimal("20.00")),
+        _DATE,
+        _TIMESTAMP,
+        previous_product_ids=None,
+    )
+
+    assert digest.new_product_ids == ()
+    assert "NOVĚ VE SLEVĚ" not in digest.message
+    assert "OSTATNÍ AKTUÁLNÍ SLEVY (1)" in digest.message
+
+
+def test_empty_baseline_marks_every_qualifying_product_new() -> None:
+    product = _product(1, "First new drill", "30.00")
+
+    digest = DailyDiscountDigestEngine().generate(
+        (_snapshot(product),),
+        Percentage(Decimal("20.00")),
+        _DATE,
+        _TIMESTAMP,
+        previous_product_ids=(),
+    )
+
+    assert digest.new_product_ids == (product.id,)
+    assert "🆕 NOVĚ VE SLEVĚ (1)" in digest.message
+    assert "OSTATNÍ AKTUÁLNÍ SLEVY" not in digest.message
 
 
 def test_engine_generates_explicit_empty_digest() -> None:
@@ -148,6 +204,8 @@ def test_engine_formats_promotion_with_optional_url_in_every_digest() -> None:
         ("message", 1, TypeError),
         ("message", "  ", ValueError),
         ("promotion", object(), TypeError),
+        ("new_product_ids", [], TypeError),
+        ("new_product_ids", (object(),), TypeError),
     ],
 )
 def test_digest_rejects_invalid_values(
@@ -161,11 +219,33 @@ def test_digest_rejects_invalid_values(
         "products": (),
         "message": "digest",
         "promotion": None,
+        "new_product_ids": (),
     }
     values[field] = value
 
     with pytest.raises(error):
         DailyDiscountDigest(**values)  # type: ignore[arg-type]
+
+
+def test_digest_rejects_duplicate_or_foreign_new_product_identifiers() -> None:
+    product = _product(1, "Tool", "20")
+    foreign = _product(2, "Other", "20")
+    with pytest.raises(ValueError, match="unique"):
+        DailyDiscountDigest(
+            _DATE,
+            _TIMESTAMP,
+            (product,),
+            "digest",
+            new_product_ids=(product.id, product.id),
+        )
+    with pytest.raises(ValueError, match="digest products"):
+        DailyDiscountDigest(
+            _DATE,
+            _TIMESTAMP,
+            (product,),
+            "digest",
+            new_product_ids=(foreign.id,),
+        )
 
 
 @pytest.mark.parametrize(
@@ -206,6 +286,8 @@ def test_engine_rejects_duplicate_product_identifiers() -> None:
         ("timestamp", "now", TypeError),
         ("timestamp", datetime(2026, 8, 8), ValueError),
         ("promotion", object(), TypeError),
+        ("previous_product_ids", [], TypeError),
+        ("previous_product_ids", (object(),), TypeError),
     ],
 )
 def test_engine_rejects_invalid_scalar_arguments(
@@ -219,10 +301,23 @@ def test_engine_rejects_invalid_scalar_arguments(
         "calendar_date": _DATE,
         "timestamp": _TIMESTAMP,
         "promotion": None,
+        "previous_product_ids": None,
     }
     values[field] = value
     with pytest.raises(error):
         DailyDiscountDigestEngine().generate(**values)  # type: ignore[arg-type]
+
+
+def test_engine_rejects_duplicate_previous_product_identifiers() -> None:
+    identifier = _product(1, "Tool", "20").id
+    with pytest.raises(ValueError, match="unique"):
+        DailyDiscountDigestEngine().generate(
+            (),
+            Percentage(Decimal("20")),
+            _DATE,
+            _TIMESTAMP,
+            previous_product_ids=(identifier, identifier),
+        )
 
 
 def test_digest_public_objects_are_documented_and_immutable() -> None:

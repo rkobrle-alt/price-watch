@@ -17,6 +17,7 @@ class NotificationPublicApiTests(TestCase):
     def test_core_notifications_exports(self) -> None:
         expected = {
             "NotificationChannel",
+            "DailyDigestBaselineStore",
             "DailyDigestReservationError",
             "DailyDigestReservationStore",
             "DailyDiscountDigest",

@@ -6,6 +6,7 @@ from typing import cast
 from applications.daily_digest.configuration import DailyDigestConfig
 from applications.daily_digest.result import DailyDigestResult, DailyDigestStatus
 from core.notifications import (
+    DailyDigestBaselineStore,
     DailyDigestReservationStore,
     DailyDiscountDigest,
     DailyDiscountDigestChannel,
@@ -28,6 +29,7 @@ class DailyDigestWorkflow:
         timezone: tzinfo,
         *,
         promotion_source: DailyPromotionSource | None = None,
+        baseline_store: DailyDigestBaselineStore | None = None,
     ) -> None:
         """Validate and retain explicit workflow collaborators."""
         _require_method(snapshot_reader, "latest_snapshots", "snapshot_reader")
@@ -42,6 +44,14 @@ class DailyDigestWorkflow:
             raise TypeError("timezone must be a tzinfo")
         if promotion_source is not None:
             _require_method(promotion_source, "current", "promotion_source")
+        if baseline_store is not None:
+            _require_method(
+                baseline_store,
+                "previous_product_ids",
+                "baseline_store",
+            )
+            _require_method(baseline_store, "stage", "baseline_store")
+            _require_method(baseline_store, "release", "baseline_store")
         self._snapshot_reader = cast(LatestSnapshotReader, snapshot_reader)
         self._reservation_store = cast(
             DailyDigestReservationStore,
@@ -54,6 +64,10 @@ class DailyDigestWorkflow:
         self._promotion_source = cast(
             DailyPromotionSource | None,
             promotion_source,
+        )
+        self._baseline_store = cast(
+            DailyDigestBaselineStore | None,
+            baseline_store,
         )
 
     def run(self, timestamp: datetime) -> DailyDigestResult:
@@ -71,15 +85,26 @@ class DailyDigestWorkflow:
             snapshots = self._snapshot_reader.latest_snapshots()
             if not isinstance(snapshots, tuple):
                 raise TypeError("snapshot_reader must return a tuple")
+            previous_product_ids = (
+                None
+                if self._baseline_store is None
+                else self._baseline_store.previous_product_ids(calendar_date)
+            )
             digest = self._digest_engine.generate(
                 snapshots,
                 self._config.minimum_discount,
                 calendar_date,
                 timestamp,
                 promotion,
+                previous_product_ids,
             )
             if not isinstance(digest, DailyDiscountDigest):
                 raise TypeError("digest_engine must return a DailyDiscountDigest")
+            if self._baseline_store is not None:
+                self._baseline_store.stage(
+                    calendar_date,
+                    tuple(product.id for product in digest.products),
+                )
             self._digest_channel.send(digest)
         except PromotionError:
             self._reservation_store.release(calendar_date)
@@ -88,6 +113,8 @@ class DailyDigestWorkflow:
                 DailyDigestStatus.PROMOTION_UNAVAILABLE,
             )
         except Exception:
+            if self._baseline_store is not None:
+                self._baseline_store.release(calendar_date)
             self._reservation_store.release(calendar_date)
             raise
         return DailyDigestResult(

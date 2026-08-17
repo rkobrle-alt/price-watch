@@ -358,6 +358,7 @@ def _compose_catalog(
             notify_entity,
             notification_title,
             LidlMarketingPromotionSource(text_client),
+            catalog_config.timeout_seconds,
         ),
         catalog_status=_CatalogStatusComposition(
             publisher=HomeAssistantCatalogStatusPublisher(
