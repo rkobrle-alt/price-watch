@@ -23,6 +23,7 @@ core/notifications/
     daily_digest.py
     digest_channel.py
     digest_reservation.py
+    digest_baseline.py
 
 infrastructure/notifications/
     __init__.py
@@ -64,6 +65,7 @@ The `core.notifications` package exports:
 - `DailyDiscountDigestChannel`
 - `DailyDigestReservationStore`
 - `DailyDigestReservationError`
+- `DailyDigestBaselineStore`
 
 ### NotificationEngine
 

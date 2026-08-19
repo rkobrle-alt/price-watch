@@ -50,6 +50,7 @@ installations may disable individual alerts and use only that daily digest.
 15. current Lidl marketing promotion in the daily digest
 16. durable operational health, incident and recovery diagnostics
 17. newly qualifying product distinction in the daily digest
+18. stable 1.x compatibility and release integrity
 
 Each step requires its own accepted ADR when it introduces a new persistence,
 workflow, rule or scheduling contract.
@@ -92,6 +93,8 @@ transitions, classified provider failures, low-noise incident/recovery
 notification and restart-safe daily-digest diagnostics.
 ADR-0032 and STORY-031 define step 17 as a durable comparison between the
 current qualifying set and the preceding retained daily-digest baseline.
+ADR-0033 and STORY-032 define step 18 as the stable compatibility surface and
+automated release gates without changing runtime behavior.
 
 ## Discount Semantics
 
@@ -136,3 +139,5 @@ boundary between durable reservation and Home Assistant delivery.
 - the last successful daily-digest delivery remains visible after App restart
 - newly qualifying and returning discounts are visually separated in the
   daily email without adding another message
+- version 1.0 protects the established Python, CLI, Home Assistant and durable
+  data contracts while retaining the verified monitoring behavior

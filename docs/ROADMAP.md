@@ -502,6 +502,18 @@ Deliverables:
 
 ---
 
-# v1.0.0
+# v1.0.0 — Stable Public Release
 
-Stable public release.
+Goal:
+
+Declare the proven Price Watch behavior stable and establish the compatibility
+and release gates for long-term 1.x maintenance.
+
+Deliverables:
+
+- explicit Semantic Versioning and 1.x compatibility policy
+- protected Python, CLI, Home Assistant and persistence contracts
+- repository-wide automated dependency-direction gate
+- automated runtime, package and App-manifest version agreement
+- unchanged v0.31.0 runtime behavior and persistence schema 6
+- successful managed-App update and healthy post-release cycle

@@ -29,6 +29,8 @@ core/
 
     notifications/
 
+    promotions/
+
     operations/
 
     scheduler/
@@ -70,8 +72,14 @@ For notifications, `core.notifications` contains:
 - the immutable notification reservation identity
 - the reservation-store Protocol and persistence-error contract
 - the deterministic price-drop reservation policy
+- the immutable daily digest and its delivery, reservation and baseline
+  Protocols
 
 It contains no concrete notification channel.
+
+For provider-level promotions, `core.promotions` contains only the immutable
+`DailyPromotion`, `DailyPromotionSource` Protocol and `PromotionError`. It has
+no Lidl, HTML, HTTP, clock or Home Assistant dependency.
 
 For operational resilience, `core.operations` contains immutable health,
 digest-delivery and notification values, the deterministic transition engine,
