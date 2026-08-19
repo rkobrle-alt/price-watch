@@ -1,22 +1,38 @@
 """Static contract tests for Home Assistant App distribution files."""
 
+import tomllib
 from pathlib import Path
+
+from applications.version import VERSION
 
 
 ROOT = Path(__file__).parents[3]
 APP = ROOT / "homeassistant" / "price_watch"
 
 
+def _manifest_version(manifest: str) -> str:
+    for line in manifest.splitlines():
+        key, separator, value = line.partition(":")
+        if separator and key == "version":
+            return value.strip().strip('"')
+    raise AssertionError("Home Assistant App manifest has no version")
+
+
 def test_app_manifest_has_exact_runtime_identity_and_defaults() -> None:
     manifest = (APP / "config.yaml").read_text(encoding="utf-8")
+    project = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
+
+    assert VERSION == "1.0.0"
+    assert project["project"]["version"] == VERSION
+    assert _manifest_version(manifest) == VERSION
 
     for required in (
-        'version: "0.31.0"',
         "slug: price_watch",
         "  - aarch64",
         "  - amd64",
         "startup: application",
         "boot: auto",
+        "stage: stable",
         "homeassistant_api: true",
         "stdin: true",
         "map:",

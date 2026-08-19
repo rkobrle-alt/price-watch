@@ -51,3 +51,8 @@ Version 0.31.0 separates newly qualifying and returning discounts from
 previously listed discounts inside the same daily email. The first digest
 after upgrade establishes the comparison baseline without marking existing
 items as new.
+
+Version 1.0.0 declares these verified behaviors stable. The release changes no
+monitoring, notification, persistence, option or entity semantics from
+0.31.0. Existing managed installations update in place and keep SQLite schema
+6 and their current App configuration.

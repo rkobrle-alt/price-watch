@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.0.0
+
+- Declare the proven Price Watch behavior and public integration contracts
+  stable under Semantic Versioning.
+- Preserve all 0.31.0 monitoring, daily-email, persistence, option and entity
+  behavior without a data migration.
+- Enforce dependency direction across the complete Python source tree.
+- Verify matching runtime, Python package and Home Assistant App versions.
+
 ## 0.31.0
 
 - Separate newly qualifying and returning discounts from already listed

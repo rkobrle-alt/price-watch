@@ -98,6 +98,21 @@ API token at runtime. The token and SMTP credentials are not App options and
 are never stored by Price Watch. The App adds no ingress, exposed port or host
 access.
 
+## Stable 1.x compatibility
+
+Version 1.0.0 changes release identity only and preserves the verified 0.31.0
+runtime behavior. Existing valid App options retain their meaning and
+defaults. Published entity IDs, state types and documented attribute meanings
+remain compatible throughout the 1.x series. Valid SQLite schemas 1 through 6
+continue to migrate sequentially to the current schema, while current schema
+6 data is opened without a migration.
+
+Human-readable notification wording may be improved in a later approved
+release, but delivery count, durable reservations and retry behavior remain
+stable contracts. An intentional incompatible option, entity or persistence
+change requires an approved architecture decision, a migration where data is
+affected and a new major version.
+
 Version 0.27.0 additionally maps Home Assistant's shared directory writable.
 Price Watch uses only `/share/price-watch-migration`, and only after an
 explicit export command or a fully confirmed import configuration. It does not

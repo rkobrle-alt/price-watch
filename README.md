@@ -173,6 +173,17 @@ event. The packaged operator guide includes a stop/restart acceptance check
 which verifies that catalog history and notification reservations remain
 durable.
 
+## Stable compatibility
+
+Version 1.0.0 declares the verified monitoring behavior stable without
+changing the 0.31.0 catalog, discount, email, persistence or Home Assistant
+behavior. During the 1.x series, existing public Python exports, CLI commands,
+valid App options, published entity contracts and supported persistence
+formats remain compatible. Intentional incompatible changes require an
+approved architecture decision, an applicable data migration and a new major
+version. See `docs/architecture/versioning-and-compatibility.md` for the exact
+contract.
+
 ## Development
 
 The project requires Python 3.13 or newer.
