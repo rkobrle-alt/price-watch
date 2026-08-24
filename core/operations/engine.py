@@ -96,6 +96,20 @@ class OperationalHealthEngine:
             pending_notification=None,
         )
 
+    def suppress_notification(self, state: OperationalState) -> OperationalState:
+        """Clear one pending transition without claiming external delivery."""
+        _validate_state(state)
+        if state.pending_notification is None:
+            return state
+        if state.pending_notification is OperationalNotificationKind.FAILURE:
+            return replace(state, pending_notification=None, incident_notified=False)
+        return replace(
+            state,
+            incident_started_at=None,
+            incident_notified=False,
+            pending_notification=None,
+        )
+
 
 def _healthy_state(
     previous: OperationalState,

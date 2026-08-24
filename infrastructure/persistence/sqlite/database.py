@@ -3,7 +3,7 @@
 import sqlite3
 from pathlib import Path
 
-SCHEMA_VERSION = 6
+SCHEMA_VERSION = 7
 
 _CATALOG_COLUMNS_V1 = (
     "sequence",
@@ -25,11 +25,13 @@ _RESERVATION_COLUMNS = (
 _DIGEST_RESERVATION_COLUMNS = ("calendar_date", "reserved_at")
 _OPERATIONAL_STATE_COLUMNS = ("id", "payload")
 _DIGEST_BASELINE_COLUMNS = ("calendar_date", "product_ids")
+_WEEKLY_OPERATIONAL_COLUMNS = ("period_start", "payload")
 _LEGACY_TABLES = {"catalog_entries", "observations"}
 _VERSION_THREE_TABLES = _LEGACY_TABLES | {"notification_reservations"}
 _VERSION_FOUR_TABLES = _VERSION_THREE_TABLES | {"daily_digest_reservations"}
 _VERSION_FIVE_TABLES = _VERSION_FOUR_TABLES | {"operational_state"}
-_REQUIRED_TABLES = _VERSION_FIVE_TABLES | {"daily_digest_baselines"}
+_VERSION_SIX_TABLES = _VERSION_FIVE_TABLES | {"daily_digest_baselines"}
+_REQUIRED_TABLES = _VERSION_SIX_TABLES | {"weekly_operational_summaries"}
 
 
 class SqlitePersistenceError(Exception):
@@ -214,10 +216,22 @@ class SqliteDatabase:
                 False,
             )
             _migrate_version_five(connection)
+        elif version == 6:
+            _validate_schema_columns(
+                connection,
+                _CATALOG_COLUMNS,
+                _VERSION_SIX_TABLES,
+                True,
+                True,
+                True,
+                True,
+            )
         elif version != SCHEMA_VERSION:
             raise SqlitePersistenceError(
                 f"unsupported SQLite schema version: {version}"
             )
+        if 1 <= version <= 6:
+            _migrate_version_six(connection)
         _validate_schema(connection)
 
 
@@ -278,6 +292,7 @@ def _create_schema(connection: sqlite3.Connection) -> None:
             _create_digest_reservation_table(connection)
             _create_operational_state_table(connection)
             _create_digest_baseline_table(connection)
+            _create_weekly_operational_table(connection)
             connection.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
     except sqlite3.Error as error:
         raise SqlitePersistenceError("failed to initialize SQLite schema") from error
@@ -302,6 +317,16 @@ def _migrate_version_five(connection: sqlite3.Connection) -> None:
         with connection:
             connection.execute("BEGIN IMMEDIATE")
             _create_digest_baseline_table(connection)
+            connection.execute("PRAGMA user_version = 6")
+    except sqlite3.Error as error:
+        raise SqlitePersistenceError("failed to migrate SQLite schema") from error
+
+
+def _migrate_version_six(connection: sqlite3.Connection) -> None:
+    try:
+        with connection:
+            connection.execute("BEGIN IMMEDIATE")
+            _create_weekly_operational_table(connection)
             connection.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
     except sqlite3.Error as error:
         raise SqlitePersistenceError("failed to migrate SQLite schema") from error
@@ -385,11 +410,21 @@ def _create_digest_baseline_table(connection: sqlite3.Connection) -> None:
     )
 
 
+def _create_weekly_operational_table(connection: sqlite3.Connection) -> None:
+    connection.execute(
+        "CREATE TABLE weekly_operational_summaries ("
+        "period_start TEXT PRIMARY KEY, "
+        "payload TEXT NOT NULL"
+        ")"
+    )
+
+
 def _validate_schema(connection: sqlite3.Connection) -> None:
     _validate_schema_columns(
         connection,
         _CATALOG_COLUMNS,
         _REQUIRED_TABLES,
+        True,
         True,
         True,
         True,
@@ -405,6 +440,7 @@ def _validate_schema_columns(
     validate_digest_reservations: bool = False,
     validate_operational_state: bool = False,
     validate_digest_baselines: bool = False,
+    validate_weekly_operational: bool = False,
 ) -> None:
     tables = _user_tables(connection)
     if not required_tables.issubset(tables):
@@ -438,6 +474,13 @@ def _validate_schema_columns(
     ):
         raise SqlitePersistenceError(
             "daily_digest_baselines schema is incompatible"
+        )
+    if validate_weekly_operational and (
+        _table_columns(connection, "weekly_operational_summaries")
+        != _WEEKLY_OPERATIONAL_COLUMNS
+    ):
+        raise SqlitePersistenceError(
+            "weekly_operational_summaries schema is incompatible"
         )
 
 

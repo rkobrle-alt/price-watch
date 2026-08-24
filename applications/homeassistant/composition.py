@@ -2,7 +2,7 @@
 
 from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import datetime, time, timedelta
 from decimal import Decimal
 from typing import cast
 from uuid import UUID
@@ -14,7 +14,10 @@ from applications.catalog_monitoring import (
 from applications.daily_digest import DailyDigestConfig, DailyDigestWorkflow
 from applications.homeassistant.digest import compose_daily_digest
 from applications.homeassistant.configuration import HomeAssistantConfig
-from applications.operational_monitoring import OperationalMonitoringWorkflow
+from applications.operational_monitoring import (
+    OperationalMonitoringWorkflow,
+    WeeklyOperationalSummaryWorkflow,
+)
 from applications.configuration import ApplicationConfig
 from applications.synchronization import SynchronizationResult, SynchronizationWorkflow
 from applications.version import VERSION
@@ -26,7 +29,7 @@ from core.notifications import (
     NotificationReservationStore,
     PriceDropReservationPolicy,
 )
-from core.operations import OperationalHealthEngine
+from core.operations import OperationalHealthEngine, WeeklyOperationalSummaryEngine
 from core.rules import EvaluatorRegistry, PriceReferencePolicy, RuleEngine
 from core.rules.evaluators import BackInStockEvaluator, PriceDropEvaluator
 from core.state import (
@@ -41,6 +44,7 @@ from infrastructure.homeassistant import (
     HomeAssistantMaintenanceStatusPublisher,
     HomeAssistantOperationalNotificationChannel,
     HomeAssistantOperationalStatusPublisher,
+    HomeAssistantWeeklyOperationalSummaryChannel,
     HomeAssistantStatusPublisher,
     HomeAssistantStorageStatusPublisher,
     UrllibHomeAssistantClient,
@@ -58,6 +62,7 @@ from infrastructure.persistence.sqlite import (
     SqliteObservationRetentionManager,
     SqliteOperationalStateStore,
     SqliteStateStore,
+    SqliteWeeklyOperationalSummaryStore,
 )
 from infrastructure.providers.lidl import (
     LidlMarketingPromotionSource,
@@ -147,6 +152,12 @@ class _OperationalComposition:
 
     workflow: OperationalMonitoringWorkflow
     publisher: HomeAssistantOperationalStatusPublisher
+    weekly_workflow: WeeklyOperationalSummaryWorkflow | None = None
+    weekly_delivery_time: time | None = None
+
+    def __post_init__(self) -> None:
+        if (self.weekly_workflow is None) != (self.weekly_delivery_time is None):
+            raise ValueError("weekly workflow and delivery time must be configured together")
 
 
 class _LidlCatalogBatchSynchronizer:
@@ -249,6 +260,8 @@ def _compose_homeassistant(
             config.notification_title,
             config.daily_digest,
             config.individual_notifications_enabled,
+            config.immediate_operational_notifications_enabled,
+            config.weekly_operational_summary_time,
             config.retention_preview_days,
             clock,
             notification_id_factory,
@@ -296,6 +309,8 @@ def _compose_catalog(
     notification_title: str,
     daily_digest_config: DailyDigestConfig | None,
     individual_notifications_enabled: bool,
+    immediate_operational_notifications_enabled: bool,
+    weekly_operational_summary_time: time | None,
     retention_preview_days: int | None,
     clock: Callable[[], datetime],
     notification_id_factory: Callable[[], UUID],
@@ -404,11 +419,28 @@ def _compose_catalog(
                     notify_entity,
                     notification_title,
                 ),
+                notifications_enabled=immediate_operational_notifications_enabled,
             ),
             publisher=HomeAssistantOperationalStatusPublisher(
                 homeassistant_client,
                 VERSION,
             ),
+            weekly_workflow=(
+                None
+                if weekly_operational_summary_time is None
+                else WeeklyOperationalSummaryWorkflow(
+                    SqliteWeeklyOperationalSummaryStore(
+                        catalog_config.database_file
+                    ),
+                    WeeklyOperationalSummaryEngine(),
+                    HomeAssistantWeeklyOperationalSummaryChannel(
+                        homeassistant_client,
+                        notify_entity,
+                        notification_title,
+                    ),
+                )
+            ),
+            weekly_delivery_time=weekly_operational_summary_time,
         ),
     )
 

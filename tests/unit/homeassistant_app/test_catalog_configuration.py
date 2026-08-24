@@ -1,6 +1,6 @@
 """Tests for Home Assistant catalog-mode option configuration."""
 
-from datetime import time, timedelta
+from datetime import UTC, time, timedelta
 from decimal import Decimal
 from pathlib import Path
 
@@ -9,6 +9,9 @@ import pytest
 from applications.catalog_monitoring import CatalogMonitoringConfig
 from applications.daily_digest import DailyDigestConfig
 from applications.homeassistant import HomeAssistantConfig, parse_homeassistant_options
+from applications.homeassistant.configuration import (
+    _parse_weekly_operational_summary,
+)
 from core.configuration import ConfigurationError
 from core.domain import Percentage
 
@@ -38,6 +41,8 @@ def test_catalog_options_use_documented_defaults_without_product_urls() -> None:
     assert result.catalog.price_drop_percentage == Decimal("20.00")
     assert result.daily_digest is None
     assert result.individual_notifications_enabled is True
+    assert result.immediate_operational_notifications_enabled is True
+    assert result.weekly_operational_summary_time is None
     assert result.retention_preview_days is None
 
 
@@ -54,6 +59,9 @@ def test_catalog_options_preserve_exact_custom_values() -> None:
             daily_digest_enabled=True,
             daily_digest_time="07:15",
             individual_notifications_enabled=False,
+            immediate_operational_notifications_enabled=False,
+            weekly_operational_summary_enabled=True,
+            weekly_operational_summary_time="06:30",
             retention_preview_days=90,
         ),
         Path("data"),
@@ -73,6 +81,8 @@ def test_catalog_options_preserve_exact_custom_values() -> None:
         Percentage(Decimal("20.00")),
     )
     assert result.individual_notifications_enabled is False
+    assert result.immediate_operational_notifications_enabled is False
+    assert result.weekly_operational_summary_time == time(6, 30)
     assert result.retention_preview_days == 90
 
 
@@ -86,6 +96,23 @@ def test_enabled_digest_uses_documented_default_time() -> None:
         time(8),
         Percentage(Decimal("20.00")),
     )
+
+
+def test_enabled_weekly_summary_uses_documented_default_time() -> None:
+    result = parse_homeassistant_options(
+        _options(weekly_operational_summary_enabled=True),
+        Path("/data"),
+    )
+
+    assert result.weekly_operational_summary_time == time(8)
+
+
+def test_weekly_summary_parser_rejects_legacy_monitoring_mode() -> None:
+    with pytest.raises(ValueError, match="requires catalog"):
+        _parse_weekly_operational_summary(
+            {"weekly_operational_summary_enabled": True},
+            None,
+        )
 
 
 def test_homeassistant_config_accepts_exactly_catalog_mode() -> None:
@@ -157,6 +184,43 @@ def test_homeassistant_config_validates_individual_notification_policy() -> None
             explicit,
             "notify.gmail_parkside",
             individual_notifications_enabled=False,
+        )
+    with pytest.raises(ValueError, match="operational notifications"):
+        HomeAssistantConfig(
+            explicit,
+            "notify.gmail_parkside",
+            immediate_operational_notifications_enabled=False,
+        )
+    with pytest.raises(ValueError, match="weekly operational"):
+        HomeAssistantConfig(
+            explicit,
+            "notify.gmail_parkside",
+            weekly_operational_summary_time=time(8),
+        )
+
+
+def test_homeassistant_config_validates_operational_notification_policies() -> None:
+    catalog = CatalogMonitoringConfig(Path("catalog.sqlite3"), timedelta(minutes=5))
+    with pytest.raises(TypeError, match="immediate_operational"):
+        HomeAssistantConfig(
+            None,
+            "notify.gmail_parkside",
+            catalog=catalog,
+            immediate_operational_notifications_enabled=1,  # type: ignore[arg-type]
+        )
+    with pytest.raises(TypeError, match="weekly_operational"):
+        HomeAssistantConfig(
+            None,
+            "notify.gmail_parkside",
+            catalog=catalog,
+            weekly_operational_summary_time="08:00",  # type: ignore[arg-type]
+        )
+    with pytest.raises(ValueError, match="naive"):
+        HomeAssistantConfig(
+            None,
+            "notify.gmail_parkside",
+            catalog=catalog,
+            weekly_operational_summary_time=time(8, tzinfo=UTC),
         )
 
 
@@ -258,6 +322,11 @@ def test_homeassistant_config_validates_daily_digest_mode_and_type() -> None:
         ({"daily_digest_enabled": True, "daily_digest_time": "24:00"}, "daily_digest_time"),
         ({"daily_digest_enabled": True, "price_drop_percentage": None}, "price_drop_percentage"),
         ({"individual_notifications_enabled": "no"}, "individual_notifications_enabled"),
+        ({"immediate_operational_notifications_enabled": "no"}, "immediate_operational"),
+        ({"weekly_operational_summary_enabled": "yes"}, "weekly_operational"),
+        ({"weekly_operational_summary_enabled": False, "weekly_operational_summary_time": "08:00"}, "weekly_operational"),
+        ({"weekly_operational_summary_enabled": True, "weekly_operational_summary_time": 8}, "weekly_operational"),
+        ({"weekly_operational_summary_enabled": True, "weekly_operational_summary_time": "24:00"}, "weekly_operational"),
         ({"retention_preview_days": True}, "retention_preview_days"),
         ({"retention_preview_days": "90"}, "retention_preview_days"),
         ({"retention_preview_days": 0}, "retention_preview_days"),
@@ -279,6 +348,9 @@ def test_catalog_parser_rejects_invalid_values(
         "daily_digest_enabled",
         "daily_digest_time",
         "individual_notifications_enabled",
+        "immediate_operational_notifications_enabled",
+        "weekly_operational_summary_enabled",
+        "weekly_operational_summary_time",
         "retention_preview_days",
     ],
 )

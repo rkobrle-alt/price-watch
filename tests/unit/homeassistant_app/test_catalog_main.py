@@ -3,7 +3,7 @@
 import importlib
 from dataclasses import dataclass, field
 from dataclasses import replace
-from datetime import date, timedelta
+from datetime import date, time, timedelta
 from io import StringIO
 from decimal import Decimal
 from typing import TextIO, cast
@@ -231,6 +231,16 @@ class _OperationalPublisher:
         self.calls.append((state, digest_status))
 
 
+@dataclass(slots=True)
+class _WeeklyWorkflow:
+    error: OperationalNotificationError | None = None
+    calls: list[tuple[object, ...]] = field(default_factory=list)
+
+    def run(self, *arguments: object) -> object:
+        self.calls.append(arguments)
+        return SimpleNamespace(notification_error=self.error)
+
+
 def _result(
     *,
     catalog_error: CatalogError | None = None,
@@ -275,6 +285,7 @@ def _composition(
     minimum_discount: Percentage | None = Percentage(Decimal("20.00")),
     operational_workflow: _OperationalWorkflow | None = None,
     operational_publisher: _OperationalPublisher | None = None,
+    weekly_workflow: _WeeklyWorkflow | None = None,
 ) -> _HomeAssistantComposition:
     aggregate_publisher = catalog_publisher or _CatalogStatusPublisher()
     return _HomeAssistantComposition(
@@ -314,6 +325,8 @@ def _composition(
         operational=_OperationalComposition(
             cast(object, operational_workflow or _OperationalWorkflow()),
             cast(object, operational_publisher or _OperationalPublisher()),
+            cast(object, weekly_workflow) if weekly_workflow is not None else None,
+            time(8) if weekly_workflow is not None else None,
         ),
     )
 
@@ -822,6 +835,81 @@ def test_operational_delivery_and_publication_failures_are_non_fatal() -> None:
         "operational notification error: delivery failed\n"
         "operational status error: publish failed\n"
     )
+
+
+def test_weekly_operational_summary_runs_and_delivery_failure_is_non_fatal() -> None:
+    previous = OperationalState.initial()
+    current = OperationalHealthEngine().evaluate(
+        previous,
+        OperationalCheck(TIMESTAMP, None),
+    )
+    operational = _OperationalWorkflow(
+        result=OperationalMonitoringResult(
+            current,
+            previous_state=previous,
+        )
+    )
+    weekly = _WeeklyWorkflow(OperationalNotificationError("weekly failed"))
+    composition = _composition(
+        _CatalogWorkflow([_result()]),
+        operational_workflow=operational,
+        weekly_workflow=weekly,
+    )
+    stderr = RecordingStream()
+
+    _, published = _execute_catalog_cycle(
+        composition,
+        cast(TextIO, RecordingStream()),
+        cast(TextIO, stderr),
+        TIMESTAMP,
+        False,
+    )
+
+    assert published is False
+    assert len(weekly.calls) == 1
+    assert weekly.calls[0][1:3] == (previous, current)
+    assert weekly.calls[0][5] == time(8)
+    assert stderr.text == "weekly operational summary error: weekly failed\n"
+
+    weekly.error = None
+    cast(_CatalogWorkflow, composition.catalog_workflow).results.append(_result())
+    _, published = _execute_catalog_cycle(
+        composition,
+        cast(TextIO, RecordingStream()),
+        cast(TextIO, RecordingStream()),
+        TIMESTAMP,
+        False,
+    )
+    assert published is True
+
+
+def test_weekly_operational_summary_requires_complete_context() -> None:
+    previous = OperationalState.initial()
+    operational = _OperationalWorkflow(
+        result=OperationalMonitoringResult(
+            OperationalHealthEngine().evaluate(
+                previous,
+                OperationalCheck(TIMESTAMP, None),
+            ),
+            previous_state=previous,
+        )
+    )
+    composition = _composition(
+        _CatalogWorkflow([_result()]),
+        operational_workflow=operational,
+        weekly_workflow=_WeeklyWorkflow(),
+    )
+    assert composition.operational is not None
+    object.__setattr__(composition.operational, "weekly_delivery_time", None)
+
+    with pytest.raises(ValueError, match="weekly operational context"):
+        _execute_catalog_cycle(
+            composition,
+            cast(TextIO, RecordingStream()),
+            cast(TextIO, RecordingStream()),
+            TIMESTAMP,
+            False,
+        )
 
 
 def test_catalog_cycle_requires_operational_composition() -> None:

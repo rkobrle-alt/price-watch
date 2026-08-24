@@ -14,11 +14,13 @@ from core.operations import (
     OperationalNotificationError,
     OperationalNotificationKind,
     OperationalState,
+    WeeklyOperationalReport,
 )
 from infrastructure.homeassistant import (
     HomeAssistantError,
     HomeAssistantOperationalNotificationChannel,
     HomeAssistantOperationalStatusPublisher,
+    HomeAssistantWeeklyOperationalSummaryChannel,
 )
 from tests.unit.homeassistant.test_status import RecordingStateClient
 
@@ -211,3 +213,54 @@ def test_notification_channel_rejects_invalid_notification() -> None:
     )
     with pytest.raises(TypeError, match="notification"):
         channel.send(cast(OperationalNotification, object()))
+
+
+def test_weekly_channel_delivers_exact_message_and_maps_failure() -> None:
+    report = WeeklyOperationalReport(
+        date(2026, 8, 17),
+        date(2026, 8, 23),
+        "weekly body",
+        NOW,
+    )
+    client = _ServiceClient()
+    channel = HomeAssistantWeeklyOperationalSummaryChannel(
+        client,
+        "notify.gmail_parkside",
+        "Parkside Price Watch",
+    )
+    channel.send(report)
+    assert client.calls[0][2] == {
+        "entity_id": "notify.gmail_parkside",
+        "title": "Parkside Price Watch Weekly Health Summary",
+        "message": "weekly body",
+    }
+    failure = HomeAssistantError("offline")
+    failing = HomeAssistantWeeklyOperationalSummaryChannel(
+        _ServiceClient(failure),
+        "notify.gmail_parkside",
+        "Price Watch",
+    )
+    with pytest.raises(OperationalNotificationError) as captured:
+        failing.send(report)
+    assert captured.value.__cause__ is failure
+    with pytest.raises(TypeError, match="report"):
+        channel.send(cast(WeeklyOperationalReport, object()))
+
+
+@pytest.mark.parametrize(
+    ("arguments", "error", "message"),
+    [
+        ((object(), "notify.valid", "title"), TypeError, "client"),
+        ((_ServiceClient(), 1, "title"), TypeError, "entity_id"),
+        ((_ServiceClient(), "bad", "title"), ValueError, "entity_id"),
+        ((_ServiceClient(), "notify.valid", 1), TypeError, "title"),
+        ((_ServiceClient(), "notify.valid", " "), ValueError, "title"),
+    ],
+)
+def test_weekly_channel_rejects_invalid_construction(
+    arguments: tuple[object, ...],
+    error: type[Exception],
+    message: str,
+) -> None:
+    with pytest.raises(error, match=message):
+        HomeAssistantWeeklyOperationalSummaryChannel(*cast(tuple, arguments))

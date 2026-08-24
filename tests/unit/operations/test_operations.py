@@ -53,6 +53,7 @@ def test_public_api_is_explicit_documented_and_protocol_compatible() -> None:
         "DailyDigestDelivery",
         "OperationalCheck",
         "OperationalFailureKind",
+        "OperationalFailureCount",
         "OperationalHealthEngine",
         "OperationalHealthStatus",
         "OperationalNotification",
@@ -62,6 +63,11 @@ def test_public_api_is_explicit_documented_and_protocol_compatible() -> None:
         "OperationalState",
         "OperationalStateError",
         "OperationalStateStore",
+        "WeeklyOperationalReport",
+        "WeeklyOperationalSummary",
+        "WeeklyOperationalSummaryChannel",
+        "WeeklyOperationalSummaryEngine",
+        "WeeklyOperationalSummaryStore",
     ]
     store: OperationalStateStore = _Store()
     channel: OperationalNotificationChannel = _Channel()

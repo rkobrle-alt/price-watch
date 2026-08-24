@@ -16,6 +16,7 @@ from infrastructure.homeassistant.maintenance_status import (
 from infrastructure.homeassistant.operational import (
     HomeAssistantOperationalNotificationChannel,
     HomeAssistantOperationalStatusPublisher,
+    HomeAssistantWeeklyOperationalSummaryChannel,
 )
 from infrastructure.homeassistant.status import HomeAssistantStatusPublisher
 from infrastructure.homeassistant.storage_status import (
@@ -32,6 +33,7 @@ __all__ = [
     "HomeAssistantMaintenanceStatusPublisher",
     "HomeAssistantOperationalNotificationChannel",
     "HomeAssistantOperationalStatusPublisher",
+    "HomeAssistantWeeklyOperationalSummaryChannel",
     "HomeAssistantStateClient",
     "HomeAssistantStatusPublisher",
     "HomeAssistantStorageStatusPublisher",

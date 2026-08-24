@@ -11,6 +11,7 @@ from infrastructure.persistence.sqlite.database import (
     SqlitePersistenceError,
     _close_after_failed_open,
     _create_schema,
+    _migrate_version_six,
     _read_user_version,
 )
 
@@ -77,3 +78,13 @@ def test_failed_open_cleanup_ignores_secondary_close_failure() -> None:
     connection = cast(sqlite3.Connection, _FailingConnection(failure))
 
     assert _close_after_failed_open(connection) is None
+
+
+def test_version_six_migration_failure_preserves_cause() -> None:
+    failure = sqlite3.OperationalError("create failed")
+    connection = cast(sqlite3.Connection, _FailingConnection(failure))
+
+    with pytest.raises(SqlitePersistenceError, match="migrate") as captured:
+        _migrate_version_six(connection)
+
+    assert captured.value.__cause__ is failure

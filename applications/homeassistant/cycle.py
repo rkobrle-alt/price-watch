@@ -2,6 +2,7 @@
 
 from datetime import datetime, timedelta
 from typing import TextIO
+from zoneinfo import ZoneInfo
 
 from applications.catalog_monitoring import CatalogMonitoringResult
 from applications.daily_digest import DailyDigestResult, DailyDigestStatus
@@ -23,6 +24,8 @@ from infrastructure.homeassistant import (
     MaintenanceStatus,
     StorageStatus,
 )
+
+_PRAGUE = ZoneInfo("Europe/Prague")
 
 
 def execute_explicit_cycle(
@@ -321,6 +324,27 @@ def _run_operational_monitoring(
             stderr,
             f"operational notification error: {result.notification_error}\n",
         )
+    weekly_ok = True
+    if context.weekly_workflow is not None:
+        previous_state = result.previous_state
+        if previous_state is None or context.weekly_delivery_time is None:
+            raise ValueError("weekly operational context is incomplete")
+        local_timestamp = timestamp.astimezone(_PRAGUE)
+        weekly_result = context.weekly_workflow.run(
+            OperationalCheck(timestamp, failure_kind),
+            previous_state,
+            result.state,
+            local_timestamp.date(),
+            local_timestamp.time().replace(tzinfo=None),
+            context.weekly_delivery_time,
+        )
+        weekly_ok = weekly_result.notification_error is None
+        if weekly_result.notification_error is not None:
+            _write(
+                stderr,
+                "weekly operational summary error: "
+                f"{weekly_result.notification_error}\n",
+            )
     digest_status = (
         "disabled" if digest_result is None else digest_result.status.value
     )
@@ -329,7 +353,7 @@ def _run_operational_monitoring(
     except HomeAssistantError as error:
         _write(stderr, f"operational status error: {error}\n")
         return result, False
-    return result, notification_ok
+    return result, notification_ok and weekly_ok
 
 
 def _operational_failure_kind(

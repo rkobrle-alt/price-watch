@@ -20,6 +20,9 @@ from infrastructure.persistence.sqlite.retention_backup import (
     TimestampedRetentionBackupFileFactory,
 )
 from infrastructure.persistence.sqlite.state_store import SqliteStateStore
+from infrastructure.persistence.sqlite.weekly_operational_summary_store import (
+    SqliteWeeklyOperationalSummaryStore,
+)
 
 __all__ = [
     "SqliteCatalogStore",
@@ -29,5 +32,6 @@ __all__ = [
     "SqliteObservationRetentionManager",
     "SqliteOperationalStateStore",
     "SqliteStateStore",
+    "SqliteWeeklyOperationalSummaryStore",
     "TimestampedRetentionBackupFileFactory",
 ]

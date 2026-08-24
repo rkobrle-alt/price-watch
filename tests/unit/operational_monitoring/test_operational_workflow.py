@@ -73,6 +73,8 @@ def test_public_api_is_explicit_and_documented() -> None:
     assert workflow_api.__all__ == [
         "OperationalMonitoringResult",
         "OperationalMonitoringWorkflow",
+        "WeeklyOperationalSummaryResult",
+        "WeeklyOperationalSummaryWorkflow",
     ]
     assert inspect.getdoc(OperationalMonitoringResult)
     assert inspect.getdoc(OperationalMonitoringWorkflow)
@@ -85,7 +87,10 @@ def test_workflow_saves_digest_and_healthy_transition_without_delivery() -> None
 
     result = workflow.run(OperationalCheck(NOW), delivery)
 
-    assert result == OperationalMonitoringResult(store.state)
+    assert result == OperationalMonitoringResult(
+        store.state,
+        previous_state=OperationalState.initial(),
+    )
     assert result.state.last_digest_delivery == delivery
     assert store.loads == 1
     assert store.saves == [result.state]
@@ -160,6 +165,40 @@ def test_delivery_failure_retains_pending_state_for_retry() -> None:
     assert len(channel.calls) == 2
 
 
+def test_disabled_notifications_suppress_failure_without_channel_delivery() -> None:
+    engine = OperationalHealthEngine()
+    state = OperationalState.initial()
+    for offset in (1, 2):
+        state = engine.evaluate(
+            state,
+            OperationalCheck(
+                NOW + timedelta(minutes=offset),
+                OperationalFailureKind.PROVIDER_FAILURE,
+            ),
+        )
+    store = _Store(state)
+    channel = _Channel()
+    workflow = OperationalMonitoringWorkflow(
+        store,
+        engine,
+        channel,
+        notifications_enabled=False,
+    )
+
+    result = workflow.run(
+        OperationalCheck(
+            NOW + timedelta(minutes=3),
+            OperationalFailureKind.PROVIDER_FAILURE,
+        )
+    )
+
+    assert result.state.pending_notification is None
+    assert result.state.incident_notified is False
+    assert result.previous_state is state
+    assert len(store.saves) == 2
+    assert channel.calls == []
+
+
 def test_result_and_workflow_reject_invalid_arguments() -> None:
     state = OperationalState.initial()
     with pytest.raises(TypeError, match="state"):
@@ -177,6 +216,8 @@ def test_result_and_workflow_reject_invalid_arguments() -> None:
             OperationalNotificationKind.FAILURE,
             OperationalNotificationError("x"),
         )
+    with pytest.raises(TypeError, match="previous_state"):
+        OperationalMonitoringResult(state, previous_state=cast(OperationalState, object()))
     for arguments, name in (
         ((object(), OperationalHealthEngine(), _Channel()), "state_store"),
         ((_Store(), object(), _Channel()), "engine"),
@@ -185,6 +226,13 @@ def test_result_and_workflow_reject_invalid_arguments() -> None:
         with pytest.raises(TypeError, match=name):
             OperationalMonitoringWorkflow(*cast(tuple, arguments))
     workflow, _, _ = _workflow()
+    with pytest.raises(TypeError, match="notifications_enabled"):
+        OperationalMonitoringWorkflow(
+            _Store(),
+            OperationalHealthEngine(),
+            _Channel(),
+            notifications_enabled=cast(bool, 1),
+        )
     with pytest.raises(TypeError, match="check"):
         workflow.run(cast(OperationalCheck, object()))
     with pytest.raises(TypeError, match="digest_delivery"):

@@ -23,7 +23,10 @@ from applications.homeassistant.composition import (
     _StorageStatusComposition,
     _compose_homeassistant,
 )
-from applications.operational_monitoring import OperationalMonitoringWorkflow
+from applications.operational_monitoring import (
+    OperationalMonitoringWorkflow,
+    WeeklyOperationalSummaryWorkflow,
+)
 from core.catalog import ProductReference
 from core.domain import Percentage, ProviderId, Rule, RuleType
 from core.notifications import NotificationEngine
@@ -40,6 +43,7 @@ from infrastructure.homeassistant import (
     HomeAssistantOperationalNotificationChannel,
     HomeAssistantOperationalStatusPublisher,
     HomeAssistantStorageStatusPublisher,
+    HomeAssistantWeeklyOperationalSummaryChannel,
 )
 from infrastructure.persistence.memory import InMemoryStateStore
 from infrastructure.persistence.sqlite import (
@@ -50,6 +54,7 @@ from infrastructure.persistence.sqlite import (
     SqliteObservationRetentionManager,
     SqliteOperationalStateStore,
     SqliteStateStore,
+    SqliteWeeklyOperationalSummaryStore,
 )
 from infrastructure.providers.lidl import (
     LidlMarketingPromotionSource,
@@ -86,6 +91,7 @@ def _catalog_config(
     digest: bool = False,
     individual_notifications: bool = True,
     retention_preview_days: int | None = None,
+    weekly_summary: bool = False,
 ) -> HomeAssistantConfig:
     return HomeAssistantConfig(
         application=None,
@@ -106,6 +112,8 @@ def _catalog_config(
         ),
         individual_notifications_enabled=individual_notifications,
         retention_preview_days=retention_preview_days,
+        immediate_operational_notifications_enabled=not weekly_summary,
+        weekly_operational_summary_time=time(8) if weekly_summary else None,
     )
 
 
@@ -263,6 +271,38 @@ def test_composition_requires_operational_context_only_for_catalog() -> None:
             interval=explicit.interval,
             operational=operational,
         )
+    with pytest.raises(ValueError, match="weekly workflow"):
+        _OperationalComposition(
+            workflow=cast(object, object()),
+            publisher=cast(object, object()),
+            weekly_workflow=cast(object, object()),
+        )
+
+
+def test_catalog_composition_assembles_weekly_operational_summary() -> None:
+    result = _compose_homeassistant(
+        _catalog_config(weekly_summary=True),
+        "token",
+        lambda: TIMESTAMP,
+        uuid4,
+    )
+
+    operational = result.operational
+    assert operational is not None
+    assert operational.workflow._notifications_enabled is False
+    assert isinstance(
+        operational.weekly_workflow,
+        WeeklyOperationalSummaryWorkflow,
+    )
+    assert isinstance(
+        operational.weekly_workflow._store,
+        SqliteWeeklyOperationalSummaryStore,
+    )
+    assert isinstance(
+        operational.weekly_workflow._channel,
+        HomeAssistantWeeklyOperationalSummaryChannel,
+    )
+    assert operational.weekly_delivery_time == time(8)
 
 
 def test_catalog_composition_assembles_optional_daily_digest() -> None:

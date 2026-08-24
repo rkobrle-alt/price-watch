@@ -9,6 +9,7 @@ from core.operations import (
     OperationalNotification,
     OperationalNotificationError,
     OperationalState,
+    WeeklyOperationalReport,
 )
 from infrastructure.homeassistant.client import (
     HomeAssistantClient,
@@ -131,6 +132,46 @@ class HomeAssistantOperationalNotificationChannel:
         except HomeAssistantError as error:
             raise OperationalNotificationError(
                 "Home Assistant operational notification delivery failed"
+            ) from error
+
+
+class HomeAssistantWeeklyOperationalSummaryChannel:
+    """Deliver one weekly operational summary through Home Assistant."""
+
+    def __init__(
+        self,
+        client: HomeAssistantClient,
+        entity_id: str,
+        title: str,
+    ) -> None:
+        """Configure the existing notify entity and weekly title."""
+        if not isinstance(client, HomeAssistantClient):
+            raise TypeError("client must implement HomeAssistantClient")
+        if not isinstance(entity_id, str):
+            raise TypeError("entity_id must be a string")
+        if _NOTIFY_PATTERN.fullmatch(entity_id) is None:
+            raise ValueError("entity_id must match notify.<object_id>")
+        self._client = cast(HomeAssistantClient, client)
+        self._entity_id = entity_id
+        self._title = f"{_validate_text(title, 'title')} Weekly Health Summary"
+
+    def send(self, report: WeeklyOperationalReport) -> None:
+        """Deliver one weekly report message unchanged."""
+        if not isinstance(report, WeeklyOperationalReport):
+            raise TypeError("report must be a WeeklyOperationalReport")
+        try:
+            self._client.call_service(
+                "notify",
+                "send_message",
+                {
+                    "entity_id": self._entity_id,
+                    "title": self._title,
+                    "message": report.message,
+                },
+            )
+        except HomeAssistantError as error:
+            raise OperationalNotificationError(
+                "Home Assistant weekly operational summary delivery failed"
             ) from error
 
 

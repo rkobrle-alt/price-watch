@@ -21,6 +21,8 @@ class OperationalMonitoringWorkflow:
         state_store: OperationalStateStore,
         engine: OperationalHealthEngine,
         notification_channel: OperationalNotificationChannel,
+        *,
+        notifications_enabled: bool = True,
     ) -> None:
         """Validate and retain injected collaborators."""
         _require_method(state_store, "load", "state_store")
@@ -28,12 +30,15 @@ class OperationalMonitoringWorkflow:
         if not isinstance(engine, OperationalHealthEngine):
             raise TypeError("engine must be an OperationalHealthEngine")
         _require_method(notification_channel, "send", "notification_channel")
+        if not isinstance(notifications_enabled, bool):
+            raise TypeError("notifications_enabled must be a bool")
         self._state_store = cast(OperationalStateStore, state_store)
         self._engine = engine
         self._notification_channel = cast(
             OperationalNotificationChannel,
             notification_channel,
         )
+        self._notifications_enabled = notifications_enabled
 
     def run(
         self,
@@ -50,20 +55,29 @@ class OperationalMonitoringWorkflow:
             raise TypeError(
                 "digest_delivery must be a DailyDigestDelivery or None"
             )
-        state = self._state_store.load()
+        previous_state = self._state_store.load()
+        state = previous_state
         if digest_delivery is not None:
             state = self._engine.record_digest_delivery(state, digest_delivery)
         state = self._engine.evaluate(state, check)
         self._state_store.save(state)
         notification = self._engine.pending_notification(state)
         if notification is None:
-            return OperationalMonitoringResult(state)
+            return OperationalMonitoringResult(state, previous_state=previous_state)
+        if not self._notifications_enabled:
+            suppressed = self._engine.suppress_notification(state)
+            self._state_store.save(suppressed)
+            return OperationalMonitoringResult(
+                suppressed,
+                previous_state=previous_state,
+            )
         try:
             self._notification_channel.send(notification)
         except OperationalNotificationError as error:
             return OperationalMonitoringResult(
                 state,
                 notification_error=error,
+                previous_state=previous_state,
             )
         acknowledged = self._engine.acknowledge_notification(
             state,
@@ -73,6 +87,7 @@ class OperationalMonitoringWorkflow:
         return OperationalMonitoringResult(
             acknowledged,
             notification_sent=notification.kind,
+            previous_state=previous_state,
         )
 
 

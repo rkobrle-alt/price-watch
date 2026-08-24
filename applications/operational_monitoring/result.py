@@ -16,6 +16,7 @@ class OperationalMonitoringResult:
     state: OperationalState
     notification_sent: OperationalNotificationKind | None = None
     notification_error: OperationalNotificationError | None = None
+    previous_state: OperationalState | None = None
 
     def __post_init__(self) -> None:
         """Validate mutually exclusive delivery diagnostics."""
@@ -35,5 +36,10 @@ class OperationalMonitoringResult:
             raise TypeError(
                 "notification_error must be an OperationalNotificationError or None"
             )
+        if self.previous_state is not None and not isinstance(
+            self.previous_state,
+            OperationalState,
+        ):
+            raise TypeError("previous_state must be an OperationalState or None")
         if self.notification_sent is not None and self.notification_error is not None:
             raise ValueError("notification result values are mutually exclusive")

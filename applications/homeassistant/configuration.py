@@ -33,6 +33,9 @@ _ALLOWED_KEYS = frozenset(
         "daily_digest_enabled",
         "daily_digest_time",
         "individual_notifications_enabled",
+        "immediate_operational_notifications_enabled",
+        "weekly_operational_summary_enabled",
+        "weekly_operational_summary_time",
         "retention_preview_days",
         "migration_import_file",
         "migration_import_sha256",
@@ -47,6 +50,9 @@ _CATALOG_ONLY_KEYS = frozenset(
         "daily_digest_enabled",
         "daily_digest_time",
         "individual_notifications_enabled",
+        "immediate_operational_notifications_enabled",
+        "weekly_operational_summary_enabled",
+        "weekly_operational_summary_time",
         "retention_preview_days",
     }
 )
@@ -64,6 +70,8 @@ class HomeAssistantConfig:
     catalog: CatalogMonitoringConfig | None = None
     daily_digest: DailyDigestConfig | None = None
     individual_notifications_enabled: bool = True
+    immediate_operational_notifications_enabled: bool = True
+    weekly_operational_summary_time: time | None = None
     retention_preview_days: int | None = None
     migration_import: HomeAssistantMigrationImport | None = None
 
@@ -92,6 +100,24 @@ class HomeAssistantConfig:
             raise TypeError("individual_notifications_enabled must be a boolean")
         if not self.individual_notifications_enabled and self.catalog is None:
             raise ValueError("disabled individual notifications require catalog monitoring")
+        if not isinstance(self.immediate_operational_notifications_enabled, bool):
+            raise TypeError(
+                "immediate_operational_notifications_enabled must be a boolean"
+            )
+        if (
+            not self.immediate_operational_notifications_enabled
+            and self.catalog is None
+        ):
+            raise ValueError(
+                "disabled operational notifications require catalog monitoring"
+            )
+        if self.weekly_operational_summary_time is not None:
+            if not isinstance(self.weekly_operational_summary_time, time):
+                raise TypeError("weekly_operational_summary_time must be a time or None")
+            if self.weekly_operational_summary_time.tzinfo is not None:
+                raise ValueError("weekly operational summary time must be naive")
+            if self.catalog is None:
+                raise ValueError("weekly operational summary requires catalog monitoring")
         if self.retention_preview_days is not None:
             _positive_integer(self.retention_preview_days, "retention_preview_days")
             if self.catalog is None:
@@ -150,6 +176,14 @@ def parse_homeassistant_options(
             individual_notifications_enabled=cast(
                 bool,
                 document.get("individual_notifications_enabled", True),
+            ),
+            immediate_operational_notifications_enabled=cast(
+                bool,
+                document.get("immediate_operational_notifications_enabled", True),
+            ),
+            weekly_operational_summary_time=_parse_weekly_operational_summary(
+                document,
+                catalog,
             ),
             retention_preview_days=(
                 None
@@ -267,6 +301,30 @@ def _parse_daily_digest(
         raise ValueError("daily_digest_time must use HH:MM")
     hour, minute = (int(part) for part in value.split(":"))
     return DailyDigestConfig(time(hour, minute), Percentage(percentage))
+
+
+def _parse_weekly_operational_summary(
+    document: Mapping[str, object],
+    catalog: CatalogMonitoringConfig | None,
+) -> time | None:
+    enabled = document.get("weekly_operational_summary_enabled", False)
+    if not isinstance(enabled, bool):
+        raise TypeError("weekly_operational_summary_enabled must be a boolean")
+    if not enabled:
+        if "weekly_operational_summary_time" in document:
+            raise ValueError(
+                "weekly_operational_summary_time requires weekly summary"
+            )
+        return None
+    if catalog is None:
+        raise ValueError("weekly operational summary requires catalog monitoring")
+    value = document.get("weekly_operational_summary_time", "08:00")
+    if not isinstance(value, str):
+        raise TypeError("weekly_operational_summary_time must be a string")
+    if _TIME_PATTERN.fullmatch(value) is None:
+        raise ValueError("weekly_operational_summary_time must use HH:MM")
+    hour, minute = (int(part) for part in value.split(":"))
+    return time(hour, minute)
 
 
 def _positive_integer(value: object, name: str) -> int:
