@@ -517,3 +517,20 @@ Deliverables:
 - automated runtime, package and App-manifest version agreement
 - unchanged v0.31.0 runtime behavior and persistence schema 6
 - successful managed-App update and healthy post-release cycle
+
+---
+
+# v1.1.0 — Weekly Operational Error Summary
+
+Goal:
+
+Replace noisy immediate service email in the approved deployment with one
+durable summary of preceding-week errors.
+
+Deliverables:
+
+- independently configurable immediate and weekly operational email policies
+- Monday 08:00 Europe/Prague preceding-week eligibility
+- durable error counts, incident/recovery counts and failure streaks
+- transactional SQLite schema 6 to 7 migration
+- unchanged real-time health sensors and daily discount digest

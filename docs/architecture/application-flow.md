@@ -277,6 +277,13 @@ publish digest diagnostics, then health state
 This stage consumes immutable results and does not alter product, rule,
 observation, reservation or digest decisions.
 
+ADR-0034 records the same explicit operational check in a separate durable
+Europe/Prague weekly bucket. On Monday at or after the configured time, the
+immediately preceding non-empty bucket may produce one summary. Immediate
+transition delivery can be disabled without disabling health transitions or
+state publication. Product notifications and the daily digest remain
+independent.
+
 Manual retention is a separate operator flow and never enters the monitoring
 sequence:
 

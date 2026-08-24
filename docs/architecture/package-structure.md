@@ -83,8 +83,9 @@ no Lidl, HTML, HTTP, clock or Home Assistant dependency.
 
 For operational resilience, `core.operations` contains immutable health,
 digest-delivery and notification values, the deterministic transition engine,
-and persistence and delivery Protocols. It contains no SQLite, HTTP, Home
-Assistant, clock or provider-specific code.
+weekly error-summary values and engines, and persistence and delivery
+Protocols. It contains no SQLite, HTTP, Home Assistant, clock or
+provider-specific code.
 
 For scheduling, `core.scheduler` contains only:
 
