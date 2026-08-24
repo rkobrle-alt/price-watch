@@ -69,21 +69,30 @@ set it to `false`, leaving the daily digest as the only email. Disabling it
 does not disable discovery, refresh, history, discount calculations or status
 entities.
 
+`immediate_operational_notifications_enabled` independently controls the
+incident and recovery service emails. It defaults to `true` when omitted for
+backward compatibility; new packaged installations set it to `false`.
+`weekly_operational_summary_enabled` enables a single Czech summary for the
+preceding Monday-to-Sunday period, and `weekly_operational_summary_time`
+selects its Monday eligibility time in Europe/Prague (`08:00` by default).
+The weekly email is omitted when the completed week contains no failed cycle.
+
 ## Persistence
 
 Catalog mode stores membership, refresh ordering, complete append-only
 observations, notification reservations, daily digest reservations, daily
-digest membership baselines and operational health in
+digest membership baselines, operational health and weekly operational
+summaries in
 `/data/catalog.sqlite3`.
 Explicit mode stores its latest
 snapshots in `/data/state.json`. Supervisor preserves both App-owned paths
 across restarts and upgrades.
 
 A valid schema-version-1 catalog database is migrated transactionally through
-versions 2, 3, 4, 5 and 6. Valid version-2 through version-5 databases
-continue through the remaining migrations. Schema 6 adds only the daily
-digest membership baseline table. Price Watch performs no automatic history
-deletion.
+versions 2, 3, 4, 5, 6 and 7. Valid version-2 through version-6 databases
+continue through the remaining migrations. Schema 6 adds the daily digest
+membership baseline table; schema 7 adds durable weekly operational summary
+buckets. Price Watch performs no automatic history deletion.
 
 SQLite reservation and Home Assistant SMTP delivery cannot share one atomic
 transaction. Ordinary reported delivery failures release the reservation for
@@ -103,9 +112,9 @@ access.
 Version 1.0.0 changes release identity only and preserves the verified 0.31.0
 runtime behavior. Existing valid App options retain their meaning and
 defaults. Published entity IDs, state types and documented attribute meanings
-remain compatible throughout the 1.x series. Valid SQLite schemas 1 through 6
+remain compatible throughout the 1.x series. Valid SQLite schemas 1 through 7
 continue to migrate sequentially to the current schema, while current schema
-6 data is opened without a migration.
+7 data is opened without a migration.
 
 Human-readable notification wording may be improved in a later approved
 release, but delivery count, durable reservations and retry behavior remain
@@ -222,12 +231,20 @@ backward-compatible catalog sensor. Its state is `ok`, `degraded` or `failed`.
 Attributes identify the latest failure kind, consecutive failed-cycle count,
 incident and recovery timestamps, notification state and App version.
 
-One or two consecutive unhealthy cycles are `degraded` and do not send an
-operational email. The third consecutive unhealthy cycle is `failed` and sends
-one message through the configured notify entity. Further failed cycles do not
-repeat an acknowledged incident message. Delivery failure leaves the message
-pending for retry. One healthy cycle resets the counter and sends one recovery
-message only when the incident alert was successfully acknowledged.
+One or two consecutive unhealthy cycles are `degraded`; the third is `failed`.
+When immediate operational notifications are enabled, the third cycle sends
+one message through the configured notify entity and one healthy cycle later
+sends a recovery message after a successfully acknowledged incident alert.
+Further failed cycles do not repeat that alert, and delivery failure leaves it
+pending for retry. New packaged installations disable these immediate emails.
+
+When weekly reporting is enabled, every completed cycle contributes to its
+local Monday-to-Sunday bucket. From the configured time on the following
+Monday, Price Watch sends one summary only if failed cycles occurred. It lists
+failure cycles, incidents, recoveries, the longest failed-cycle streak, first
+and last failure timestamps and counts by cause. A missed Monday run remains
+eligible later in the week; reported delivery failure releases the durable
+reservation for retry.
 
 Failure diagnostics distinguish catalog discovery, provider transport,
 provider data compatibility, generic total provider failure, partial provider
@@ -236,8 +253,8 @@ reset the consecutive failure count.
 
 `sensor.price_watch_daily_digest` reports the current cycle's digest status
 and retains the date, delivery time, product count and promotion flag from the
-last successfully sent digest. Both sensors and pending operational messages
-are reconstructed from SQLite after an App restart.
+last successfully sent digest. Both sensors, operational state and weekly
+summary reservations are reconstructed from SQLite after an App restart.
 
 If percentage monitoring is disabled in favor of a fixed price amount, the
 percentage threshold is unavailable and the qualifying percentage count is

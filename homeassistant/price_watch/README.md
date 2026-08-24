@@ -56,3 +56,8 @@ Version 1.0.0 declares these verified behaviors stable. The release changes no
 monitoring, notification, persistence, option or entity semantics from
 0.31.0. Existing managed installations update in place and keep SQLite schema
 6 and their current App configuration.
+
+Version 1.1.0 keeps live health sensors while new installations suppress
+immediate incident and recovery email. When the preceding week contained an
+error, one Czech operational summary is delivered from Monday 08:00
+Europe/Prague. Durable weekly reservations use SQLite schema 7.

@@ -22,7 +22,7 @@ def test_app_manifest_has_exact_runtime_identity_and_defaults() -> None:
     manifest = (APP / "config.yaml").read_text(encoding="utf-8")
     project = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
 
-    assert VERSION == "1.0.0"
+    assert VERSION == "1.1.0"
     assert project["project"]["version"] == VERSION
     assert _manifest_version(manifest) == VERSION
 
@@ -47,6 +47,9 @@ def test_app_manifest_has_exact_runtime_identity_and_defaults() -> None:
         "daily_digest_enabled: true",
         'daily_digest_time: "08:00"',
         "individual_notifications_enabled: false",
+        "immediate_operational_notifications_enabled: false",
+        "weekly_operational_summary_enabled: true",
+        'weekly_operational_summary_time: "08:00"',
         "migration_import_file: str?",
         "migration_import_sha256: str?",
         "migration_import_confirmation: str?",

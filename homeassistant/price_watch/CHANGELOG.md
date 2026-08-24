@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.1.0
+
+- Add one durable Czech summary of preceding-week operational errors.
+- Make immediate incident/recovery email and weekly reporting independently
+  configurable while preserving omitted-option behavior.
+- Default new App installations to Monday 08:00 Europe/Prague weekly reporting
+  and suppress immediate service email.
+- Migrate SQLite schema 6 to 7 without changing catalog or observation data.
+- Preserve real-time health sensors and the daily discount digest.
+
 ## 1.0.0
 
 - Declare the proven Price Watch behavior and public integration contracts

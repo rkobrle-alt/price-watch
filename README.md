@@ -126,9 +126,12 @@ leaves the set and later returns is highlighted as new again.
 
 Catalog mode durably distinguishes a transient problem from a sustained
 three-cycle incident. Home Assistant receives separate health and daily-digest
-diagnostic sensors. A sustained failure produces one retryable operational
-email, and a later healthy cycle produces one recovery email after the
-incident alert was successfully delivered.
+diagnostic sensors. From version 1.1.0, new packaged installations keep those
+real-time diagnostics but replace immediate incident and recovery emails with
+one Czech summary of the preceding Monday-to-Sunday week. It is eligible each
+Monday from 08:00 Europe/Prague, is sent only when failures occurred and is
+reserved durably against duplicates. Existing option documents retain the
+previous immediate-email behavior unless the new policies are configured.
 
 New packaged installations disable individual product notifications and send
 qualifying discounts together in that one daily digest. Existing option
