@@ -2,6 +2,7 @@
 
 from collections.abc import Callable
 from contextlib import AbstractContextManager
+from http.client import IncompleteRead
 from typing import BinaryIO
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlparse
@@ -10,6 +11,7 @@ from urllib.request import Request, urlopen
 from infrastructure.http.exceptions import HttpClientError
 
 _DEFAULT_MAX_RESPONSE_BYTES = 20 * 1024 * 1024
+_MAX_READ_ATTEMPTS = 2
 
 
 class UrllibBinaryHttpClient:
@@ -37,26 +39,34 @@ class UrllibBinaryHttpClient:
         self._opener = opener
 
     def get(self, url: str) -> bytes:
-        """Retrieve *url* as bytes within the configured response-size limit."""
+        """Retrieve bounded bytes, retrying one incomplete response read."""
         _validate_http_url(url)
         request = Request(url, headers={"User-Agent": self._user_agent})
-        try:
-            with self._opener(request, timeout=self._timeout_seconds) as response:
-                payload = response.read(self._max_response_bytes + 1)
-            if not isinstance(payload, bytes):
-                raise TypeError("binary response must contain bytes")
-            if len(payload) > self._max_response_bytes:
-                raise ValueError("response exceeds max_response_bytes")
-            return payload
-        except (
-            HTTPError,
-            URLError,
-            TimeoutError,
-            OSError,
-            TypeError,
-            ValueError,
-        ) as error:
-            raise HttpClientError(f"failed to retrieve {url}") from error
+        attempt = 0
+        while True:
+            attempt += 1
+            try:
+                with self._opener(
+                    request, timeout=self._timeout_seconds
+                ) as response:
+                    payload = response.read(self._max_response_bytes + 1)
+                if not isinstance(payload, bytes):
+                    raise TypeError("binary response must contain bytes")
+                if len(payload) > self._max_response_bytes:
+                    raise ValueError("response exceeds max_response_bytes")
+                return payload
+            except IncompleteRead as error:
+                if attempt == _MAX_READ_ATTEMPTS:
+                    raise HttpClientError(f"failed to retrieve {url}") from error
+            except (
+                HTTPError,
+                URLError,
+                TimeoutError,
+                OSError,
+                TypeError,
+                ValueError,
+            ) as error:
+                raise HttpClientError(f"failed to retrieve {url}") from error
 
 
 def _positive_int(value: object, name: str) -> int:

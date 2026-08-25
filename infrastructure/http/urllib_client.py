@@ -1,10 +1,13 @@
 """Standard-library implementation of text HTTP retrieval."""
 
 from gzip import decompress
+from http.client import IncompleteRead
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
 from infrastructure.http.exceptions import HttpClientError
+
+_MAX_READ_ATTEMPTS = 2
 
 
 class UrllibTextHttpClient:
@@ -28,20 +31,26 @@ class UrllibTextHttpClient:
         self._user_agent = user_agent
 
     def get(self, url: str) -> str:
-        """Retrieve *url* and decode its response body as text."""
+        """Retrieve *url*, retrying one incomplete read, and decode its body."""
         if not isinstance(url, str):
             raise TypeError("url must be a str")
         if not url.strip():
             raise ValueError("url cannot be blank")
 
         request = Request(url, headers={"User-Agent": self._user_agent})
-        try:
-            with urlopen(request, timeout=self._timeout_seconds) as response:
-                charset = response.headers.get_content_charset() or "utf-8"
-                payload = response.read()
-                content_encoding = response.headers.get("Content-Encoding", "")
-                if content_encoding.casefold() == "gzip":
-                    payload = decompress(payload)
-                return payload.decode(charset)
-        except (HTTPError, URLError, OSError, UnicodeError) as error:
-            raise HttpClientError(f"failed to retrieve {url}") from error
+        attempt = 0
+        while True:
+            attempt += 1
+            try:
+                with urlopen(request, timeout=self._timeout_seconds) as response:
+                    charset = response.headers.get_content_charset() or "utf-8"
+                    payload = response.read()
+                    content_encoding = response.headers.get("Content-Encoding", "")
+                    if content_encoding.casefold() == "gzip":
+                        payload = decompress(payload)
+                    return payload.decode(charset)
+            except IncompleteRead as error:
+                if attempt == _MAX_READ_ATTEMPTS:
+                    raise HttpClientError(f"failed to retrieve {url}") from error
+            except (HTTPError, URLError, OSError, UnicodeError) as error:
+                raise HttpClientError(f"failed to retrieve {url}") from error

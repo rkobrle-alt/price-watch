@@ -1,5 +1,6 @@
 """Tests for bounded standard-library binary HTTP retrieval."""
 
+from http.client import IncompleteRead
 from typing import cast
 from urllib.error import URLError
 
@@ -172,3 +173,31 @@ def test_get_wraps_non_binary_response() -> None:
         )
 
     assert isinstance(captured.value.__cause__, TypeError)
+
+
+def test_get_retries_incomplete_response_once() -> None:
+    responses = [_Response(IncompleteRead(b"partial")), _Response(b"catalog")]
+
+    def opener(*args: object, **kwargs: object) -> _Response:
+        return responses.pop(0)
+
+    result = UrllibBinaryHttpClient(opener=opener).get(
+        "https://lidl.cz/catalog.gz"
+    )
+
+    assert result == b"catalog"
+    assert not responses
+
+
+def test_get_wraps_repeated_incomplete_response() -> None:
+    failures = [IncompleteRead(b"first"), IncompleteRead(b"second")]
+
+    def opener(*args: object, **kwargs: object) -> _Response:
+        return _Response(failures.pop(0))
+
+    with pytest.raises(HttpClientError) as captured:
+        UrllibBinaryHttpClient(opener=opener).get("https://lidl.cz/catalog.gz")
+
+    assert isinstance(captured.value.__cause__, IncompleteRead)
+    assert captured.value.__cause__.partial == b"second"
+    assert not failures

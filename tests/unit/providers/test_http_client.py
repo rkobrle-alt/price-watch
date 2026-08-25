@@ -1,7 +1,8 @@
 """Tests for the standard-library text HTTP client."""
 
-from gzip import compress
 from email.message import Message
+from gzip import compress
+from http.client import IncompleteRead
 from urllib.error import URLError
 
 import pytest
@@ -151,3 +152,45 @@ def test_get_wraps_decoding_failure_and_preserves_cause(
         UrllibTextHttpClient().get("https://www.lidl.cz/product")
 
     assert isinstance(captured.value.__cause__, UnicodeDecodeError)
+
+
+def test_get_retries_incomplete_response_once(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    attempts = 0
+
+    def incomplete_then_complete(request: object, timeout: int) -> _Response:
+        nonlocal attempts
+        attempts += 1
+        if attempts == 1:
+            raise IncompleteRead(b"partial")
+        return _Response(b"PARKSIDE", None)
+
+    monkeypatch.setattr(
+        "infrastructure.http.urllib_client.urlopen",
+        incomplete_then_complete,
+    )
+
+    assert UrllibTextHttpClient().get("https://www.lidl.cz/product") == "PARKSIDE"
+    assert attempts == 2
+
+
+def test_get_wraps_repeated_incomplete_response(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    failures = [IncompleteRead(b"first"), IncompleteRead(b"second")]
+
+    def always_incomplete(request: object, timeout: int) -> _Response:
+        raise failures.pop(0)
+
+    monkeypatch.setattr(
+        "infrastructure.http.urllib_client.urlopen",
+        always_incomplete,
+    )
+
+    with pytest.raises(HttpClientError) as captured:
+        UrllibTextHttpClient().get("https://www.lidl.cz/product")
+
+    assert isinstance(captured.value.__cause__, IncompleteRead)
+    assert captured.value.__cause__.partial == b"second"
+    assert not failures
