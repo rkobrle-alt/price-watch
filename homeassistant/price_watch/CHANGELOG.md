@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.1.1
+
+- Retry one prematurely terminated HTTP response before reporting a transport
+  failure.
+- Convert a repeated incomplete Lidl response to the established per-product
+  or catalog error boundary instead of terminating the App process.
+- Preserve all monitoring, notification, persistence and option semantics.
+
 ## 1.1.0
 
 - Add one durable Czech summary of preceding-week operational errors.

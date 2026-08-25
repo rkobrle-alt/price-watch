@@ -61,3 +61,7 @@ Version 1.1.0 keeps live health sensors while new installations suppress
 immediate incident and recovery email. When the preceding week contained an
 error, one Czech operational summary is delivered from Monday 08:00
 Europe/Prague. Durable weekly reservations use SQLite schema 7.
+
+Version 1.1.1 retries one prematurely terminated Lidl HTTP response and maps a
+repeated failure to the existing provider or catalog error boundary instead of
+terminating the App.

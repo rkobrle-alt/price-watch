@@ -133,6 +133,10 @@ Monday from 08:00 Europe/Prague, is sent only when failures occurred and is
 reserved durably against duplicates. Existing option documents retain the
 previous immediate-email behavior unless the new policies are configured.
 
+Version 1.1.1 retries one prematurely terminated Lidl HTTP response and then
+reports a repeated failure through the existing provider or catalog boundary,
+so a transient incomplete response cannot terminate the Home Assistant App.
+
 New packaged installations disable individual product notifications and send
 qualifying discounts together in that one daily digest. Existing option
 documents retain individual alerts unless
