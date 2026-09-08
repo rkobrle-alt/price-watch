@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.2.0
+
+- Recheck up to 200 stale qualifying offers before the daily email, using
+  existing reference-price and history processing without individual alerts.
+- Show per-product successful observation times and one-hour freshness labels,
+  with aggregate counts and honest warnings for unverified offers.
+- Recompute the digest after rechecks so newly sold-out or insufficiently
+  discounted products are excluded before the novelty baseline is saved.
+- Include preflight provider failures in existing operational/weekly reporting.
+- Preserve App settings, SQLite schema 7 and one-email-per-day reservations.
+- Additional checks may delay delivery; the existing hard-crash window between
+  reservation and delivery is unchanged in semantics and longer in duration.
+
 ## 1.1.1
 
 - Retry one prematurely terminated HTTP response before reporting a transport

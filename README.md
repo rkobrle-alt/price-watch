@@ -143,6 +143,16 @@ documents retain individual alerts unless
 `individual_notifications_enabled: false` is configured. Monitoring, history
 and dashboard states continue in either mode.
 
+Version 1.2.0 prepares the daily catalog digest by rechecking up to 200
+qualifying offers with observations older than one hour (or future-dated),
+oldest first. It reuses normal price/history processing without individual
+alerts. Each listed product shows its last successful observation time and
+whether it was verified within one hour of the digest cycle timestamp.
+Failed or budget-excluded offers remain visible with an explicit stale-data
+warning; successfully rechecked sold-out or no-longer-discounted offers are
+excluded. Extra checks can delay delivery. No new options or database migration
+are required; the existing reservation-before-delivery crash boundary remains.
+
 Catalog installations publish `sensor.price_watch_storage` with the exact
 retained observation count, observed-product count, first and last inserted
 observation times and allocated SQLite bytes. These diagnostics are read-only;

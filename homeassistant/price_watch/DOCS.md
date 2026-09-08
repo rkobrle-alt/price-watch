@@ -46,6 +46,28 @@ repeat it. The digest uses `price_drop_percentage`, includes only available
 products with an approved reference price, and sends an explicit empty summary
 when none qualify.
 
+From version 1.2.0, preparation rechecks up to 200 qualifying products whose
+observations are older than one hour or future-dated, oldest first. Requests
+reuse the existing synchronization and history processing, in serial batches
+of at most 25 and without individual alerts. The final digest reloads the
+results, excluding products now sold out or below the discount threshold.
+
+Each product shows its last successful observation time (ISO with timezone
+offset) and `OVĚŘENO V POSLEDNÍ HODINĚ` or
+`NEOVĚŘENO V POSLEDNÍ HODINĚ`. The header counts both groups and states the
+assessment timestamp. Times refer to observation-cycle starts, not exact HTTP
+response or delivery times. Unsuccessful or budget-excluded checks retain
+previous offers with an explicit warning; prices and availability can change
+after any check. Preparation errors enter operational/weekly diagnostics and
+logs as `digest refresh error`; the cycle summary includes
+`digest_refresh_errors` when nonzero.
+
+No additional settings are required. Extra requests can delay the morning
+email and the next monitoring cycle. Catalog dashboard aggregates incorporate
+these extra observations on the following ordinary cycle. As before, a hard
+process crash after date reservation and before delivery can suppress that
+day's email; the watchdog does not remove this reservation trade-off.
+
 For a non-empty result, the single email has two possible sections:
 `🆕 NOVĚ VE SLEVĚ` and `OSTATNÍ AKTUÁLNÍ SLEVY`. A product is new when it was
 not present in the most recent earlier retained digest baseline. This includes
