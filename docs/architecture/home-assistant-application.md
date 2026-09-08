@@ -1,5 +1,12 @@
 # Home Assistant Application Architecture
 
+Version 1.2.0 composes ADR-0035 daily-digest preparation. A private Lidl adapter
+reuses the shared synchronization dependencies with empty rules to refresh up
+to 200 qualifying stale products in batches of at most 25. The daily workflow
+reloads snapshots and includes observation times and freshness warnings in the
+one email. Normal catalog counters are published before this additional work
+and reflect it on the next cycle; operational reporting includes its errors.
+
 ## Purpose
 
 The Home Assistant App is an executable outer composition root for continuous

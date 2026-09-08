@@ -146,3 +146,5 @@ boundary between durable reservation and Home Assistant delivery.
   data contracts while retaining the verified monitoring behavior
 - immediate service email can be disabled while one non-empty preceding-week
   error summary remains durable and restart-safe
+- the daily digest prioritizes bounded rechecks of stale qualifying offers and
+  honestly reports successful observation times and unverified prices (ADR-0035)

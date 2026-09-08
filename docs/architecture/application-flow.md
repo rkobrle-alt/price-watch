@@ -1,5 +1,11 @@
 # Application Flow
 
+ADR-0035 extends newly eligible digest preparation after promotion lookup:
+select at most 200 qualifying snapshots older than one hour, recheck in serial
+batches of at most 25, reload snapshots, then perform the existing baseline,
+generation and delivery steps. The email labels successful observation times
+and unverified prices. Ordinary catalog refresh ordering is unchanged.
+
 ```text
 CLI, scheduler or another application entry point
     |

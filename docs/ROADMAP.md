@@ -534,3 +534,12 @@ Deliverables:
 - durable error counts, incident/recovery counts and failure streaks
 - transactional SQLite schema 6 to 7 migration
 - unchanged real-time health sensors and daily discount digest
+
+---
+
+# v1.2.0 — Daily Digest Freshness
+
+Refresh qualifying stale offers before the daily email within an explicit
+200-product budget. Report successful observation times and unverified offers,
+preserve one-message delivery and integrate refresh failures into diagnostics.
+See ADR-0035 and STORY-034.

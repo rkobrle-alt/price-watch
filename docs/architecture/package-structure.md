@@ -77,6 +77,11 @@ For notifications, `core.notifications` contains:
 
 It contains no concrete notification channel.
 
+ADR-0035 adds the deterministic `DigestFreshnessPolicy` and
+`DigestProductRefresher` Protocol to `core.notifications`. The daily digest
+Application orchestrates preparation; a private Home Assistant adapter reuses
+the existing synchronization composition for bounded product rechecks.
+
 For provider-level promotions, `core.promotions` contains only the immutable
 `DailyPromotion`, `DailyPromotionSource` Protocol and `PromotionError`. It has
 no Lidl, HTML, HTTP, clock or Home Assistant dependency.

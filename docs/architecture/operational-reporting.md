@@ -4,6 +4,11 @@ ADR-0031 owns real-time durable health. ADR-0034 adds a separate reporting
 policy without changing health classification or Home Assistant sensor
 contracts.
 
+ADR-0035 also logs daily-digest preparation provider errors. When ordinary
+catalog/provider work has no higher-priority failure, preparation errors
+classify the completed check as `PARTIAL_PROVIDER_FAILURE`, including in the
+weekly bucket. The digest can still be delivered with stale-data warnings.
+
 ```text
 completed catalog check
     |
