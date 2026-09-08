@@ -15,6 +15,7 @@ from applications.catalog_monitoring import (
 )
 from applications.daily_digest import DailyDigestConfig, DailyDigestWorkflow
 from applications.homeassistant import HomeAssistantConfig
+from applications.homeassistant.digest_refresh import _LidlDigestRefresher
 from applications.homeassistant.composition import (
     _HomeAssistantComposition,
     _LidlCatalogBatchSynchronizer,
@@ -315,6 +316,11 @@ def test_catalog_composition_assembles_optional_daily_digest() -> None:
 
     workflow = result.daily_digest_workflow
     assert isinstance(workflow, DailyDigestWorkflow)
+    assert isinstance(workflow._product_refresher, _LidlDigestRefresher)
+    assert (
+        workflow._product_refresher._synchronizer
+        is result.catalog_workflow._batch_synchronizer
+    )
     assert isinstance(workflow._snapshot_reader, SqliteStateStore)
     assert isinstance(
         workflow._reservation_store,

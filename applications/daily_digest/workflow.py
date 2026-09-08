@@ -11,7 +11,10 @@ from core.notifications import (
     DailyDiscountDigest,
     DailyDiscountDigestChannel,
     DailyDiscountDigestEngine,
+    DigestFreshnessPolicy,
+    DigestProductRefresher,
 )
+from core.provider import ProviderError
 from core.promotions import DailyPromotion, DailyPromotionSource, PromotionError
 from core.state import LatestSnapshotReader
 
@@ -30,6 +33,7 @@ class DailyDigestWorkflow:
         *,
         promotion_source: DailyPromotionSource | None = None,
         baseline_store: DailyDigestBaselineStore | None = None,
+        product_refresher: DigestProductRefresher | None = None,
     ) -> None:
         """Validate and retain explicit workflow collaborators."""
         _require_method(snapshot_reader, "latest_snapshots", "snapshot_reader")
@@ -53,6 +57,9 @@ class DailyDigestWorkflow:
             _require_method(baseline_store, "stage", "baseline_store")
             _require_method(baseline_store, "release", "baseline_store")
         self._snapshot_reader = cast(LatestSnapshotReader, snapshot_reader)
+        if product_refresher is not None:
+            _require_method(product_refresher, "refresh", "product_refresher")
+        self._product_refresher = product_refresher
         self._reservation_store = cast(
             DailyDigestReservationStore,
             reservation_store,
@@ -85,10 +92,29 @@ class DailyDigestWorkflow:
             snapshots = self._snapshot_reader.latest_snapshots()
             if not isinstance(snapshots, tuple):
                 raise TypeError("snapshot_reader must return a tuple")
+            refresh_errors: tuple[ProviderError, ...] = ()
+            if self._product_refresher is not None:
+                products = DigestFreshnessPolicy().select(
+                    snapshots, self._config.minimum_discount, timestamp,
+                )
+                refresh_errors = self._product_refresher.refresh(
+                    products, timestamp,
+                )
+                if not isinstance(refresh_errors, tuple) or not all(
+                    isinstance(error, ProviderError) for error in refresh_errors
+                ):
+                    raise TypeError(
+                        "product_refresher must return a tuple of ProviderError"
+                    )
+                snapshots = self._snapshot_reader.latest_snapshots()
             previous_product_ids = (
                 None
                 if self._baseline_store is None
                 else self._baseline_store.previous_product_ids(calendar_date)
+            )
+            freshness_arguments = (
+                {"include_freshness": True}
+                if self._product_refresher is not None else {}
             )
             digest = self._digest_engine.generate(
                 snapshots,
@@ -97,6 +123,7 @@ class DailyDigestWorkflow:
                 timestamp,
                 promotion,
                 previous_product_ids,
+                **freshness_arguments,
             )
             if not isinstance(digest, DailyDiscountDigest):
                 raise TypeError("digest_engine must return a DailyDiscountDigest")
@@ -122,6 +149,7 @@ class DailyDigestWorkflow:
             DailyDigestStatus.SENT,
             len(digest.products),
             digest.promotion is not None,
+            refresh_errors,
         )
 
     def _current_promotion(self) -> DailyPromotion | None:

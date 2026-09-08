@@ -182,6 +182,9 @@ def execute_catalog_cycle(
         and maintenance_status_published
     )
     digest_result = _run_daily_digest(composition, timestamp)
+    if digest_result is not None:
+        for error in digest_result.refresh_errors:
+            _write(stderr, f"digest refresh error: {error}\n")
     operational_result, operational_published = _run_operational_monitoring(
         composition,
         result,
@@ -374,6 +377,8 @@ def _operational_failure_kind(
         return OperationalFailureKind.PROVIDER_FAILURE
     if errors:
         return OperationalFailureKind.PARTIAL_PROVIDER_FAILURE
+    if digest_result is not None and digest_result.refresh_errors:
+        return OperationalFailureKind.PARTIAL_PROVIDER_FAILURE
     if (
         digest_result is not None
         and digest_result.status is DailyDigestStatus.PROMOTION_UNAVAILABLE
@@ -405,6 +410,8 @@ def _digest_summary(result: DailyDigestResult | None) -> str:
         summary += (
             f"digest_promotion={str(result.promotion_included).lower()} "
         )
+        if result.refresh_errors:
+            summary += f"digest_refresh_errors={len(result.refresh_errors)} "
     return summary
 
 

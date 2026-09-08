@@ -6,6 +6,10 @@ from core.notifications.daily_digest import (
     DailyDiscountDigestEngine,
 )
 from core.notifications.digest_channel import DailyDiscountDigestChannel
+from core.notifications.digest_freshness import (
+    DigestFreshnessPolicy,
+    DigestProductRefresher,
+)
 from core.notifications.digest_baseline import DailyDigestBaselineStore
 from core.notifications.digest_reservation import DailyDigestReservationStore
 from core.notifications.engine import NotificationEngine
@@ -21,6 +25,8 @@ from core.notifications.reservation import (
 from core.notifications.reservation_policy import PriceDropReservationPolicy
 
 __all__ = [
+    "DigestFreshnessPolicy",
+    "DigestProductRefresher",
     "DailyDigestReservationError",
     "DailyDigestBaselineStore",
     "DailyDigestReservationStore",

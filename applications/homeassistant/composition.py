@@ -13,6 +13,7 @@ from applications.catalog_monitoring import (
 )
 from applications.daily_digest import DailyDigestConfig, DailyDigestWorkflow
 from applications.homeassistant.digest import compose_daily_digest
+from applications.homeassistant.digest_refresh import _LidlDigestRefresher
 from applications.homeassistant.configuration import HomeAssistantConfig
 from applications.operational_monitoring import (
     OperationalMonitoringWorkflow,
@@ -374,6 +375,7 @@ def _compose_catalog(
             notification_title,
             LidlMarketingPromotionSource(text_client),
             catalog_config.timeout_seconds,
+            _LidlDigestRefresher(batch_synchronizer),
         ),
         catalog_status=_CatalogStatusComposition(
             publisher=HomeAssistantCatalogStatusPublisher(

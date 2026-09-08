@@ -1,7 +1,7 @@
 """Deterministic daily discount digest generation."""
 
 from dataclasses import dataclass
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from typing import cast
 
 from core.domain import Money, Percentage, Product, ProductId
@@ -50,9 +50,12 @@ class DailyDiscountDigestEngine:
         timestamp: datetime,
         promotion: DailyPromotion | None = None,
         previous_product_ids: tuple[ProductId, ...] | None = None,
+        include_freshness: bool = False,
     ) -> DailyDiscountDigest:
         """Generate a digest from validated latest product snapshots."""
         _validate_snapshots(snapshots)
+        if not isinstance(include_freshness, bool):
+            raise TypeError("include_freshness must be a bool")
         if not isinstance(minimum_discount, Percentage):
             raise TypeError("minimum_discount must be a Percentage")
         _validate_date(calendar_date, "calendar_date")
@@ -85,6 +88,14 @@ class DailyDiscountDigestEngine:
                 products,
                 promotion,
                 new_product_ids,
+                (
+                    {
+                        snapshot.product.id: snapshot.timestamp
+                        for snapshot in snapshots
+                    }
+                    if include_freshness else None
+                ),
+                timestamp,
             ),
             promotion=promotion,
             new_product_ids=new_product_ids,
@@ -105,6 +116,8 @@ def _format_message(
     products: tuple[Product, ...],
     promotion: DailyPromotion | None,
     new_product_ids: tuple[ProductId, ...],
+    observations: dict[ProductId, datetime] | None,
+    timestamp: datetime,
 ) -> str:
     header_lines = [
         f"Parkside daily discount digest — {calendar_date.isoformat()}"
@@ -120,6 +133,17 @@ def _format_message(
         )
     )
     header = "\n".join(header_lines)
+    if observations is not None:
+        recent_count = sum(
+            _is_recent(observations[product.id], timestamp) for product in products
+        )
+        header += (
+            f"\nAktuálnost posouzena k: {timestamp.isoformat()}"
+            f"\nOvěřeno v poslední hodině: {recent_count}"
+            f"\nNeověřeno v poslední hodině: {len(products) - recent_count}"
+            "\nČasy kontrol označují začátek úspěšného pozorovacího cyklu."
+            "\nCeny a dostupnost se mohou po kontrole změnit."
+        )
     if not products:
         return f"{header}\n\n{_EMPTY_MESSAGE}"
     new_identifiers = set(new_product_ids)
@@ -131,31 +155,60 @@ def _format_message(
     )
     sections = []
     if new_products:
-        sections.append(_format_section("🆕 NOVĚ VE SLEVĚ", new_products))
+        sections.append(
+            _format_section(
+                "🆕 NOVĚ VE SLEVĚ", new_products, observations, timestamp,
+            )
+        )
     if other_products:
         sections.append(
-            _format_section("OSTATNÍ AKTUÁLNÍ SLEVY", other_products)
+            _format_section(
+                "OSTATNÍ AKTUÁLNÍ SLEVY", other_products, observations, timestamp,
+            )
         )
     return f"{header}\n\n" + "\n\n".join(sections)
 
 
-def _format_section(title: str, products: tuple[Product, ...]) -> str:
+def _format_section(
+    title: str,
+    products: tuple[Product, ...],
+    observations: dict[ProductId, datetime] | None,
+    timestamp: datetime,
+) -> str:
     blocks = tuple(
-        _format_product(index, product)
+        _format_product(index, product, observations, timestamp)
         for index, product in enumerate(products, start=1)
     )
     return f"{title} ({len(products)})\n\n" + "\n\n".join(blocks)
 
 
-def _format_product(index: int, product: Product) -> str:
+def _format_product(
+    index: int,
+    product: Product,
+    observations: dict[ProductId, datetime] | None,
+    timestamp: datetime,
+) -> str:
     reference = cast(Money, product.original_price)
-    return (
+    message = (
         f"{index}. {product.name}\n"
         f"Current price: {product.current_price.amount} {product.currency.value}\n"
         f"Reference price: {reference.amount} {reference.currency.value}\n"
         f"Discount: {product.discount_percent.value}%\n"
         f"URL: {product.url}"
     )
+    if observations is not None:
+        observed_at = observations[product.id]
+        label = (
+            "OVĚŘENO V POSLEDNÍ HODINĚ"
+            if _is_recent(observed_at, timestamp)
+            else "NEOVĚŘENO V POSLEDNÍ HODINĚ — cena a dostupnost mohou být zastaralé"
+        )
+        message += f"\n{label}\nPoslední úspěšná kontrola: {observed_at.isoformat()}"
+    return message
+
+
+def _is_recent(observed_at: datetime, timestamp: datetime) -> bool:
+    return timedelta(0) <= timestamp - observed_at <= timedelta(hours=1)
 
 
 def _validate_snapshots(value: object) -> None:
