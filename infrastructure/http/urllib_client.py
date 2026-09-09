@@ -2,6 +2,8 @@
 
 from gzip import decompress
 from http.client import IncompleteRead
+from socket import gaierror
+from ssl import SSLError
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
@@ -51,6 +53,31 @@ class UrllibTextHttpClient:
                     return payload.decode(charset)
             except IncompleteRead as error:
                 if attempt == _MAX_READ_ATTEMPTS:
-                    raise HttpClientError(f"failed to retrieve {url}") from error
+                    raise HttpClientError(
+                        f"failed to retrieve {url} "
+                        f"[incomplete response after {attempt} attempts]"
+                    ) from error
             except (HTTPError, URLError, OSError, UnicodeError) as error:
-                raise HttpClientError(f"failed to retrieve {url}") from error
+                raise HttpClientError(
+                    f"failed to retrieve {url} [{_failure_detail(error)}]"
+                ) from error
+
+
+def _failure_detail(error: BaseException) -> str:
+    """Describe known failure categories without exposing response data."""
+    if isinstance(error, HTTPError):
+        return f"HTTP {error.code}"
+    reason = error.reason if isinstance(error, URLError) else error
+    if isinstance(reason, TimeoutError):
+        return "timeout"
+    if isinstance(reason, gaierror):
+        return "DNS error"
+    if isinstance(reason, SSLError):
+        return "TLS error"
+    if isinstance(reason, ConnectionError):
+        return "connection error"
+    if isinstance(error, URLError):
+        return "network error"
+    if isinstance(error, UnicodeError):
+        return "decoding error"
+    return "I/O error"
