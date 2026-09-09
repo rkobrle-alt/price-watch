@@ -1,7 +1,7 @@
 """Standard-library implementation of text HTTP retrieval."""
 
 from gzip import decompress
-from http.client import IncompleteRead
+from http.client import BadStatusLine, IncompleteRead
 from socket import gaierror
 from ssl import SSLError
 from urllib.error import HTTPError, URLError
@@ -57,6 +57,10 @@ class UrllibTextHttpClient:
                         f"failed to retrieve {url} "
                         f"[incomplete response after {attempt} attempts]"
                     ) from error
+            except BadStatusLine as error:
+                raise HttpClientError(
+                    f"failed to retrieve {url} [HTTP protocol error]"
+                ) from error
             except (HTTPError, URLError, OSError, UnicodeError) as error:
                 raise HttpClientError(
                     f"failed to retrieve {url} [{_failure_detail(error)}]"
