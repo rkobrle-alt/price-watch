@@ -22,7 +22,7 @@ def test_app_manifest_has_exact_runtime_identity_and_defaults() -> None:
     manifest = (APP / "config.yaml").read_text(encoding="utf-8")
     project = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
 
-    assert VERSION == "1.2.0"
+    assert VERSION == "1.2.1"
     assert project["project"]["version"] == VERSION
     assert _manifest_version(manifest) == VERSION
 

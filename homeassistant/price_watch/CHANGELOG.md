@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.2.1
+
+- Include HTTP status and safe timeout, DNS, TLS, connection, decoding or I/O
+  categories in text-client product retrieval errors.
+- Identify exhausted incomplete-response retries without logging response
+  bodies, headers or arbitrary network exception text.
+- Preserve exception boundaries, retry counts, catalog discovery, stored data
+  and all daily/weekly notification behavior.
+
 ## 1.2.0
 
 - Recheck up to 200 stale qualifying offers before the daily email, using

@@ -99,6 +99,21 @@ preceding Monday-to-Sunday period, and `weekly_operational_summary_time`
 selects its Monday eligibility time in Europe/Prague (`08:00` by default).
 The weekly email is omitted when the completed week contains no failed cycle.
 
+### Product retrieval diagnostics (1.2.1)
+
+Text HTTP errors retain the requested URL and now include a bracketed detail,
+for example `[HTTP 404]`, `[HTTP 429]`, `[HTTP 503]`, `[timeout]`, `[DNS error]`,
+`[TLS error]`, `[connection error]`, `[network error]`, `[decoding error]`,
+`[I/O error]` or `[incomplete response after 2 attempts]`. The existing
+`provider error` and `digest refresh error` log paths preserve these details.
+No response bodies, headers or arbitrary network exception text are appended.
+The binary catalog HTTP client and marketing-source error wrapping are unchanged.
+
+Only an incomplete response receives the existing single retry. These labels
+do not introduce retries, remove products or mark HTTP 404 as out of stock.
+They do not change health classification or send additional emails. Older log
+entries cannot be retrospectively classified using the new diagnostics.
+
 ## Persistence
 
 Catalog mode stores membership, refresh ordering, complete append-only
