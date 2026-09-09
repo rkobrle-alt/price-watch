@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.2.2
+
+- Convert malformed product HTTP status lines (BadStatusLine, including
+  RemoteDisconnected) into per-product transport errors instead of terminating
+  the monitoring process.
+- Report `[HTTP protocol error]` without exposing the raw response line.
+- Continue processing later products without additional malformed-response
+  retries. Preserve the existing IncompleteRead retry, data and email policies.
+
 ## 1.2.1
 
 - Include HTTP status and safe timeout, DNS, TLS, connection, decoding or I/O

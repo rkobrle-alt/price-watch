@@ -114,6 +114,13 @@ do not introduce retries, remove products or mark HTTP 404 as out of stock.
 They do not change health classification or send additional emails. Older log
 entries cannot be retrospectively classified using the new diagnostics.
 
+Version 1.2.2 also isolates malformed HTTP status lines as
+`[HTTP protocol error]`, including a remote disconnect before a status line.
+The affected product fails once and remaining products continue; the raw
+response line is not logged. No new retries are added and unrelated programming
+errors are not suppressed. This is a text-client fix, not a change to catalog
+HTTP handling, HTTP 404 lifecycle policy or DNS configuration.
+
 ## Persistence
 
 Catalog mode stores membership, refresh ordering, complete append-only
