@@ -18,11 +18,15 @@ class _LidlDigestRefresher:
         self, products: tuple[Product, ...], timestamp: datetime,
     ) -> tuple[ProviderError, ...]:
         """Persist successful rechecks in batches and retain provider failures."""
+        unique_products: dict[str, Product] = {}
+        for product in products:
+            unique_products.setdefault(product.url, product)
+        selected = tuple(unique_products.values())
         errors: list[ProviderError] = []
-        for offset in range(0, len(products), 25):
+        for offset in range(0, len(selected), 25):
             references = tuple(
                 ProductReference(product.provider_id, product.url, product.url)
-                for product in products[offset:offset + 25]
+                for product in selected[offset:offset + 25]
             )
             result = self._synchronizer.synchronize(references, (), timestamp)
             errors.extend(result.provider_errors)

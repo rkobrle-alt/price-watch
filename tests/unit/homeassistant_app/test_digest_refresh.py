@@ -1,6 +1,7 @@
 """Bounded serial digest adapter and operational evidence tests."""
 
 from datetime import datetime
+from dataclasses import replace
 from typing import cast
 from typing import TextIO
 
@@ -51,6 +52,21 @@ def test_refresh_failure_is_operational_and_visible_in_summary() -> None:
     catalog = CatalogMonitoringResult((), (), (), None, None)
     assert _operational_failure_kind(catalog, (), result) is OperationalFailureKind.PARTIAL_PROVIDER_FAILURE
     assert "digest_refresh_errors=1" in _digest_summary(result)
+
+
+def test_duplicate_urls_are_removed_before_batching_preserving_first() -> None:
+    batch = _Batch()
+    products = tuple(_product(i, "Tool", "20") for i in range(1, 28))
+    alias = replace(products[1], url=products[0].url)
+    selected = (products[0], alias, products[0]) + products[1:] + (alias,)
+    errors = _LidlDigestRefresher(batch).refresh(selected, _TIMESTAMP)
+    assert [len(call) for call in batch.calls] == [25, 2]
+    references = tuple(reference for call in batch.calls for reference in call)
+    assert tuple(reference.url for reference in references) == tuple(
+        product.url for product in products
+    )
+    assert references[0].provider_id == products[0].provider_id
+    assert errors == (batch.error, batch.error)
 
 
 def test_cycle_reports_refresh_error_to_log_and_operational_workflow() -> None:
