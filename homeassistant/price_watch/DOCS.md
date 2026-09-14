@@ -121,6 +121,13 @@ response line is not logged. No new retries are added and unrelated programming
 errors are not suppressed. This is a text-client fix, not a change to catalog
 HTTP handling, HTTP 404 lifecycle policy or DNS configuration.
 
+Version 1.2.3 deduplicates exact URLs across digest preparation before batching.
+Distinct stored product IDs sharing one URL no longer cause
+`product_urls must be unique` to terminate preparation. One request refreshes
+only the identity returned by the provider: other stored identities retain
+their history and honest stale-data labels. No identities, histories or daily
+reservations are deleted. This does not merge repeated entries in the email.
+
 ## Persistence
 
 Catalog mode stores membership, refresh ordering, complete append-only

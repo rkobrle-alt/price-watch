@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.2.3
+
+- Deduplicate exact product URLs before daily-digest refresh batching, fixing
+  `product_urls must be unique` crashes when distinct stored IDs share a URL.
+- Preserve first-request order, 25-URL batch limits and provider validation.
+- Retain all product histories and existing freshness labels; do not merge
+  identities or copy a successful observation to an older alias.
+- Preserve one daily email and existing reservation compensation.
+
 ## 1.2.2
 
 - Convert malformed product HTTP status lines (BadStatusLine, including
