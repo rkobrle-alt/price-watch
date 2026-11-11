@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+- Stream retention-preview observations instead of loading the complete raw
+  and decoded history into memory. Preview memory now scales with distinct
+  products and currencies, not the number of historical observations.
+- Preserve exact retention counts, historical-price protection, validation,
+  manual backup-before-delete behavior and all notification contracts.
+- Explicit retention apply retains only candidate sequence identifiers in
+  addition to the compact guards; it still creates a complete database backup.
+
 ## 1.2.3
 
 - Deduplicate exact product URLs before daily-digest refresh batching, fixing

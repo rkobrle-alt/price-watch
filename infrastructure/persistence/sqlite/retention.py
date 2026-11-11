@@ -53,7 +53,9 @@ class SqliteObservationRetentionManager:
         connection: sqlite3.Connection | None = None
         try:
             connection = self._database.open()
-            return _select_retention(connection, validated_cutoff).plan
+            return _select_retention(
+                connection, validated_cutoff, collect_removable=False,
+            ).plan
         except (
             json.JSONDecodeError,
             SnapshotCodecError,
@@ -110,40 +112,52 @@ class SqliteObservationRetentionManager:
 def _select_retention(
     connection: sqlite3.Connection,
     cutoff: datetime,
+    *,
+    collect_removable: bool = True,
 ) -> _RetentionSelection:
-    rows = connection.execute(
+    """Scan validated snapshots without retaining the observation history."""
+    latest: dict[str, tuple[int, bool]] = {}
+    maxima: dict[tuple[str, str], tuple[Decimal, int, bool]] = {}
+    old_sequences: list[int] = []
+    observation_count = 0
+    recent_count = 0
+    cursor = connection.execute(
         "SELECT sequence, product_id, snapshot FROM observations ORDER BY sequence"
-    ).fetchall()
-    observations = tuple(_decode_row(row) for row in rows)
-    latest_sequences: dict[str, int] = {}
-    maxima: dict[tuple[str, str], tuple[Decimal, int]] = {}
-    recent_sequences: set[int] = set()
-    all_sequences: set[int] = set()
-    for observation in observations:
-        sequence = observation.sequence
-        product = observation.snapshot.product
-        product_id = str(product.id.value)
-        currency = product.current_price.currency.value
-        amount = product.current_price.amount
-        all_sequences.add(sequence)
-        latest_sequences[product_id] = sequence
-        if observation.snapshot.timestamp >= cutoff:
-            recent_sequences.add(sequence)
-        maximum_key = (product_id, currency)
-        maximum = maxima.get(maximum_key)
-        if maximum is None or amount > maximum[0]:
-            maxima[maximum_key] = (amount, sequence)
+    )
+    try:
+        for row in cursor:
+            observation = _decode_row(row)
+            sequence = observation.sequence
+            product = observation.snapshot.product
+            product_id = str(product.id.value)
+            currency = product.current_price.currency.value
+            amount = product.current_price.amount
+            recent = observation.snapshot.timestamp >= cutoff
+            observation_count += 1
+            recent_count += int(recent)
+            latest[product_id] = (sequence, recent)
+            if collect_removable and not recent:
+                old_sequences.append(sequence)
+            maximum_key = (product_id, currency)
+            maximum = maxima.get(maximum_key)
+            if maximum is None or amount > maximum[0]:
+                maxima[maximum_key] = (amount, sequence, recent)
+    finally:
+        cursor.close()
 
-    protected_sequences = set(latest_sequences.values())
-    protected_sequences.update(value[1] for value in maxima.values())
-    retained_sequences = recent_sequences | protected_sequences
-    removable_sequences = tuple(sorted(all_sequences - retained_sequences))
-    protected_old = protected_sequences - recent_sequences
+    protected_old = {sequence for sequence, recent in latest.values() if not recent}
+    protected_old.update(
+        sequence for _, sequence, recent in maxima.values() if not recent
+    )
+    removable_sequences = tuple(
+        sequence for sequence in old_sequences if sequence not in protected_old
+    )
+    retained_count = recent_count + len(protected_old)
     plan = ObservationRetentionPlan(
         cutoff=cutoff,
-        observation_count=len(observations),
-        removable_observation_count=len(removable_sequences),
-        retained_observation_count=len(retained_sequences),
+        observation_count=observation_count,
+        removable_observation_count=observation_count - retained_count,
+        retained_observation_count=retained_count,
         protected_observation_count=len(protected_old),
     )
     return _RetentionSelection(plan, removable_sequences)
