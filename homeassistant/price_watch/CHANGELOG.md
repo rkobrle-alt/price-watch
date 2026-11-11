@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.2.4
 
 - Stream retention-preview observations instead of loading the complete raw
   and decoded history into memory. Preview memory now scales with distinct
