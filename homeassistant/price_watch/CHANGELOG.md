@@ -1,3 +1,7 @@
+# 1.2.5
+
+- Accept the official Lidl Plus coupon host in daily promotion banners, fixing blocked daily digests. Keep strict link validation and duplicate prevention.
+
 # Changelog
 
 ## 1.2.4

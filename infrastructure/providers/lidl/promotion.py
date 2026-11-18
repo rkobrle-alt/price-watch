@@ -8,7 +8,7 @@ from infrastructure.http import HttpClientError, TextHttpClient
 
 _HOME_PAGE = "https://www.lidl.cz/"
 _LABEL_CLASS = "n-navigation__marketing-message--label"
-_ALLOWED_HOSTS = frozenset({"lidl.cz", "www.lidl.cz"})
+_ALLOWED_HOSTS = frozenset({"lidl.cz", "www.lidl.cz", "lidlplus.com"})
 
 
 class LidlMarketingPromotionSource:
@@ -121,5 +121,5 @@ def _normalize_url(href: str | None) -> str | None:
         or parsed.password is not None
         or port not in {None, 443}
     ):
-        raise ValueError("marketing link must use the Lidl Czech Republic host")
+        raise ValueError("marketing link must use an approved Lidl host")
     return url

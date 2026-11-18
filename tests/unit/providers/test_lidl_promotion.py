@@ -49,6 +49,8 @@ def test_source_parses_current_markup_entities_nested_text_and_whitespace() -> N
     [
         ("/c/offer/s1", "https://www.lidl.cz/c/offer/s1"),
         ("https://lidl.cz/c/offer/s1", "https://lidl.cz/c/offer/s1"),
+        ("https://lidlplus.com/coupons/section/OnlineShop",
+         "https://lidlplus.com/coupons/section/OnlineShop"),
         ("https://www.lidl.cz:443/c/offer", "https://www.lidl.cz:443/c/offer"),
     ],
 )
@@ -144,3 +146,19 @@ def test_source_maps_non_text_and_http_failures() -> None:
 def test_source_rejects_invalid_http_dependency() -> None:
     with pytest.raises(TypeError, match="http_client"):
         LidlMarketingPromotionSource(cast(TextHttpClient, object()))
+
+
+@pytest.mark.parametrize("href", [
+    "https://lidlplus.com.example.test/offer",
+    "https://sub.lidlplus.com/offer",
+    "http://lidlplus.com/offer",
+    "https://user@lidlplus.com/offer",
+    "https://lidlplus.com:444/offer",
+])
+def test_source_rejects_unsafe_lidl_plus_links(href: str) -> None:
+    source, _ = _source(
+        f'<a href="{href}"><span class="n-navigation__marketing-message--label">'
+        "Offer</span></a>"
+    )
+    with pytest.raises(PromotionError, match="invalid"):
+        source.current()

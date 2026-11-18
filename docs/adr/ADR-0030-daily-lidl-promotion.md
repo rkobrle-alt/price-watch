@@ -38,7 +38,7 @@ Infrastructure adds `LidlMarketingPromotionSource` to
 `TextHttpClient` to retrieve `https://www.lidl.cz/` and parses the first global
 marketing label in document order. Whitespace is normalized. An absent label
 returns `None`. A link is retained only when it resolves to HTTPS on
-`lidl.cz` or `www.lidl.cz`; invalid external data and HTTP failures raise
+`lidl.cz`, `www.lidl.cz` or `lidlplus.com`; invalid external data and HTTP failures raise
 `PromotionError` with the original cause chained.
 
 The reusable daily-digest workflow accepts an optional promotion source. It
@@ -141,6 +141,12 @@ Rejected because optional marketing metadata must not stop catalog price and
 availability monitoring.
 
 ## Consequences
+
+Provider compatibility amendment (2026-11-18): the live Czech storefront
+publishes its coupon banner with `https://lidlplus.com/coupons/section/OnlineShop`.
+Accept this exact additional hostname, retaining HTTPS, no credentials and
+default-port validation. Do not allow arbitrary subdomains or follow links.
+This fixes a valid banner blocking delivery without changing retry policy.
 
 The daily email includes the current global Lidl offer and its actionable link
 when published. One additional public HTTP request occurs only on the first
