@@ -8,6 +8,8 @@ from core.domain import Money, Percentage, Product, ProductId
 from core.promotions import DailyPromotion
 from core.state import StateSnapshot
 from core.pricing import PriceHistoryAssessment
+from core.watch import DigestWatchPreferences, DigestWatchPolicy
+from core.notifications.watch_format import _watch_policy, _personal_groups, _watch_details
 from core.notifications.price_history_format import _format_price_history, _price_value_sort_key
 
 _EMPTY_MESSAGE = "No currently available products match the discount threshold."
@@ -24,6 +26,8 @@ class DailyDiscountDigest:
     promotion: DailyPromotion | None = None
     new_product_ids: tuple[ProductId, ...] = ()
     price_assessments: tuple[PriceHistoryAssessment, ...] = ()
+    watch_preferences: DigestWatchPreferences | None = None
+    baseline_product_ids: tuple[ProductId, ...] | None = None
 
     def __post_init__(self) -> None:
         """Validate digest values without performing side effects."""
@@ -41,6 +45,12 @@ class DailyDiscountDigest:
             raise TypeError("promotion must be a DailyPromotion or None")
         _validate_new_product_ids(self.new_product_ids, self.products)
         _validate_assessments(self.price_assessments, self.products, self.created_at)
+        if self.watch_preferences is not None and not isinstance(self.watch_preferences, DigestWatchPreferences):
+            raise TypeError("watch_preferences must be DigestWatchPreferences or None")
+        if self.baseline_product_ids is not None:
+            _validate_product_ids(self.baseline_product_ids, "baseline_product_ids")
+            if not set(self.baseline_product_ids).issubset({p.id for p in self.products}):
+                raise ValueError("baseline_product_ids must identify digest products")
 
 
 class DailyDiscountDigestEngine:
@@ -56,6 +66,7 @@ class DailyDiscountDigestEngine:
         previous_product_ids: tuple[ProductId, ...] | None = None,
         include_freshness: bool = False,
         price_assessments: tuple[PriceHistoryAssessment, ...] | None = None,
+        watch_preferences: DigestWatchPreferences | None = None,
     ) -> DailyDiscountDigest:
         """Generate a digest from validated latest product snapshots."""
         _validate_snapshots(snapshots)
@@ -68,12 +79,14 @@ class DailyDiscountDigestEngine:
         if promotion is not None and not isinstance(promotion, DailyPromotion):
             raise TypeError("promotion must be a DailyPromotion or None")
         _validate_previous_product_ids(previous_product_ids)
+        personal = _watch_policy(watch_preferences, snapshots)
+        observations = {snapshot.product.id: snapshot.timestamp for snapshot in snapshots}
         products = tuple(
             sorted(
                 (
                     snapshot.product
                     for snapshot in snapshots
-                    if _qualifies(snapshot.product, minimum_discount)
+                    if (personal.selected(snapshot.product, minimum_discount) if personal is not None else _qualifies(snapshot.product, minimum_discount))
                 ),
                 key=lambda product: (
                     -product.discount_percent.value,
@@ -91,7 +104,10 @@ class DailyDiscountDigestEngine:
                 *_price_value_sort_key(evidence[product.id]), -product.discount_percent.value,
                 product.name.casefold(), str(product.id.value),
             )))
-        new_product_ids = _new_product_ids(products, previous_product_ids)
+        if personal is not None:
+            products = tuple(sorted(products, key=lambda product: personal.priority(product, observations[product.id], timestamp)))
+        baseline_products = products if personal is None else tuple(p for p in products if _qualifies(p, minimum_discount))
+        new_product_ids = _new_product_ids(baseline_products, previous_product_ids)
         return DailyDiscountDigest(
             calendar_date=calendar_date,
             created_at=timestamp,
@@ -107,14 +123,17 @@ class DailyDiscountDigestEngine:
                         snapshot.product.id: snapshot.timestamp
                         for snapshot in snapshots
                     }
-                    if include_freshness else None
+                    if include_freshness or personal is not None else None
                 ),
                 timestamp,
                 evidence,
+                personal,
             ),
             promotion=promotion,
             new_product_ids=new_product_ids,
             price_assessments=() if evidence is None else tuple(evidence[p.id] for p in products),
+            watch_preferences=watch_preferences,
+            baseline_product_ids=None if personal is None else tuple(p.id for p in baseline_products),
         )
 
 
@@ -135,9 +154,10 @@ def _format_message(
     observations: dict[ProductId, datetime] | None,
     timestamp: datetime,
     assessments: dict[ProductId, PriceHistoryAssessment] | None = None,
+    personal: DigestWatchPolicy | None = None,
 ) -> str:
     header_lines = [
-        f"Parkside daily discount digest — {calendar_date.isoformat()}"
+        f"Parkside daily discount digest — {calendar_date.isoformat()}" if personal is None else f"Osobní přehled Parkside — {calendar_date.isoformat()}"
     ]
     if promotion is not None:
         header_lines.append(f"Lidl daily offer: {promotion.text}")
@@ -145,8 +165,8 @@ def _format_message(
             header_lines.append(f"Offer URL: {promotion.url}")
     header_lines.extend(
         (
-            f"Minimum discount: {minimum_discount.value}%",
-            f"Discounted products: {len(products)}",
+            f"Minimum discount: {minimum_discount.value}%" if personal is None else f"Slevový limit pro ostatní nabídky: {minimum_discount.value}%",
+            f"Discounted products: {len(products)}" if personal is None else f"Nabídky v osobním přehledu: {len(products)}",
         )
     )
     header = "\n".join(header_lines)
@@ -167,7 +187,11 @@ def _format_message(
             "\nChybějící dny nedoplňujeme; dostupné období neznamená souvislé sledování."
         )
     if not products:
-        return f"{header}\n\n{_EMPTY_MESSAGE}"
+        empty = _EMPTY_MESSAGE if personal is None else "Žádné dostupné nabídky neodpovídají osobnímu výběru."
+        return f"{header}\n\n{empty}"
+    if personal is not None:
+        sections = tuple(_format_section(title, items, observations, timestamp, assessments, personal) for title, items in _personal_groups(products, new_product_ids, personal, observations, timestamp))
+        return f"{header}\n\n" + "\n\n".join(sections)
     new_identifiers = set(new_product_ids)
     new_products = tuple(
         product for product in products if product.id in new_identifiers
@@ -197,9 +221,10 @@ def _format_section(
     observations: dict[ProductId, datetime] | None,
     timestamp: datetime,
     assessments: dict[ProductId, PriceHistoryAssessment] | None = None,
+    personal: DigestWatchPolicy | None = None,
 ) -> str:
     blocks = tuple(
-        _format_product(index, product, observations, timestamp, assessments)
+        _format_product(index, product, observations, timestamp, assessments, personal)
         for index, product in enumerate(products, start=1)
     )
     return f"{title} ({len(products)})\n\n" + "\n\n".join(blocks)
@@ -211,12 +236,14 @@ def _format_product(
     observations: dict[ProductId, datetime] | None,
     timestamp: datetime,
     assessments: dict[ProductId, PriceHistoryAssessment] | None = None,
+    personal: DigestWatchPolicy | None = None,
 ) -> str:
-    reference = cast(Money, product.original_price)
+    reference = product.original_price
+    reference_text = "neuvedena" if reference is None else f"{reference.amount} {reference.currency.value}"
     message = (
         f"{index}. {product.name}\n"
         f"Current price: {product.current_price.amount} {product.currency.value}\n"
-        f"Reference price: {reference.amount} {reference.currency.value}\n"
+        f"Reference price: {reference_text}\n"
         f"Discount: {product.discount_percent.value}%\n"
         f"URL: {product.url}"
     )
@@ -230,6 +257,8 @@ def _format_product(
         message += f"\n{label}\nPoslední úspěšná kontrola: {observed_at.isoformat()}"
     if assessments is not None:
         message += "\n" + _format_price_history(assessments[product.id])
+    if personal is not None:
+        message += "\n" + _watch_details(product, personal, observations[product.id], timestamp)
     return message
 
 

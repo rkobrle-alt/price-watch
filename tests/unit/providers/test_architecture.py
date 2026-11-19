@@ -32,6 +32,7 @@ def test_lidl_provider_respects_approved_boundaries() -> None:
     imports = {
         imported
         for path in provider_root.glob("*.py")
+        if path.name != "watch_preferences.py"
         for imported in _imports(path)
     }
     forbidden = (
@@ -44,3 +45,10 @@ def test_lidl_provider_respects_approved_boundaries() -> None:
     )
 
     assert not any(name.startswith(forbidden) for name in imports)
+
+    # ADR-0040 allows the pure URL resolver to consume Core observations.
+    resolver_imports = _imports(provider_root / "watch_preferences.py")
+    assert resolver_imports <= {
+        "re", "urllib.parse", "core.catalog", "core.domain", "core.state",
+        "core.watch", "infrastructure.providers.lidl.provider",
+    }

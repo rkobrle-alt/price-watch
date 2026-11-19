@@ -1,5 +1,5 @@
 name: Price Watch
-version: "1.5.0"
+version: "1.6.0"
 slug: price_watch
 description: Monitor Lidl Parkside prices and availability
 url: https://github.com/rkobrle-alt/price-watch/tree/main/homeassistant/price_watch
@@ -31,7 +31,34 @@ options:
   immediate_operational_notifications_enabled: false
   weekly_operational_summary_enabled: true
   weekly_operational_summary_time: "08:00"
+  favorite_product_urls: []
+  hidden_product_urls: []
+  target_prices: []
+  included_categories: []
+  watch_category_rules:
+    - name: zahrada
+      keywords: ["sekačka", "křovinořez", "řetězová pila", "na větve", "zavlažovací", "plotostřih"]
+    - name: akumulatory_nabijecky
+      keywords: ["akumulátor", "akumulátory", "nabíječka", "nabíječky"]
+    - name: prislusenstvi
+      keywords: ["sada bitů", "vrtáky", "vrtáků", "kotouč", "kotouče", "brusný papír", "příslušenství"]
+    - name: pracovni_odevy
+      keywords: ["pracovní kalhoty", "pracovní ponožky", "mikina", "pracovní rukavice", "pracovní bermudy", "pracovní kratasy"]
 schema:
+  favorite_product_urls:
+    - url
+  hidden_product_urls:
+    - url
+  target_prices:
+    - url: url
+      amount: str
+      currency: "list(CZK|EUR)?"
+  included_categories:
+    - str
+  watch_category_rules:
+    - name: str
+      keywords:
+        - str
   catalog_enabled: bool?
   catalog_batch_size: int(1,)?
   catalog_discovery_interval_cycles: int(1,)?

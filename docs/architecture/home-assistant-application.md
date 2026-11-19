@@ -188,3 +188,10 @@ database, publishes `sensor.price_watch_health` and
 `sensor.price_watch_daily_digest`, and uses the configured notify entity for
 one retryable sustained-incident message and one acknowledged-incident
 recovery message. The fixed threshold is three failed catalog cycles.
+
+ADR-0040 adds native Supervisor favorites, target prices, hidden URLs, category
+filters and editable name-derived category rules. HA validates these options
+without I/O and composes the pure Lidl resolver into catalog seeds and daily
+preparation. Supervisor owns option persistence; SQLite schema remains 9.
+Inactive defaults preserve prior output. Saving options and restarting applies
+the selection to the next eligible digest, preserving delivery reservations.

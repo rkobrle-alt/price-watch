@@ -43,6 +43,7 @@ def test_lidl_public_api_is_explicit() -> None:
         "LidlMarketingPromotionSource",
         "LidlParksideCatalog",
         "LidlParksideProvider",
+        "LidlWatchPreferenceSource",
     ]
     assert lidl_api.LidlMarketingPromotionSource is LidlMarketingPromotionSource
     assert lidl_api.LidlParksideCatalog is LidlParksideCatalog

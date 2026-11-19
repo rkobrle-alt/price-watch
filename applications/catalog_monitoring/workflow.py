@@ -30,6 +30,7 @@ class CatalogMonitoringWorkflow:
         batch_size: int,
         *,
         missing_page_store: MissingProductPageStore | None = None,
+        seed_references: tuple[ProductReference, ...] = (),
     ) -> None:
         """Validate and retain injected catalog monitoring dependencies."""
         _validate_dependency(catalog, ("discover",), "catalog")
@@ -65,6 +66,10 @@ class CatalogMonitoringWorkflow:
         self._provider_id = provider_id
         self._batch_size = batch_size
         self._missing_page_store = missing_page_store
+        _validate_reference_result(seed_references, "seed references")
+        if any(r.provider_id != provider_id for r in seed_references) or len({r.external_id for r in seed_references}) != len(seed_references):
+            raise ValueError("seed references must have unique identities for this provider")
+        self._seed_references = seed_references
 
     def run(
         self,
@@ -77,6 +82,14 @@ class CatalogMonitoringWorkflow:
         discovered_references: tuple[ProductReference, ...] = ()
         new_references: tuple[ProductReference, ...] = ()
         catalog_error: CatalogError | None = None
+
+        seeded = ()
+        if self._seed_references:
+            known = {entry.reference.external_id for entry in self._catalog_store.list_entries(self._provider_id)}
+            missing_seeds = tuple(r for r in self._seed_references if r.external_id not in known)
+            if missing_seeds:
+                seeded = self._catalog_store.record_discovery(missing_seeds, timestamp)
+                _validate_reference_result(seeded, "seed catalog store")
 
         if discover:
             try:
@@ -97,6 +110,7 @@ class CatalogMonitoringWorkflow:
                     "catalog store",
                 )
 
+        new_references = tuple({(r.provider_id, r.external_id): r for r in (*seeded, *new_references)}.values())
         selection_limit = self._batch_size
         blocked: set[str] = set()
         if self._missing_page_store is not None:

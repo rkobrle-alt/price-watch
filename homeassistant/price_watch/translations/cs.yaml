@@ -1,0 +1,28 @@
+configuration:
+  favorite_product_urls:
+    name: Oblíbené produkty
+    description: Odkazy na produkty Lidlu, které chcete v denním přehledu i bez slevy. Po uložení restartujte Price Watch.
+  hidden_product_urls:
+    name: Skryté nabídky
+    description: Tyto produkty se v osobním denním přehledu nezobrazí. Skrytí má přednost před oblíbením i cílovou cenou.
+  target_prices:
+    name: Cílové ceny
+    description: Hlídání ceny v rámci denního přehledu. Dosažení vyžaduje ověření v poslední hodině a shodnou měnu.
+    fields:
+      url:
+        name: Odkaz na produkt
+      amount:
+        name: Cílová částka
+      currency:
+        name: Měna (výchozí CZK)
+  included_categories:
+    name: Zobrazované kategorie
+    description: Prázdný seznam zobrazí všechny běžné slevy. Oblíbené a cílově hlídané produkty filtr překonají. Nezařazené produkty patří do ostatni.
+  watch_category_rules:
+    name: Pravidla kategorií podle názvu
+    description: Upravitelná klíčová slova a fráze. Nejde o oficiální kategorie obchodu; velikost písmen a diakritika se nerozlišují.
+    fields:
+      name:
+        name: Název kategorie (malá písmena bez diakritiky)
+      keywords:
+        name: Slova a fráze v názvu produktu

@@ -22,7 +22,7 @@ def test_app_manifest_has_exact_runtime_identity_and_defaults() -> None:
     manifest = (APP / "config.yaml").read_text(encoding="utf-8")
     project = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
 
-    assert VERSION == "1.5.0"
+    assert VERSION == "1.6.0"
     assert project["project"]["version"] == VERSION
     assert _manifest_version(manifest) == VERSION
 
@@ -42,6 +42,12 @@ def test_app_manifest_has_exact_runtime_identity_and_defaults() -> None:
         "catalog_batch_size: 25",
         "catalog_discovery_interval_cycles: 288",
         "product_urls: []",
+        "favorite_product_urls: []",
+        "hidden_product_urls: []",
+        "target_prices: []",
+        "included_categories: []",
+        "watch_category_rules:",
+        'currency: "list(CZK|EUR)?"',
         "notify_entity: notify.gmail_parkside_kobrle_fomei_com",
         "interval_seconds: 300",
         "daily_digest_enabled: true",

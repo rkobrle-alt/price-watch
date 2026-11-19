@@ -1,0 +1,28 @@
+configuration:
+  favorite_product_urls:
+    name: Favorite products
+    description: Lidl product links to include in the daily digest even without a discount. Restart Price Watch after saving.
+  hidden_product_urls:
+    name: Hidden offers
+    description: Exclude these products from the personal daily digest. Hiding overrides favorites and target prices.
+  target_prices:
+    name: Target prices
+    description: Watch prices in the existing daily digest. A target hit requires matching currency and a successful check within one hour.
+    fields:
+      url:
+        name: Product link
+      amount:
+        name: Target amount
+      currency:
+        name: Currency (CZK by default)
+  included_categories:
+    name: Included categories
+    description: An empty list allows all ordinary discounts. Explicit watches override this filter. Unmatched names belong to ostatni.
+  watch_category_rules:
+    name: Name-derived category rules
+    description: Editable complete words and phrases, ignoring case and accents. These are not official retailer categories.
+    fields:
+      name:
+        name: Category name (lowercase identifier)
+      keywords:
+        name: Product-name words and phrases

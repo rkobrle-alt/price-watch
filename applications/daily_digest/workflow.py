@@ -18,7 +18,8 @@ from core.notifications import (
 from core.provider import ProviderError
 from core.promotions import DailyPromotion, DailyPromotionSource, PromotionError
 from core.pricing import PriceHistoryAssessmentSource
-from core.state import LatestSnapshotReader
+from core.watch import DigestWatchPreferenceSource, DigestWatchPreferences
+from core.state import StateSnapshot, LatestSnapshotReader
 
 
 class DailyDigestWorkflow:
@@ -38,6 +39,7 @@ class DailyDigestWorkflow:
         product_refresher: DigestProductRefresher | None = None,
         delivery_store: DigestDeliveryStore | None = None,
         price_history_source: PriceHistoryAssessmentSource | None = None,
+        watch_preference_source: DigestWatchPreferenceSource | None = None,
     ) -> None:
         """Validate and retain explicit workflow collaborators."""
         _require_method(snapshot_reader, "latest_snapshots", "snapshot_reader")
@@ -83,6 +85,9 @@ class DailyDigestWorkflow:
         if price_history_source is not None:
             _require_method(price_history_source, "assess", "price_history_source")
         self._price_history_source = price_history_source
+        if watch_preference_source is not None:
+            _require_method(watch_preference_source, "resolve", "watch_preference_source")
+        self._watch_preference_source = watch_preference_source
         self._reliable = None
         if delivery_store is not None:
             for method in ("recover", "claim", "transition", "latest"):
@@ -111,7 +116,7 @@ class DailyDigestWorkflow:
             if self._baseline_store is not None:
                 self._baseline_store.stage(
                     calendar_date,
-                    tuple(product.id for product in digest.products),
+                    tuple(product.id for product in digest.products) if digest.baseline_product_ids is None else digest.baseline_product_ids,
                 )
             self._digest_channel.send(digest)
         except PromotionError:
@@ -140,10 +145,11 @@ class DailyDigestWorkflow:
         snapshots = self._snapshot_reader.latest_snapshots()
         if not isinstance(snapshots, tuple):
             raise TypeError("snapshot_reader must return a tuple")
+        watch_preferences = self._resolve_watch_preferences(snapshots)
         refresh_errors: tuple[ProviderError, ...] = ()
         if self._product_refresher is not None:
             products = DigestFreshnessPolicy().select(
-                snapshots, self._config.minimum_discount, timestamp,
+                snapshots, self._config.minimum_discount, timestamp, watch_preferences=watch_preferences,
             )
             refresh_errors = self._product_refresher.refresh(
                 products, timestamp,
@@ -157,6 +163,8 @@ class DailyDigestWorkflow:
             snapshots = DigestFreshnessPolicy().after_refresh(
                 self._snapshot_reader.latest_snapshots(), refresh_errors,
             )
+        watch_preferences = self._resolve_watch_preferences(snapshots)
+        watch_arguments = {} if watch_preferences is None else {"watch_preferences": watch_preferences}
         previous_product_ids = (
             None
             if self._baseline_store is None
@@ -173,7 +181,7 @@ class DailyDigestWorkflow:
             timestamp,
             promotion,
             previous_product_ids,
-            **freshness_arguments,
+            **freshness_arguments, **watch_arguments,
         )
         if not isinstance(digest, DailyDiscountDigest):
             raise TypeError("digest_engine must return a DailyDiscountDigest")
@@ -184,9 +192,17 @@ class DailyDigestWorkflow:
                 raise TypeError("price_history_source must return a tuple")
             digest = self._digest_engine.generate(
                 snapshots, self._config.minimum_discount, calendar_date, timestamp,
-                promotion, previous_product_ids, **freshness_arguments, price_assessments=assessments,
+                promotion, previous_product_ids, **freshness_arguments, **watch_arguments, price_assessments=assessments,
             )
         return digest, refresh_errors
+
+    def _resolve_watch_preferences(self, snapshots: tuple[StateSnapshot, ...]) -> DigestWatchPreferences | None:
+        if self._watch_preference_source is None:
+            return None
+        preferences = self._watch_preference_source.resolve(snapshots)
+        if not isinstance(preferences, DigestWatchPreferences):
+            raise TypeError("watch_preference_source must return DigestWatchPreferences")
+        return preferences
 
     def _current_promotion(self) -> DailyPromotion | None:
         if self._promotion_source is None:

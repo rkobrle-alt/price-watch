@@ -61,7 +61,7 @@ class _ReliableDigestDelivery:
             if missing:
                 digest = DigestPromotionPolicy().fallback_digest(digest)
             if self._baseline is not None:
-                self._baseline.stage(calendar_date, tuple(p.id for p in digest.products))
+                self._baseline.stage(calendar_date, tuple(p.id for p in digest.products) if digest.baseline_product_ids is None else digest.baseline_product_ids)
         except Exception:
             self._store.transition(calendar_date, Phase.PREPARING, Phase.READY, timestamp)
             raise

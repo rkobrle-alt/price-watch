@@ -15,11 +15,17 @@ from applications.homeassistant.migration import (
     HomeAssistantMigrationImport,
     _parse_migration_import,
 )
+from applications.homeassistant.watch_options import (
+    _PERSONAL_WATCH_KEYS,
+    _PersonalWatchOptions,
+    _parse_personal_watch,
+)
 from core.configuration import ConfigurationError
-from core.domain import Percentage
+from core.domain import Percentage, ValidationError
 
 _ALLOWED_KEYS = frozenset(
     {
+        *_PERSONAL_WATCH_KEYS,
         "product_urls",
         "notify_entity",
         "interval_seconds",
@@ -74,9 +80,15 @@ class HomeAssistantConfig:
     weekly_operational_summary_time: time | None = None
     retention_preview_days: int | None = None
     migration_import: HomeAssistantMigrationImport | None = None
+    personal_watch: _PersonalWatchOptions | None = None
 
     def __post_init__(self) -> None:
         """Validate mode selection and Home Assistant-specific invariants."""
+        if self.personal_watch is not None:
+            if not isinstance(self.personal_watch, _PersonalWatchOptions):
+                raise TypeError("personal_watch must be validated options or None")
+            if self.catalog is None:
+                raise ValueError("personal watch requires catalog monitoring")
         if self.application is not None and not isinstance(
             self.application,
             ApplicationConfig,
@@ -173,6 +185,7 @@ def parse_homeassistant_options(
                 document.get("notification_title", "Price Watch"),
             ),
             daily_digest=daily_digest,
+            personal_watch=_parse_personal_watch(document),
             individual_notifications_enabled=cast(
                 bool,
                 document.get("individual_notifications_enabled", True),
@@ -197,7 +210,7 @@ def parse_homeassistant_options(
                 cast(dict[str, object], document)
             ),
         )
-    except (TypeError, ValueError) as error:
+    except (TypeError, ValueError, InvalidOperation, ValidationError) as error:
         raise ConfigurationError(
             f"Home Assistant options are invalid: {error}"
         ) from error

@@ -445,3 +445,67 @@ from the new comparison with usual price. No new email is sent on upgrade.
 
 The calculation reads existing data only; SQLite remains schema 9. History
 analysis adds work only when preparing a new eligible digest, not every cycle.
+
+## Osobní hlídání v1.6
+
+V Home Assistantu otevřete **Nastavení → Aplikace → Price Watch → Konfigurace**.
+Vyplňte nové položky, uložte a restartujte Price Watch. Nastavení platí pro další
+denní přehled; neodesílá další e-mail v den, kdy už byl přehled odeslán.
+Výchozí seznamy oblíbených, cílů, skrytých produktů i filtrů jsou prázdné.
+
+Příklad YAML (ukázkové odkazy nahraďte skutečnými odkazy produktů z lidl.cz):
+
+```yaml
+favorite_product_urls:
+  - https://www.lidl.cz/p/parkside-vyrobek/p100123456
+target_prices:
+  - url: https://www.lidl.cz/p/parkside-vyrobek/p100123456
+    amount: "799.00"
+    currency: CZK
+hidden_product_urls:
+  - https://www.lidl.cz/p/parkside-jiny-vyrobek/p100987654
+included_categories:
+  - zahrada
+  - akumulatory_nabijecky
+```
+
+`amount` je nezáporné desetinné číslo v uvozovkách s tečkou. Měna může být CZK
+nebo EUR, při vynechání se použije CZK. Cíl je dosažen při ceně **nejvýše**
+nastavené částky, ve stejné měně a s úspěšným ověřením v poslední hodině.
+Starší údaj se označí jako neověřený; měny se nepřepočítávají.
+
+Skrytí má přednost před oblíbeným produktem i cílem. Dostupné oblíbené a hlídané
+produkty se zobrazí i bez slevy nebo nad cílovou cenou a obejdou filtr kategorií.
+Ostatní nabídky musí splnit běžný práh slevy a alespoň jednu vybranou kategorii.
+Prázdné `included_categories: []` propouští všechny kategorie. Nedostupné a
+potvrzeně chybějící produkty se do přehledu nezařazují. Skrytí ani odebrání
+oblíbeného produktu nemaže katalog nebo cenovou historii. Tato nastavení mění
+denní přehled; samostatně zapnuté individuální notifikace mají vlastní pravidla.
+
+Kategorie se určují podle slov v názvu, nikoli podle oficiální taxonomie Lidl.
+Výchozí názvy jsou `zahrada`, `akumulatory_nabijecky`, `prislusenstvi`,
+`pracovni_odevy`; vše bez shody spadá do `ostatni`. Velikost písmen a diakritika
+nerozhodují, hledají se celá slova nebo fráze. Produkt může mít více kategorií.
+Položkou `watch_category_rules` můžete výchozí pravidla nahradit vlastními:
+
+```yaml
+watch_category_rules:
+  - name: moje_naradi
+    keywords:
+      - vrtací kladivo
+      - sada bitů
+included_categories:
+  - moje_naradi
+  - ostatni
+```
+
+Názvy kategorií používejte malými písmeny bez diakritiky, s číslicemi a
+podtržítky. `ostatni` je vyhrazená zbytková kategorie. Neznámé filtry, duplicitní
+produkty ve stejném seznamu a neplatné cíle způsobí chybu konfigurace.
+Odkazy mohou obsahovat sledovací parametry; identitou je koncové číslo `p…`,
+takže změna názvu v URL sledování nepřeruší. Nový oblíbený nebo cílový odkaz
+se zařadí do běžného obnovování katalogu; platnost a značku ověří poskytovatel.
+
+Přehled řadí dosažené cíle, ostatní hlídané produkty, nové slevy a ostatní slevy.
+Uvnitř skupin zachovává hodnocení výhodnosti v1.5. Hlídání používá společný limit
+200 dodatečných kontrol před přehledem; neověřené cíle neoznačí jako dosažené.

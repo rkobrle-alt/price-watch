@@ -179,3 +179,11 @@ With equal page content, configured URLs and clock values, the provider
 returns equal Domain values and timing information.
 
 The only side effects are the injected clock reads and HTTP client calls.
+
+## Personal watch resolver (ADR-0040)
+
+`LidlWatchPreferenceSource` is a separate pure adapter in this package. It may
+consume `core.state.StateSnapshot` and `core.watch` contracts to resolve validated
+product links to provider-neutral identities. This extends the original package
+boundary only for this resolver; HTTP providers and parsers still cannot consume
+state, notifications or persistence. The resolver performs no I/O.

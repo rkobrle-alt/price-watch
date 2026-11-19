@@ -565,3 +565,10 @@ through schema 9; do not automatically resend uncertain handoffs.
 ADR-0039 / STORY-043: 30/90-day observed minima, daily-median usual price,
 coverage and conservative value ratings in the daily digest. Read existing
 history without migration or additional network requests.
+
+## v1.6.0 — Personal daily watch
+
+ADR-0040 / STORY-044: native HA favorites, exact target prices, editable category
+filters and hidden offers. Prioritize explicit watches within bounded refresh,
+retain observed-price evidence, discount novelty and single-message delivery.
+Empty preference lists preserve existing behavior; schema remains 9.

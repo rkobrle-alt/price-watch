@@ -234,3 +234,15 @@ All identifiers and timestamps enter through public method arguments or
 immutable input objects.
 
 Repeated generation with equal inputs produces an equal `Notification`.
+
+## Personal daily digest (ADR-0040)
+
+Daily digest generation additionally consumes Core state, pricing, promotions and
+watch contracts. `DigestWatchPolicy` owns favorites, target evidence, hiding and
+name-derived category selection. A `DigestWatchPreferenceSource` resolves user
+options before bounded refresh and again after it; Applications only orchestrate
+these calls. Price analysis receives the resulting selected observations.
+The daily model optionally carries resolved preferences and a discount-only
+baseline. Both legacy and reliable delivery stage that subset so an undiscounted
+favorite cannot suppress a later newly discounted item. Defaults preserve the
+legacy selection, message and baseline. No additional email schedule is created.

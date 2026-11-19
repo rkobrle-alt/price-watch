@@ -14,6 +14,7 @@ from applications.catalog_monitoring import (
 )
 from applications.daily_digest import DailyDigestConfig, DailyDigestWorkflow
 from applications.homeassistant.digest import compose_daily_digest
+from applications.homeassistant.watch_options import _PersonalWatchOptions
 from applications.homeassistant.digest_refresh import _LidlDigestRefresher
 from applications.homeassistant.configuration import HomeAssistantConfig
 from applications.operational_monitoring import (
@@ -286,6 +287,7 @@ def _compose_homeassistant(
             config.retention_preview_days,
             clock,
             notification_id_factory,
+            personal_watch=config.personal_watch,
         )
     application = cast(ApplicationConfig, config.application)
     provider = LidlParksideProvider(
@@ -335,6 +337,7 @@ def _compose_catalog(
     retention_preview_days: int | None,
     clock: Callable[[], datetime],
     notification_id_factory: Callable[[], UUID],
+    personal_watch: _PersonalWatchOptions | None = None,
 ) -> _HomeAssistantComposition:
     text_client = UrllibTextHttpClient(
         timeout_seconds=catalog_config.timeout_seconds,
@@ -344,6 +347,7 @@ def _compose_catalog(
         timeout_seconds=catalog_config.timeout_seconds,
         user_agent=f"PriceWatch/{VERSION}",
     )
+    watch_source = None if personal_watch is None else personal_watch.source()
     catalog = LidlParksideCatalog(binary_client)
     catalog_store = SqliteCatalogStore(catalog_config.database_file)
     state_store = SqliteStateStore(catalog_config.database_file)
@@ -374,6 +378,7 @@ def _compose_catalog(
         LidlParksideCatalog.id,
         catalog_config.batch_size,
         missing_page_store=page_store,
+        seed_references=() if watch_source is None else watch_source.seed_references(),
     )
     return _HomeAssistantComposition(
         workflow=None,
@@ -400,6 +405,7 @@ def _compose_catalog(
             LidlMarketingPromotionSource(text_client),
             catalog_config.timeout_seconds,
             _LidlDigestRefresher(batch_synchronizer),
+            watch_preference_source=watch_source,
         ),
         catalog_status=_CatalogStatusComposition(
             publisher=HomeAssistantCatalogStatusPublisher(

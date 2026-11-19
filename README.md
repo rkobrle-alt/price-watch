@@ -6,6 +6,10 @@ price and availability rules and delivers notifications.
 The platform follows Clean Architecture. Core remains independent of providers,
 persistence, notification delivery, CLI and Home Assistant.
 
+Home Assistant v1.6 supports favorites, target prices, category filters and hidden
+offers in the existing daily email. Configure these in the Price Watch App's
+Configuration tab, then save and restart. See the [personal-watch guide](homeassistant/price_watch/DOCS.md#osobní-hlídání-v16).
+
 ## Command-Line Usage
 
 Show the version:

@@ -10,6 +10,7 @@ from applications.daily_digest import (
 from core.notifications import DailyDiscountDigestEngine, DigestProductRefresher
 from core.promotions import DailyPromotionSource
 from core.state import LatestSnapshotReader
+from core.watch import DigestWatchPreferenceSource
 from infrastructure.homeassistant import HomeAssistantClient
 from infrastructure.notifications.homeassistant import (
     HomeAssistantDailyDiscountDigestChannel,
@@ -32,6 +33,7 @@ def compose_daily_digest(
     promotion_source: DailyPromotionSource | None = None,
     timeout_seconds: int = 5,
     product_refresher: DigestProductRefresher | None = None,
+    watch_preference_source: DigestWatchPreferenceSource | None = None,
 ) -> DailyDigestWorkflow | None:
     """Compose the optional catalog digest with shared durable state."""
     if config is None:
@@ -50,6 +52,7 @@ def compose_daily_digest(
         _prague_timezone(),
         promotion_source=promotion_source,
         product_refresher=product_refresher,
+        watch_preference_source=watch_preference_source,
         delivery_store=SqliteDigestDeliveryStore(database_file, timeout_seconds),
         price_history_source=SqlitePriceHistoryAssessmentSource(database_file, _prague_timezone(), timeout_seconds),
         baseline_store=SqliteDailyDigestBaselineStore(

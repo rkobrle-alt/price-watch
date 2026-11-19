@@ -1,3 +1,16 @@
+# 1.6.0
+
+- Configure favorites, exact target prices, hidden offers and category filters
+  through native App options, with Czech and English labels.
+- Include available explicit watches even without a reference discount. Hidden
+  offers override favorites; categories filter remaining qualifying discounts.
+- Show fresh same-currency target hits first, other watches next, then ordinary
+  discounts with existing history/value evidence. Mark stale targets unverified.
+- Seed unknown watched links once, preserve canonical catalog URLs and prioritize
+  stale watches within the existing 200-product preparation budget.
+- Preserve one-email delivery, discount novelty, history and schema 9. Empty
+  preference lists keep existing behavior. Save options and restart to apply.
+
 # 1.5.0
 
 - Add observed 30/90-day minima, daily-median usual price, history span and

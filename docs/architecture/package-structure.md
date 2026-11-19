@@ -36,6 +36,10 @@ core/
     scheduler/
 
     configuration/
+
+    pricing/
+
+    watch/
 ```
 
 The Core contains only business logic.
@@ -43,6 +47,11 @@ The Core contains only business logic.
 The Core must not perform I/O.
 
 The Core defines public abstractions (Protocols), domain models and business services.
+
+`core.watch` (ADR-0040) owns immutable personal choices and category rules,
+deterministic selection and target evidence, and the preference-source Protocol.
+The Lidl Infrastructure resolver maps validated URLs to observed identities.
+HA-only option parsing and composition remain in `applications.homeassistant`.
 
 Concrete implementations belong to Infrastructure.
 

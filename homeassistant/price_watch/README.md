@@ -6,6 +6,12 @@ notifications to a Home Assistant notify entity.
 Available products at least 20 percent below their approved reference price
 are included in the daily summary.
 
+Version 1.6 adds optional favorites, target prices, hidden offers and category
+filters in the App Configuration tab. Explicit available watches appear even
+without a reference discount; fresh same-currency target hits are listed first.
+Empty preferences preserve the existing summary. Save and restart to apply;
+see the personal-watch examples in `DOCS.md`.
+
 New installations send one daily discount digest at 08:00 Europe/Prague and
 disable separate per-product email. Existing installations retain their
 current behavior until `daily_digest_enabled` and
