@@ -49,7 +49,7 @@ def test_store_initializes_lazily_and_returns_initial_state(tmp_path: Path) -> N
     assert not path.exists()
     assert store.load() == OperationalState.initial()
     with open_database(path) as connection:
-        assert connection.execute("PRAGMA user_version").fetchone() == (8,)
+        assert connection.execute("PRAGMA user_version").fetchone() == (9,)
         assert connection.execute(
             "SELECT COUNT(*) FROM operational_state"
         ).fetchone() == (0,)
@@ -85,7 +85,7 @@ def test_version_four_schema_migrates_to_seven(tmp_path: Path) -> None:
 
     assert SqliteOperationalStateStore(path).load() == OperationalState.initial()
     with open_database(path) as connection:
-        assert connection.execute("PRAGMA user_version").fetchone() == (8,)
+        assert connection.execute("PRAGMA user_version").fetchone() == (9,)
         columns = tuple(
             row[1]
             for row in connection.execute(

@@ -1,6 +1,6 @@
 """Calendar-based daily digest application orchestration."""
 
-from datetime import datetime, tzinfo
+from datetime import date, datetime, tzinfo
 from typing import cast
 
 from applications.daily_digest.configuration import DailyDigestConfig
@@ -13,6 +13,7 @@ from core.notifications import (
     DailyDiscountDigestEngine,
     DigestFreshnessPolicy,
     DigestProductRefresher,
+    DigestDeliveryStore,
 )
 from core.provider import ProviderError
 from core.promotions import DailyPromotion, DailyPromotionSource, PromotionError
@@ -34,6 +35,7 @@ class DailyDigestWorkflow:
         promotion_source: DailyPromotionSource | None = None,
         baseline_store: DailyDigestBaselineStore | None = None,
         product_refresher: DigestProductRefresher | None = None,
+        delivery_store: DigestDeliveryStore | None = None,
     ) -> None:
         """Validate and retain explicit workflow collaborators."""
         _require_method(snapshot_reader, "latest_snapshots", "snapshot_reader")
@@ -76,10 +78,21 @@ class DailyDigestWorkflow:
             DailyDigestBaselineStore | None,
             baseline_store,
         )
+        self._reliable = None
+        if delivery_store is not None:
+            for method in ("recover", "claim", "transition", "latest"):
+                _require_method(delivery_store, method, "delivery_store")
+            from applications.daily_digest.reliable_delivery import _ReliableDigestDelivery
+            self._reliable = _ReliableDigestDelivery(
+                delivery_store, self._prepare, self._current_promotion,
+                self._digest_channel, self._baseline_store, config, timezone,
+            )
 
     def run(self, timestamp: datetime) -> DailyDigestResult:
         """Evaluate local eligibility and deliver one restart-safe digest."""
         _validate_timestamp(timestamp)
+        if self._reliable is not None:
+            return self._reliable.run(timestamp)
         local_timestamp = timestamp.astimezone(self._timezone)
         calendar_date = local_timestamp.date()
         local_time = local_timestamp.timetz().replace(tzinfo=None)
@@ -89,46 +102,7 @@ class DailyDigestWorkflow:
             return DailyDigestResult(calendar_date, DailyDigestStatus.ALREADY_SENT)
         try:
             promotion = self._current_promotion()
-            snapshots = self._snapshot_reader.latest_snapshots()
-            if not isinstance(snapshots, tuple):
-                raise TypeError("snapshot_reader must return a tuple")
-            refresh_errors: tuple[ProviderError, ...] = ()
-            if self._product_refresher is not None:
-                products = DigestFreshnessPolicy().select(
-                    snapshots, self._config.minimum_discount, timestamp,
-                )
-                refresh_errors = self._product_refresher.refresh(
-                    products, timestamp,
-                )
-                if not isinstance(refresh_errors, tuple) or not all(
-                    isinstance(error, ProviderError) for error in refresh_errors
-                ):
-                    raise TypeError(
-                        "product_refresher must return a tuple of ProviderError"
-                    )
-                snapshots = DigestFreshnessPolicy().after_refresh(
-                    self._snapshot_reader.latest_snapshots(), refresh_errors,
-                )
-            previous_product_ids = (
-                None
-                if self._baseline_store is None
-                else self._baseline_store.previous_product_ids(calendar_date)
-            )
-            freshness_arguments = (
-                {"include_freshness": True}
-                if self._product_refresher is not None else {}
-            )
-            digest = self._digest_engine.generate(
-                snapshots,
-                self._config.minimum_discount,
-                calendar_date,
-                timestamp,
-                promotion,
-                previous_product_ids,
-                **freshness_arguments,
-            )
-            if not isinstance(digest, DailyDiscountDigest):
-                raise TypeError("digest_engine must return a DailyDiscountDigest")
+            digest, refresh_errors = self._prepare(timestamp, calendar_date, promotion)
             if self._baseline_store is not None:
                 self._baseline_store.stage(
                     calendar_date,
@@ -153,6 +127,52 @@ class DailyDigestWorkflow:
             digest.promotion is not None,
             refresh_errors,
         )
+
+    def _prepare(
+        self, timestamp: datetime, calendar_date: date, promotion: DailyPromotion | None,
+    ) -> tuple[DailyDiscountDigest, tuple[ProviderError, ...]]:
+        """Prepare current offers without staging or dispatching a notification."""
+        snapshots = self._snapshot_reader.latest_snapshots()
+        if not isinstance(snapshots, tuple):
+            raise TypeError("snapshot_reader must return a tuple")
+        refresh_errors: tuple[ProviderError, ...] = ()
+        if self._product_refresher is not None:
+            products = DigestFreshnessPolicy().select(
+                snapshots, self._config.minimum_discount, timestamp,
+            )
+            refresh_errors = self._product_refresher.refresh(
+                products, timestamp,
+            )
+            if not isinstance(refresh_errors, tuple) or not all(
+                isinstance(error, ProviderError) for error in refresh_errors
+            ):
+                raise TypeError(
+                    "product_refresher must return a tuple of ProviderError"
+                )
+            snapshots = DigestFreshnessPolicy().after_refresh(
+                self._snapshot_reader.latest_snapshots(), refresh_errors,
+            )
+        previous_product_ids = (
+            None
+            if self._baseline_store is None
+            else self._baseline_store.previous_product_ids(calendar_date)
+        )
+        freshness_arguments = (
+            {"include_freshness": True}
+            if self._product_refresher is not None else {}
+        )
+        digest = self._digest_engine.generate(
+            snapshots,
+            self._config.minimum_discount,
+            calendar_date,
+            timestamp,
+            promotion,
+            previous_product_ids,
+            **freshness_arguments,
+        )
+        if not isinstance(digest, DailyDiscountDigest):
+            raise TypeError("digest_engine must return a DailyDiscountDigest")
+        return digest, refresh_errors
 
     def _current_promotion(self) -> DailyPromotion | None:
         if self._promotion_source is None:

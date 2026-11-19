@@ -6,8 +6,9 @@ from typing import cast
 from core.notifications import (
     DailyDiscountDigest,
     NotificationError,
+    NotificationDeliveryRejectedError,
 )
-from infrastructure.homeassistant import HomeAssistantClient, HomeAssistantError
+from infrastructure.homeassistant import HomeAssistantClient, HomeAssistantError, HomeAssistantRequestRejectedError
 
 _ENTITY_PATTERN = re.compile(r"notify\.[a-z0-9_]+")
 
@@ -50,6 +51,8 @@ class HomeAssistantDailyDiscountDigestChannel:
                     "message": digest.message,
                 },
             )
+        except HomeAssistantRequestRejectedError as error:
+            raise NotificationDeliveryRejectedError("Home Assistant rejected the daily digest request before execution") from error
         except HomeAssistantError as error:
             raise NotificationError(
                 "Home Assistant daily digest delivery failed"

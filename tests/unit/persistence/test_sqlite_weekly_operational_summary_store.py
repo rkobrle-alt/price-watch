@@ -87,7 +87,7 @@ def test_schema_six_migrates_and_preserves_existing_rows(tmp_path: Path) -> None
         connection.commit()
     assert store.load(MONDAY) is None
     with open_database(path) as connection:
-        assert connection.execute("PRAGMA user_version").fetchone() == (8,)
+        assert connection.execute("PRAGMA user_version").fetchone() == (9,)
         columns = tuple(
             row[1]
             for row in connection.execute(

@@ -1,3 +1,15 @@
+# 1.4.0
+
+- Persist daily preparation, handoff, HA acknowledgement and uncertainty.
+- Resume interrupted preparation after restart; retry only definite pre-execution
+  rejection. Ambiguous handoff cannot automatically resend a duplicate email.
+- Send with an explicit Czech notice after 30 minutes of banner failure, on the
+  next eligible cycle. Preserve normal absent-banner and one-email behavior.
+- Expose sensor.price_watch_digest_delivery and explicit delivery health causes.
+- Exclude unconfirmed candidate baselines from new/returning-offer comparisons.
+- Migrate SQLite 8 to 9, preserving history and legacy reservations. Keep a
+  pre-update App backup; older binaries cannot read schema 9.
+
 # 1.3.0
 
 - Prepare the daily email before retention diagnostics; refresh the optional

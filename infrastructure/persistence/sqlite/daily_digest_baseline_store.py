@@ -35,7 +35,10 @@ class SqliteDailyDigestBaselineStore:
         try:
             row = connection.execute(
                 "SELECT product_ids FROM daily_digest_baselines "
-                "WHERE calendar_date < ? ORDER BY calendar_date DESC LIMIT 1",
+                "WHERE calendar_date < ? AND NOT EXISTS (SELECT 1 FROM digest_delivery_attempts d "
+                "WHERE d.calendar_date=daily_digest_baselines.calendar_date "
+                "AND d.phase NOT IN ('accepted', 'legacy_reserved')) "
+                "ORDER BY calendar_date DESC LIMIT 1",
                 (calendar_date.isoformat(),),
             ).fetchone()
             return None if row is None else _decode_product_ids(row[0])

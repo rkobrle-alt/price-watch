@@ -240,3 +240,28 @@ catalog sensor as missing_product_count, while raw provider errors stay visible.
 The update migrates SQLite schema 7 to 8. Preserve a pre-update App backup for
 rollback; 1.2.x binaries cannot read the new schema. Existing options, history
 and daily reservations are retained. See ADR-0037 and STORY-041.
+
+## Reliable daily delivery in 1.4.0
+
+The managed HA catalog composition persists preparation, external handoff,
+HA-service acceptance and uncertainty separately. An interrupted preparation
+can resume after App restart. Known pre-execution rejection retries on a later
+normal cycle. A timeout, interrupted response or crash during handoff remains
+uncertain and is never automatically resent. Acceptance means the HA service
+responded successfully; it does not prove receipt in the destination mailbox.
+
+After 30 minutes from the configured local delivery time, the next eligible
+cycle can send the digest despite an operational banner failure. A Czech notice
+replaces the unverified marketing information. A normally absent banner needs
+no notice. No old promotion is reused and no second email follows banner recovery.
+
+sensor.price_watch_digest_delivery exposes ready, preparing, sending, accepted,
+uncertain or legacy_reserved, the date, evidence timestamp and promotion flags.
+legacy_reserved preserves older date reservations without asserting delivery.
+Uncertain candidate baselines are excluded from new/returning-offer comparisons.
+New delivery_retry and delivery_uncertain outcomes have explicit health causes.
+
+The App remains one serialized writer. SQLite schema 8 migrates transactionally
+to 9; preserve a pre-update App backup for rollback. History, known missing URLs
+and older reservations remain intact. Legacy Python callers without a delivery
+store retain their existing behavior. See ADR-0038 and STORY-042.

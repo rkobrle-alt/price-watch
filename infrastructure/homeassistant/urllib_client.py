@@ -8,8 +8,9 @@ from typing import BinaryIO
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlsplit
 from urllib.request import Request, urlopen
+from socket import gaierror
 
-from infrastructure.homeassistant.exceptions import HomeAssistantError
+from infrastructure.homeassistant.exceptions import HomeAssistantError, HomeAssistantRequestRejectedError
 
 _IDENTIFIER_PATTERN = re.compile(r"[a-z0-9_]+")
 _SENSOR_ENTITY_PATTERN = re.compile(r"sensor\.[a-z0-9_]+")
@@ -98,13 +99,19 @@ class UrllibHomeAssistantClient:
             },
             method="POST",
         )
+        request_opened = False
         try:
-            with self._opener(
+            response_context = self._opener(
                 request,
                 timeout=self._timeout_seconds,
-            ) as response:
+            )
+            request_opened = True
+            with response_context as response:
                 response.read()
         except (HTTPError, URLError, OSError) as error:
+            reason = error.reason if isinstance(error, URLError) else error
+            if not request_opened and ((isinstance(error, HTTPError) and error.code in {401, 403}) or isinstance(reason, (ConnectionRefusedError, gaierror))):
+                raise HomeAssistantRequestRejectedError(failure_message) from error
             raise HomeAssistantError(failure_message) from error
 
 

@@ -16,6 +16,7 @@ class NotificationPublicApiTests(TestCase):
 
     def test_core_notifications_exports(self) -> None:
         expected = {
+            "DigestDeliveryPhase", "DigestDeliveryRecord", "DigestDeliveryStore", "DigestPromotionPolicy", "NotificationDeliveryRejectedError",
             "DigestFreshnessPolicy",
             "DigestProductRefresher",
             "NotificationChannel",

@@ -57,6 +57,7 @@ def test_homeassistant_public_apis_are_explicit_and_documented() -> None:
         "HomeAssistantClient",
         "HomeAssistantCatalogStatusPublisher",
         "HomeAssistantError",
+        "HomeAssistantRequestRejectedError",
         "HomeAssistantMaintenanceStatusPublisher",
         "HomeAssistantOperationalNotificationChannel",
         "HomeAssistantOperationalStatusPublisher",
@@ -138,7 +139,7 @@ def test_homeassistant_dependency_direction_and_secret_boundary() -> None:
 
     assert not any(name.startswith("applications") for name in imports)
     core_imports = {name for name in imports if name.startswith("core")}
-    assert core_imports == {"core.domain", "core.operations", "core.state"}
+    assert core_imports == {"core.domain", "core.notifications", "core.operations", "core.state"}
     assert not any(name.startswith("applications") for name in notification_imports)
     for package in (homeassistant, notification):
         for module in package.rglob("*.py"):

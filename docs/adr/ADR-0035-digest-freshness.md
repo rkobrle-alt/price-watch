@@ -82,3 +82,9 @@ guarantee stock or price at purchase time.
 ADR-0037 adds a 24-hour preview cadence, persistent missing-page retry evidence
 and partial-failure health semantics. It supersedes the corresponding earlier
 behavior while retaining explicit maintenance safeguards and observation history.
+
+## v1.4.0 amendment
+
+ADR-0038 supersedes the managed composition's preparation-crash boundary and
+banner-blocking policy with durable handoff evidence and a 30-minute fallback
+window. Legacy call forms without a delivery store retain this ADR's behavior.

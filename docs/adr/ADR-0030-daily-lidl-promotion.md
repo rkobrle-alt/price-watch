@@ -154,3 +154,9 @@ eligible digest attempt for a date, plus retries after operational failure.
 The integration depends on a documented HTML selector and will visibly retry
 rather than silently send incomplete content if that structure becomes
 malformed.
+
+## v1.4.0 amendment
+
+ADR-0038 supersedes the managed composition's preparation-crash boundary and
+banner-blocking policy with durable handoff evidence and a 30-minute fallback
+window. Legacy call forms without a delivery store retain this ADR's behavior.

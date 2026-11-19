@@ -30,6 +30,7 @@ from core.notifications import (
     NotificationEngine,
     NotificationReservationStore,
     PriceDropReservationPolicy,
+    DigestDeliveryStore,
 )
 from core.operations import OperationalHealthEngine, WeeklyOperationalSummaryEngine
 from core.rules import EvaluatorRegistry, PriceReferencePolicy, RuleEngine
@@ -61,6 +62,7 @@ from infrastructure.persistence.json import JsonStateStore
 from infrastructure.persistence.sqlite import (
     SqliteCatalogStore,
     SqliteMissingProductPageStore,
+    SqliteDigestDeliveryStore,
     SqliteNotificationReservationStore,
     SqliteObservationRetentionManager,
     SqliteOperationalStateStore,
@@ -166,6 +168,7 @@ class _OperationalComposition:
     publisher: HomeAssistantOperationalStatusPublisher
     weekly_workflow: WeeklyOperationalSummaryWorkflow | None = None
     weekly_delivery_time: time | None = None
+    delivery_store: DigestDeliveryStore | None = None
 
     def __post_init__(self) -> None:
         if (self.weekly_workflow is None) != (self.weekly_delivery_time is None):
@@ -435,6 +438,7 @@ def _compose_catalog(
             )
         ),
         operational=_OperationalComposition(
+            delivery_store=None if daily_digest_config is None else SqliteDigestDeliveryStore(catalog_config.database_file),
             workflow=OperationalMonitoringWorkflow(
                 SqliteOperationalStateStore(catalog_config.database_file),
                 OperationalHealthEngine(),

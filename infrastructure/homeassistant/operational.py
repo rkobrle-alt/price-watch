@@ -11,6 +11,7 @@ from core.operations import (
     OperationalState,
     WeeklyOperationalReport,
 )
+from core.notifications import DigestDeliveryRecord
 from infrastructure.homeassistant.client import (
     HomeAssistantClient,
     HomeAssistantStateClient,
@@ -53,15 +54,32 @@ class HomeAssistantOperationalStatusPublisher:
         self,
         state: OperationalState,
         current_digest_status: str,
+        delivery_record: DigestDeliveryRecord | None = None,
     ) -> None:
         """Publish digest diagnostics before the authoritative health state."""
         if not isinstance(state, OperationalState):
             raise TypeError("state must be an OperationalState")
+        if delivery_record is not None and not isinstance(delivery_record, DigestDeliveryRecord):
+            raise TypeError("delivery_record must be a DigestDeliveryRecord or None")
         digest_status = _validate_text(
             current_digest_status,
             "current_digest_status",
         )
         delivery = state.last_digest_delivery
+        if delivery_record is not None:
+            self._client.set_state(
+                "sensor.price_watch_digest_delivery", delivery_record.phase.value,
+                {
+                    "friendly_name": "Price Watch Digest Delivery",
+                    "calendar_date": delivery_record.calendar_date.isoformat(),
+                    "evidence_at": delivery_record.updated_at.isoformat(),
+                    "product_count": delivery_record.product_count,
+                    "promotion_included": delivery_record.promotion_included,
+                    "promotion_missing": delivery_record.promotion_missing,
+                    "acknowledgement_scope": "home_assistant_service",
+                    "version": self._version,
+                },
+            )
         self._client.set_state(
             self._digest_entity_id,
             "never" if delivery is None else delivery.calendar_date.isoformat(),

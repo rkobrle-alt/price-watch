@@ -10,7 +10,7 @@ from applications.homeassistant.composition import _HomeAssistantComposition
 from applications.operational_monitoring import OperationalMonitoringResult
 from applications.synchronization import SynchronizationResult
 from core.domain import Product
-from core.notifications import DailyDiscountDigestEngine
+from core.notifications import DailyDiscountDigestEngine, DigestDeliveryPhase
 from core.operations import (
     DailyDigestDelivery,
     OperationalCheck,
@@ -314,6 +314,7 @@ def _run_operational_monitoring(
         products,
         digest_result,
     )
+    delivery_record = None if context.delivery_store is None else context.delivery_store.latest()
     delivery = (
         DailyDigestDelivery(
             digest_result.calendar_date,
@@ -325,6 +326,11 @@ def _run_operational_monitoring(
         and digest_result.status is DailyDigestStatus.SENT
         else None
     )
+    if delivery is None and delivery_record is not None and delivery_record.phase is DigestDeliveryPhase.ACCEPTED:
+        delivery = DailyDigestDelivery(
+            delivery_record.calendar_date, delivery_record.updated_at,
+            delivery_record.product_count, delivery_record.promotion_included,
+        )
     result = context.workflow.run(
         OperationalCheck(timestamp, failure_kind),
         delivery,
@@ -360,7 +366,10 @@ def _run_operational_monitoring(
         "disabled" if digest_result is None else digest_result.status.value
     )
     try:
-        context.publisher.publish(result.state, digest_status)
+        if context.delivery_store is None:
+            context.publisher.publish(result.state, digest_status)
+        else:
+            context.publisher.publish(result.state, digest_status, delivery_record)
     except HomeAssistantError as error:
         _write(stderr, f"operational status error: {error}\n")
         return result, False
@@ -374,6 +383,10 @@ def _operational_failure_kind(
 ) -> OperationalFailureKind | None:
     if result.catalog_error is not None:
         return OperationalFailureKind.CATALOG_UNAVAILABLE
+    if digest_result is not None and digest_result.status is DailyDigestStatus.DELIVERY_UNCERTAIN:
+        return OperationalFailureKind.DIGEST_DELIVERY_UNCERTAIN
+    if digest_result is not None and digest_result.status is DailyDigestStatus.DELIVERY_RETRY:
+        return OperationalFailureKind.DIGEST_DELIVERY_REJECTED
     synchronization = result.synchronization
     errors = () if synchronization is None else synchronization.provider_errors
     missing_count = sum(isinstance(error, ProviderProductNotFoundError) for error in errors)

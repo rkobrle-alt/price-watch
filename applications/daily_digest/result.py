@@ -14,6 +14,8 @@ class DailyDigestStatus(str, Enum):
     ALREADY_SENT = "already_sent"
     PROMOTION_UNAVAILABLE = "promotion_unavailable"
     SENT = "sent"
+    DELIVERY_RETRY = "delivery_retry"
+    DELIVERY_UNCERTAIN = "delivery_uncertain"
 
 
 @dataclass(frozen=True, slots=True)
@@ -25,6 +27,7 @@ class DailyDigestResult:
     product_count: int = 0
     promotion_included: bool = False
     refresh_errors: tuple[ProviderError, ...] = ()
+    promotion_missing: bool = False
 
     def __post_init__(self) -> None:
         """Validate result values and count semantics."""
@@ -54,3 +57,7 @@ class DailyDigestResult:
             raise TypeError("promotion_included must be a bool")
         if self.status is not DailyDigestStatus.SENT and self.promotion_included:
             raise ValueError("non-delivery result cannot include a promotion")
+        if not isinstance(self.promotion_missing, bool):
+            raise TypeError("promotion_missing must be a bool")
+        if self.promotion_missing and (self.status is not DailyDigestStatus.SENT or self.promotion_included):
+            raise ValueError("missing promotion requires a sent digest without a promotion")

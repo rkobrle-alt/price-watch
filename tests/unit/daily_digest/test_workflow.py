@@ -506,6 +506,8 @@ def test_public_api_is_explicit_documented_typed_and_immutable() -> None:
         DailyDigestStatus.ALREADY_SENT,
         DailyDigestStatus.PROMOTION_UNAVAILABLE,
         DailyDigestStatus.SENT,
+        DailyDigestStatus.DELIVERY_RETRY,
+        DailyDigestStatus.DELIVERY_UNCERTAIN,
     )
     config = DailyDigestConfig(time(8), Percentage(Decimal("20")))
     with pytest.raises(AttributeError):

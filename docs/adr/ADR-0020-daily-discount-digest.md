@@ -316,3 +316,9 @@ Costs:
 - SQLite schema gains another durable reservation table;
 - the accepted reservation-before-delivery crash window remains;
 - a configured digest delivery failure stops the current App run.
+
+## v1.4.0 amendment
+
+ADR-0038 supersedes the managed composition's preparation-crash boundary and
+banner-blocking policy with durable handoff evidence and a 30-minute fallback
+window. Legacy call forms without a delivery store retain this ADR's behavior.

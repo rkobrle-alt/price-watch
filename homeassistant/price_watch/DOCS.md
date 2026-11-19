@@ -402,3 +402,29 @@ the v0.27 migration throughout this acceptance period. They remain the
 supported recovery artifacts. Do not replace `/data/catalog.sqlite3` while the
 App is running and do not uninstall the retained local App until acceptance is
 complete.
+
+## Daily delivery evidence (1.4.0)
+
+The sensor `sensor.price_watch_digest_delivery` reports the latest date:
+
+- `ready`: a safe retry can prepare the digest on a normal eligible cycle;
+- `preparing`: products and message are being prepared;
+- `sending`: the handoff marker is durable; external outcome is not yet confirmed;
+- `accepted`: Home Assistant's service call returned successfully;
+- `uncertain`: the external outcome cannot be proven, so no automatic resend;
+- `legacy_reserved`: an older reservation is retained without reclassifying it.
+
+`promotion_missing` records use of the banner-failure notice. After 30 minutes
+from the configured time, a later normal cycle sends despite an operational
+banner failure. A normally absent banner is not an error.
+
+For `uncertain`, verify external delivery evidence before authorizing a resend.
+A successful HA response does not guarantee mailbox arrival. Do not delete
+reservations to force delivery: this can produce duplicate messages and distort
+new-offer baselines. Existing notification settings are unchanged.
+
+Preserve a pre-update App backup before schema 8→9 migration. Rollback requires
+restoring the App's pre-update data; an old binary cannot read schema 9.
+
+The evidence timestamp uses the supplied monitoring-cycle start time. It is
+not an exact per-response timestamp or a destination-mailbox delivery time.

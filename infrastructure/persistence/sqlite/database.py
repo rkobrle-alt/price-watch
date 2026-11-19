@@ -3,7 +3,7 @@
 import sqlite3
 from pathlib import Path
 
-SCHEMA_VERSION = 8
+SCHEMA_VERSION = 9
 
 _CATALOG_COLUMNS_V1 = (
     "sequence",
@@ -32,7 +32,8 @@ _VERSION_FOUR_TABLES = _VERSION_THREE_TABLES | {"daily_digest_reservations"}
 _VERSION_FIVE_TABLES = _VERSION_FOUR_TABLES | {"operational_state"}
 _VERSION_SIX_TABLES = _VERSION_FIVE_TABLES | {"daily_digest_baselines"}
 _VERSION_SEVEN_TABLES = _VERSION_SIX_TABLES | {"weekly_operational_summaries"}
-_REQUIRED_TABLES = _VERSION_SEVEN_TABLES | {"missing_product_pages"}
+_VERSION_EIGHT_TABLES = _VERSION_SEVEN_TABLES | {"missing_product_pages"}
+_REQUIRED_TABLES = _VERSION_EIGHT_TABLES | {"digest_delivery_attempts"}
 
 
 class SqlitePersistenceError(Exception):
@@ -227,7 +228,7 @@ class SqliteDatabase:
                 True,
                 True,
             )
-        elif version not in {7, SCHEMA_VERSION}:
+        elif version not in {7, 8, SCHEMA_VERSION}:
             raise SqlitePersistenceError(
                 f"unsupported SQLite schema version: {version}"
             )
@@ -239,10 +240,21 @@ class SqliteDatabase:
                 with connection:
                     connection.execute("BEGIN IMMEDIATE")
                     _create_missing_page_table(connection)
-                    _validate_schema(connection)
+                    _validate_missing_page_schema(connection)
                     connection.execute("PRAGMA user_version = 8")
             except sqlite3.Error as error:
                 raise SqlitePersistenceError("failed to migrate missing-page schema") from error
+        if 1 <= version <= 8:
+            _validate_schema_columns(connection, _CATALOG_COLUMNS, _VERSION_EIGHT_TABLES, True, True, True, True, True)
+            _validate_missing_page_schema(connection)
+            try:
+                with connection:
+                    connection.execute("BEGIN IMMEDIATE")
+                    _create_digest_delivery_table(connection)
+                    _validate_digest_delivery_schema(connection)
+                    connection.execute("PRAGMA user_version = 9")
+            except sqlite3.Error as error:
+                raise SqlitePersistenceError("failed to migrate digest delivery schema") from error
         _validate_schema(connection)
 
 
@@ -305,6 +317,7 @@ def _create_schema(connection: sqlite3.Connection) -> None:
             _create_digest_baseline_table(connection)
             _create_weekly_operational_table(connection)
             _create_missing_page_table(connection)
+            _create_digest_delivery_table(connection)
             connection.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
     except sqlite3.Error as error:
         raise SqlitePersistenceError("failed to initialize SQLite schema") from error
@@ -439,11 +452,35 @@ def _create_missing_page_table(connection: sqlite3.Connection) -> None:
     )
 
 
-def _validate_schema(connection: sqlite3.Connection) -> None:
+def _validate_missing_page_schema(connection: sqlite3.Connection) -> None:
     if _table_columns(connection, "missing_product_pages") != (
         "provider_id", "url", "failures", "checked_at", "retry_at"
     ):
         raise SqlitePersistenceError("missing_product_pages schema is incompatible")
+
+
+def _create_digest_delivery_table(connection: sqlite3.Connection) -> None:
+    connection.execute(
+        "CREATE TABLE IF NOT EXISTS digest_delivery_attempts (calendar_date TEXT PRIMARY KEY, "
+        "phase TEXT NOT NULL, updated_at TEXT NOT NULL, product_count INTEGER NOT NULL, "
+        "promotion_included INTEGER NOT NULL, promotion_missing INTEGER NOT NULL)"
+    )
+    connection.execute(
+        "INSERT OR IGNORE INTO digest_delivery_attempts "
+        "SELECT calendar_date, 'legacy_reserved', reserved_at, 0, 0, 0 FROM daily_digest_reservations"
+    )
+
+
+def _validate_digest_delivery_schema(connection: sqlite3.Connection) -> None:
+    if _table_columns(connection, "digest_delivery_attempts") != (
+        "calendar_date", "phase", "updated_at", "product_count", "promotion_included", "promotion_missing"
+    ):
+        raise SqlitePersistenceError("digest_delivery_attempts schema is incompatible")
+
+
+def _validate_schema(connection: sqlite3.Connection) -> None:
+    _validate_missing_page_schema(connection)
+    _validate_digest_delivery_schema(connection)
     _validate_schema_columns(
         connection,
         _CATALOG_COLUMNS,

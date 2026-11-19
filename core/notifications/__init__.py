@@ -1,6 +1,7 @@
 """Public API for deterministic notification generation and delivery contracts."""
 
 from core.notifications.channel import NotificationChannel
+from core.notifications.digest_delivery import DigestDeliveryPhase, DigestDeliveryRecord, DigestDeliveryStore, DigestPromotionPolicy, NotificationDeliveryRejectedError
 from core.notifications.daily_digest import (
     DailyDiscountDigest,
     DailyDiscountDigestEngine,
@@ -25,6 +26,11 @@ from core.notifications.reservation import (
 from core.notifications.reservation_policy import PriceDropReservationPolicy
 
 __all__ = [
+    "DigestDeliveryPhase",
+    "DigestDeliveryRecord",
+    "DigestDeliveryStore",
+    "DigestPromotionPolicy",
+    "NotificationDeliveryRejectedError",
     "DigestFreshnessPolicy",
     "DigestProductRefresher",
     "DailyDigestReservationError",

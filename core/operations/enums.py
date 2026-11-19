@@ -20,6 +20,8 @@ class OperationalFailureKind(str, Enum):
     PROVIDER_FAILURE = "provider_failure"
     PARTIAL_PROVIDER_FAILURE = "partial_provider_failure"
     PROMOTION_UNAVAILABLE = "promotion_unavailable"
+    DIGEST_DELIVERY_REJECTED = "digest_delivery_rejected"
+    DIGEST_DELIVERY_UNCERTAIN = "digest_delivery_uncertain"
 
 
 class OperationalNotificationKind(str, Enum):

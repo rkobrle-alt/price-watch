@@ -553,3 +553,9 @@ while retaining historical observations and retrying on later preparations.
 ADR-0037 / STORY-041: daily retention-preview cadence, durable missing-page
 retry scheduling and partial-versus-full failure diagnostics. Schema 8 retains
 history and notification reservations.
+
+## v1.4.0 — Reliable daily delivery
+
+ADR-0038 / STORY-042: recover preparation, distinguish HA acceptance from
+uncertainty, and bound banner delays. Preserve history and legacy reservations
+through schema 9; do not automatically resend uncertain handoffs.

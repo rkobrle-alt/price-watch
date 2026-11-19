@@ -17,6 +17,7 @@ from infrastructure.persistence.sqlite import (
     SqliteDailyDigestBaselineStore,
     SqliteDailyDigestReservationStore,
     SqliteStateStore,
+    SqliteDigestDeliveryStore,
 )
 
 
@@ -48,6 +49,7 @@ def compose_daily_digest(
         _prague_timezone(),
         promotion_source=promotion_source,
         product_refresher=product_refresher,
+        delivery_store=SqliteDigestDeliveryStore(database_file, timeout_seconds),
         baseline_store=SqliteDailyDigestBaselineStore(
             database_file,
             timeout_seconds,

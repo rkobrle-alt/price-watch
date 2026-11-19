@@ -8,7 +8,7 @@ from infrastructure.homeassistant.catalog_status import (
     CatalogStatus,
     HomeAssistantCatalogStatusPublisher,
 )
-from infrastructure.homeassistant.exceptions import HomeAssistantError
+from infrastructure.homeassistant.exceptions import HomeAssistantError, HomeAssistantRequestRejectedError
 from infrastructure.homeassistant.maintenance_status import (
     HomeAssistantMaintenanceStatusPublisher,
     MaintenanceStatus,
@@ -30,6 +30,7 @@ __all__ = [
     "HomeAssistantClient",
     "HomeAssistantCatalogStatusPublisher",
     "HomeAssistantError",
+    "HomeAssistantRequestRejectedError",
     "HomeAssistantMaintenanceStatusPublisher",
     "HomeAssistantOperationalNotificationChannel",
     "HomeAssistantOperationalStatusPublisher",
