@@ -1,3 +1,14 @@
+# 1.5.0
+
+- Add observed 30/90-day minima, daily-median usual price, history span and
+  observed-day coverage to each qualifying daily email offer.
+- Label excellent/good/lower/normal/above-usual value, short history and stale
+  evidence. Show the latest decrease detected between daily closing prices.
+- Rank evidence-backed value within existing new/other sections; preserve
+  qualifying products, reference-discount rules and delivery reservations.
+- Stream existing indexed SQLite history without new network calls or schema
+  migration. Schema remains 9. No option changes are required.
+
 # 1.4.0
 
 - Persist daily preparation, handoff, HA acknowledgement and uncertainty.

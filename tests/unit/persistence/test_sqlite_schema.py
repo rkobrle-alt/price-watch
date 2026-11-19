@@ -36,6 +36,7 @@ _NOW = datetime(2026, 8, 3, 10, 0, tzinfo=timezone.utc)
 
 def test_sqlite_public_api_is_explicit_documented_and_typed() -> None:
     assert sqlite_api.__all__ == [
+        "SqlitePriceHistoryAssessmentSource",
         "SqliteDigestDeliveryStore",
         "SqliteCatalogStore",
         "SqliteMissingProductPageStore",

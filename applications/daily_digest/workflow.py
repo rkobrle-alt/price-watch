@@ -17,6 +17,7 @@ from core.notifications import (
 )
 from core.provider import ProviderError
 from core.promotions import DailyPromotion, DailyPromotionSource, PromotionError
+from core.pricing import PriceHistoryAssessmentSource
 from core.state import LatestSnapshotReader
 
 
@@ -36,6 +37,7 @@ class DailyDigestWorkflow:
         baseline_store: DailyDigestBaselineStore | None = None,
         product_refresher: DigestProductRefresher | None = None,
         delivery_store: DigestDeliveryStore | None = None,
+        price_history_source: PriceHistoryAssessmentSource | None = None,
     ) -> None:
         """Validate and retain explicit workflow collaborators."""
         _require_method(snapshot_reader, "latest_snapshots", "snapshot_reader")
@@ -78,6 +80,9 @@ class DailyDigestWorkflow:
             DailyDigestBaselineStore | None,
             baseline_store,
         )
+        if price_history_source is not None:
+            _require_method(price_history_source, "assess", "price_history_source")
+        self._price_history_source = price_history_source
         self._reliable = None
         if delivery_store is not None:
             for method in ("recover", "claim", "transition", "latest"):
@@ -172,6 +177,15 @@ class DailyDigestWorkflow:
         )
         if not isinstance(digest, DailyDiscountDigest):
             raise TypeError("digest_engine must return a DailyDiscountDigest")
+        if self._price_history_source is not None:
+            by_id = {snapshot.product.id: snapshot for snapshot in snapshots}
+            assessments = self._price_history_source.assess(tuple(by_id[p.id] for p in digest.products), timestamp)
+            if not isinstance(assessments, tuple):
+                raise TypeError("price_history_source must return a tuple")
+            digest = self._digest_engine.generate(
+                snapshots, self._config.minimum_discount, calendar_date, timestamp,
+                promotion, previous_product_ids, **freshness_arguments, price_assessments=assessments,
+            )
         return digest, refresh_errors
 
     def _current_promotion(self) -> DailyPromotion | None:

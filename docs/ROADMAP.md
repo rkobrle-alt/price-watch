@@ -559,3 +559,9 @@ history and notification reservations.
 ADR-0038 / STORY-042: recover preparation, distinguish HA acceptance from
 uncertainty, and bound banner delays. Preserve history and legacy reservations
 through schema 9; do not automatically resend uncertain handoffs.
+
+## v1.5.0 — Observed price history and value
+
+ADR-0039 / STORY-043: 30/90-day observed minima, daily-median usual price,
+coverage and conservative value ratings in the daily digest. Read existing
+history without migration or additional network requests.

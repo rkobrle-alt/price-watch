@@ -9,6 +9,7 @@ from applications.daily_digest import (
 )
 from core.notifications import DailyDiscountDigestEngine, DigestProductRefresher
 from core.promotions import DailyPromotionSource
+from core.state import LatestSnapshotReader
 from infrastructure.homeassistant import HomeAssistantClient
 from infrastructure.notifications.homeassistant import (
     HomeAssistantDailyDiscountDigestChannel,
@@ -16,14 +17,14 @@ from infrastructure.notifications.homeassistant import (
 from infrastructure.persistence.sqlite import (
     SqliteDailyDigestBaselineStore,
     SqliteDailyDigestReservationStore,
-    SqliteStateStore,
     SqliteDigestDeliveryStore,
+    SqlitePriceHistoryAssessmentSource,
 )
 
 
 def compose_daily_digest(
     config: DailyDigestConfig | None,
-    state_store: SqliteStateStore,
+    state_store: LatestSnapshotReader,
     database_file: Path,
     client: HomeAssistantClient,
     notify_entity: str,
@@ -50,6 +51,7 @@ def compose_daily_digest(
         promotion_source=promotion_source,
         product_refresher=product_refresher,
         delivery_store=SqliteDigestDeliveryStore(database_file, timeout_seconds),
+        price_history_source=SqlitePriceHistoryAssessmentSource(database_file, _prague_timezone(), timeout_seconds),
         baseline_store=SqliteDailyDigestBaselineStore(
             database_file,
             timeout_seconds,

@@ -265,3 +265,27 @@ The App remains one serialized writer. SQLite schema 8 migrates transactionally
 to 9; preserve a pre-update App backup for rollback. History, known missing URLs
 and older reservations remain intact. Legacy Python callers without a delivery
 store retain their existing behavior. See ADR-0038 and STORY-042.
+
+## Observed price history in 1.5.0
+
+Managed daily emails include each qualifying product's observed 30/90-day
+minimum, usual price, retained history span, observed-day coverage and latest
+price drop detected between daily closing prices. Windows use Prague calendar
+dates including today; future, unavailable and other-currency prices are excluded.
+The usual price is the exact median of previous daily closing prices within the
+90-day window, excluding today. Missing days are not filled. Repeated requests
+on one day do not outweigh other days; intraday lows still count toward minima.
+
+Value ratings require a current available observation no older than one hour
+and at least seven previous observed days. Excellent means at least 10% below
+usual and at the observed 90-day minimum; good means at least 10% below usual.
+Smaller reductions, normal and above-usual prices are labelled separately.
+Insufficient or stale evidence is explicitly identified. A recorded minimum
+is not proof about unobserved prices or other shops. Retention gaps remain visible.
+
+Within the existing new/other sections, supported value ratings rank first.
+Qualification, reference discounts, novelty membership and one-email delivery
+remain unchanged. Legacy Python calls without history input retain their output.
+Only final digest products are analyzed using streamed, indexed SQLite reads;
+no new network request, schema migration, option or automatic resend is introduced.
+See ADR-0039 and STORY-043.

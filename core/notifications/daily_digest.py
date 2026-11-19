@@ -1,12 +1,14 @@
 """Deterministic daily discount digest generation."""
 
 from dataclasses import dataclass
-from datetime import date, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from typing import cast
 
 from core.domain import Money, Percentage, Product, ProductId
 from core.promotions import DailyPromotion
 from core.state import StateSnapshot
+from core.pricing import PriceHistoryAssessment
+from core.notifications.price_history_format import _format_price_history, _price_value_sort_key
 
 _EMPTY_MESSAGE = "No currently available products match the discount threshold."
 
@@ -21,6 +23,7 @@ class DailyDiscountDigest:
     message: str
     promotion: DailyPromotion | None = None
     new_product_ids: tuple[ProductId, ...] = ()
+    price_assessments: tuple[PriceHistoryAssessment, ...] = ()
 
     def __post_init__(self) -> None:
         """Validate digest values without performing side effects."""
@@ -37,6 +40,7 @@ class DailyDiscountDigest:
         ):
             raise TypeError("promotion must be a DailyPromotion or None")
         _validate_new_product_ids(self.new_product_ids, self.products)
+        _validate_assessments(self.price_assessments, self.products, self.created_at)
 
 
 class DailyDiscountDigestEngine:
@@ -51,6 +55,7 @@ class DailyDiscountDigestEngine:
         promotion: DailyPromotion | None = None,
         previous_product_ids: tuple[ProductId, ...] | None = None,
         include_freshness: bool = False,
+        price_assessments: tuple[PriceHistoryAssessment, ...] | None = None,
     ) -> DailyDiscountDigest:
         """Generate a digest from validated latest product snapshots."""
         _validate_snapshots(snapshots)
@@ -77,6 +82,15 @@ class DailyDiscountDigestEngine:
                 ),
             )
         )
+        evidence = None
+        if price_assessments is not None:
+            observations = {snapshot.product.id: snapshot.timestamp for snapshot in snapshots}
+            _validate_assessments(price_assessments, products, timestamp, observations, required=True)
+            evidence = {assessment.product_id: assessment for assessment in price_assessments}
+            products = tuple(sorted(products, key=lambda product: (
+                *_price_value_sort_key(evidence[product.id]), -product.discount_percent.value,
+                product.name.casefold(), str(product.id.value),
+            )))
         new_product_ids = _new_product_ids(products, previous_product_ids)
         return DailyDiscountDigest(
             calendar_date=calendar_date,
@@ -96,9 +110,11 @@ class DailyDiscountDigestEngine:
                     if include_freshness else None
                 ),
                 timestamp,
+                evidence,
             ),
             promotion=promotion,
             new_product_ids=new_product_ids,
+            price_assessments=() if evidence is None else tuple(evidence[p.id] for p in products),
         )
 
 
@@ -118,6 +134,7 @@ def _format_message(
     new_product_ids: tuple[ProductId, ...],
     observations: dict[ProductId, datetime] | None,
     timestamp: datetime,
+    assessments: dict[ProductId, PriceHistoryAssessment] | None = None,
 ) -> str:
     header_lines = [
         f"Parkside daily discount digest — {calendar_date.isoformat()}"
@@ -144,6 +161,11 @@ def _format_message(
             "\nČasy kontrol označují začátek úspěšného pozorovacího cyklu."
             "\nCeny a dostupnost se mohou po kontrole změnit."
         )
+    if assessments is not None:
+        header += (
+            "\nCenová historie: minima z dostupných pozorování; obvyklá cena je medián předchozích denních cen v 90denním okně."
+            "\nChybějící dny nedoplňujeme; dostupné období neznamená souvislé sledování."
+        )
     if not products:
         return f"{header}\n\n{_EMPTY_MESSAGE}"
     new_identifiers = set(new_product_ids)
@@ -157,13 +179,13 @@ def _format_message(
     if new_products:
         sections.append(
             _format_section(
-                "🆕 NOVĚ VE SLEVĚ", new_products, observations, timestamp,
+                "🆕 NOVĚ VE SLEVĚ", new_products, observations, timestamp, assessments,
             )
         )
     if other_products:
         sections.append(
             _format_section(
-                "OSTATNÍ AKTUÁLNÍ SLEVY", other_products, observations, timestamp,
+                "OSTATNÍ AKTUÁLNÍ SLEVY", other_products, observations, timestamp, assessments,
             )
         )
     return f"{header}\n\n" + "\n\n".join(sections)
@@ -174,9 +196,10 @@ def _format_section(
     products: tuple[Product, ...],
     observations: dict[ProductId, datetime] | None,
     timestamp: datetime,
+    assessments: dict[ProductId, PriceHistoryAssessment] | None = None,
 ) -> str:
     blocks = tuple(
-        _format_product(index, product, observations, timestamp)
+        _format_product(index, product, observations, timestamp, assessments)
         for index, product in enumerate(products, start=1)
     )
     return f"{title} ({len(products)})\n\n" + "\n\n".join(blocks)
@@ -187,6 +210,7 @@ def _format_product(
     product: Product,
     observations: dict[ProductId, datetime] | None,
     timestamp: datetime,
+    assessments: dict[ProductId, PriceHistoryAssessment] | None = None,
 ) -> str:
     reference = cast(Money, product.original_price)
     message = (
@@ -204,6 +228,8 @@ def _format_product(
             else "NEOVĚŘENO V POSLEDNÍ HODINĚ — cena a dostupnost mohou být zastaralé"
         )
         message += f"\n{label}\nPoslední úspěšná kontrola: {observed_at.isoformat()}"
+    if assessments is not None:
+        message += "\n" + _format_price_history(assessments[product.id])
     return message
 
 
@@ -277,3 +303,23 @@ def _validate_timestamp(value: object, name: str) -> None:
         raise TypeError(f"{name} must be a datetime")
     if value.tzinfo is None or value.utcoffset() is None:
         raise ValueError(f"{name} must be timezone-aware")
+
+
+def _validate_assessments(
+    value: object, products: tuple[Product, ...], timestamp: datetime,
+    observations: dict[ProductId, datetime] | None = None, *, required: bool = False,
+) -> None:
+    if not isinstance(value, tuple) or not all(isinstance(a, PriceHistoryAssessment) for a in value):
+        raise TypeError("price_assessments must be a tuple of PriceHistoryAssessment")
+    identifiers = {a.product_id for a in value}
+    if len(identifiers) != len(value):
+        raise ValueError("price assessments must identify unique products")
+    if required or value:
+        if identifiers != {p.id for p in products}:
+            raise ValueError("price assessments must match all digest products")
+        by_id = {p.id: p for p in products}
+        for assessment in value:
+            if assessment.current_price != by_id[assessment.product_id].current_price or assessment.assessed_at.astimezone(UTC) != timestamp.astimezone(UTC):
+                raise ValueError("price assessment does not match current price or assessment time")
+            if observations is not None and assessment.observed_at.astimezone(UTC) != observations[assessment.product_id].astimezone(UTC):
+                raise ValueError("price assessment must match the current observation time")

@@ -88,3 +88,9 @@ behavior while retaining explicit maintenance safeguards and observation history
 ADR-0038 supersedes the managed composition's preparation-crash boundary and
 banner-blocking policy with durable handoff evidence and a 30-minute fallback
 window. Legacy call forms without a delivery store retain this ADR's behavior.
+
+## v1.5.0 amendment
+
+ADR-0039 adds optional observed-price evidence and value ordering after
+freshness preparation. Qualification, novelty membership and delivery remain
+unchanged; legacy calls without evidence retain existing output.

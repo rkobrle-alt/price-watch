@@ -1,6 +1,7 @@
 """Public API for durable SQLite catalog and observation persistence."""
 
 from infrastructure.persistence.sqlite.catalog_store import SqliteCatalogStore
+from infrastructure.persistence.sqlite.price_history_source import SqlitePriceHistoryAssessmentSource
 from infrastructure.persistence.sqlite.digest_delivery_store import SqliteDigestDeliveryStore
 from infrastructure.persistence.sqlite.missing_page_store import SqliteMissingProductPageStore
 from infrastructure.persistence.sqlite.daily_digest_reservation_store import (
@@ -27,6 +28,7 @@ from infrastructure.persistence.sqlite.weekly_operational_summary_store import (
 )
 
 __all__ = [
+    "SqlitePriceHistoryAssessmentSource",
     "SqliteDigestDeliveryStore",
     "SqliteCatalogStore",
     "SqliteMissingProductPageStore",

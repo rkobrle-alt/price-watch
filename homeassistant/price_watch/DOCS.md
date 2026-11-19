@@ -428,3 +428,20 @@ restoring the App's pre-update data; an old binary cannot read schema 9.
 
 The evidence timestamp uses the supplied monitoring-cycle start time. It is
 not an exact per-response timestamp or a destination-mailbox delivery time.
+
+## Price history and value (1.5.0)
+
+The daily email shows recorded minima for 30/90 local calendar days, the median
+of previous daily closing prices, observed-day counts, retained history span and
+last decrease between observed daily closing prices. These describe available,
+same-currency observations retained by Price Watch. They do not guarantee the
+shop's true minimum between checks; gaps and removed history are not reconstructed.
+
+A supported rating needs at least seven previous observed days and a current
+observation within one hour. At least 10% below usual is good; also matching the
+observed 90-day minimum is excellent. Short history and stale prices carry clear
+labels. Existing reference discounts remain qualification criteria and can differ
+from the new comparison with usual price. No new email is sent on upgrade.
+
+The calculation reads existing data only; SQLite remains schema 9. History
+analysis adds work only when preparing a new eligible digest, not every cycle.
