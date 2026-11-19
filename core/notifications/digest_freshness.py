@@ -5,7 +5,7 @@ from typing import Protocol
 
 from core.domain import Percentage, Product
 from core.notifications.daily_digest import DailyDiscountDigestEngine
-from core.provider import ProviderError
+from core.provider import ProviderError, ProviderProductNotFoundError
 from core.state import StateSnapshot
 
 
@@ -21,6 +21,29 @@ class DigestProductRefresher(Protocol):
 
 class DigestFreshnessPolicy:
     """Prioritize stale qualifying observations within a bounded budget."""
+
+    def after_refresh(
+        self,
+        snapshots: tuple[StateSnapshot, ...],
+        errors: tuple[ProviderError, ...],
+    ) -> tuple[StateSnapshot, ...]:
+        """Exclude exact URLs confirmed missing during this preparation only."""
+        if not isinstance(snapshots, tuple) or not all(
+            isinstance(snapshot, StateSnapshot) for snapshot in snapshots
+        ):
+            raise TypeError("snapshots must be a tuple of StateSnapshot")
+        if not isinstance(errors, tuple) or not all(
+            isinstance(error, ProviderError) for error in errors
+        ):
+            raise TypeError("errors must be a tuple of ProviderError")
+        missing_urls = {
+            error.url for error in errors
+            if isinstance(error, ProviderProductNotFoundError)
+        }
+        return tuple(
+            snapshot for snapshot in snapshots
+            if snapshot.product.url not in missing_urls
+        )
 
     def select(
         self,

@@ -106,7 +106,9 @@ class DailyDigestWorkflow:
                     raise TypeError(
                         "product_refresher must return a tuple of ProviderError"
                     )
-                snapshots = self._snapshot_reader.latest_snapshots()
+                snapshots = DigestFreshnessPolicy().after_refresh(
+                    self._snapshot_reader.latest_snapshots(), refresh_errors,
+                )
             previous_product_ids = (
                 None
                 if self._baseline_store is None

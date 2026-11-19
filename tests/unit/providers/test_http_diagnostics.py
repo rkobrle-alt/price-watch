@@ -10,8 +10,8 @@ from urllib.error import HTTPError, URLError
 
 import pytest
 
-from core.provider import ProviderTransportError
-from infrastructure.http import HttpClientError, UrllibTextHttpClient
+from core.provider import ProviderTransportError, ProviderProductNotFoundError
+from infrastructure.http import HttpClientError, HttpResourceNotFoundError, UrllibTextHttpClient
 from infrastructure.providers.lidl import LidlParksideProvider
 
 _URL = "https://www.lidl.cz/p/parkside-test/p100324645"
@@ -54,7 +54,7 @@ def test_failure_details_preserve_cause_without_retry_or_sensitive_text(
     assert calls == 1
 
 
-@pytest.mark.parametrize("status", [404, 429, 503])
+@pytest.mark.parametrize("status", [403, 404, 410, 429, 500, 503])
 def test_http_status_reaches_provider_without_response_data_or_retry(
     monkeypatch: pytest.MonkeyPatch, status: int,
 ) -> None:
@@ -73,6 +73,7 @@ def test_http_status_reaches_provider_without_response_data_or_retry(
         with pytest.raises(HttpClientError) as captured:
             UrllibTextHttpClient().get(_URL)
         assert captured.value.__cause__ is failure
+        assert isinstance(captured.value, HttpResourceNotFoundError) == (status in {404, 410})
         assert str(captured.value) == f"failed to retrieve {_URL} [HTTP {status}]"
         assert calls == 1
         result = LidlParksideProvider(
@@ -81,6 +82,9 @@ def test_http_status_reaches_provider_without_response_data_or_retry(
         assert result.products == ()
         assert len(result.errors) == 1
         assert isinstance(result.errors[0], ProviderTransportError)
+        assert isinstance(result.errors[0], ProviderProductNotFoundError) == (status in {404, 410})
+        if isinstance(result.errors[0], ProviderProductNotFoundError):
+            assert result.errors[0].url == _URL
         assert str(result.errors[0]) == f"{_URL}: failed to retrieve {_URL} [HTTP {status}]"
         assert _SECRET not in str(result.errors[0])
         assert calls == 2

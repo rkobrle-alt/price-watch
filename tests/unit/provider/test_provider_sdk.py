@@ -232,6 +232,7 @@ class ProviderPublicApiTests(TestCase):
             "ProviderMetadata",
             "ProviderRegistry",
             "ProviderTransportError",
+            "ProviderProductNotFoundError",
         }
 
         self.assertEqual(set(provider_api.__all__), expected)

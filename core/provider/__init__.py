@@ -5,6 +5,7 @@ from core.provider.error import (
     ProviderDataError,
     ProviderError,
     ProviderTransportError,
+    ProviderProductNotFoundError,
 )
 from core.provider.metadata import ProviderMetadata
 from core.provider.registry import ProviderRegistry
@@ -18,4 +19,5 @@ __all__ = [
     "ProviderMetadata",
     "ProviderRegistry",
     "ProviderTransportError",
+    "ProviderProductNotFoundError",
 ]

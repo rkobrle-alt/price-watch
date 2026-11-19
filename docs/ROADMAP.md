@@ -543,3 +543,7 @@ Refresh qualifying stale offers before the daily email within an explicit
 200-product budget. Report successful observation times and unverified offers,
 preserve one-message delivery and integrate refresh failures into diagnostics.
 See ADR-0035 and STORY-034.
+# Maintenance: missing product pages
+
+ADR-0036 / STORY-040: exclude confirmed missing pages from the current digest
+while retaining historical observations and retrying on later preparations.

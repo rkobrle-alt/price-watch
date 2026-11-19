@@ -153,6 +153,14 @@ warning; successfully rechecked sold-out or no-longer-discounted offers are
 excluded. Extra checks can delay delivery. No new options or database migration
 are required; the existing reservation-before-delivery crash boundary remains.
 
+Version 1.2.6 excludes exact product URLs confirmed missing (HTTP 404/410)
+during preparation from that day's digest and comparison baseline. Transient
+failures still retain stale-data warnings. Historical observations are neither
+deleted nor relabeled as fresh; later preparations retry missing pages so
+returning products can appear again. Ordinary provider diagnostics continue to
+report missing pages. This does not change an already sent digest or claim to
+restore products removed from Lidl's shop.
+
 Catalog installations publish `sensor.price_watch_storage` with the exact
 retained observation count, observed-product count, first and last inserted
 observation times and allocated SQLite bytes. These diagnostics are read-only;

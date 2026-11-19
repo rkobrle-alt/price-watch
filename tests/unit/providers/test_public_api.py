@@ -9,6 +9,7 @@ from core.provider import FetchResult
 from infrastructure.http import (
     BinaryHttpClient,
     HttpClientError,
+    HttpResourceNotFoundError,
     TextHttpClient,
     UrllibBinaryHttpClient,
     UrllibTextHttpClient,
@@ -24,12 +25,14 @@ def test_http_public_api_is_explicit() -> None:
     assert http_api.__all__ == [
         "BinaryHttpClient",
         "HttpClientError",
+        "HttpResourceNotFoundError",
         "TextHttpClient",
         "UrllibBinaryHttpClient",
         "UrllibTextHttpClient",
     ]
     assert http_api.BinaryHttpClient is BinaryHttpClient
     assert http_api.HttpClientError is HttpClientError
+    assert http_api.HttpResourceNotFoundError is HttpResourceNotFoundError
     assert http_api.TextHttpClient is TextHttpClient
     assert http_api.UrllibBinaryHttpClient is UrllibBinaryHttpClient
     assert http_api.UrllibTextHttpClient is UrllibTextHttpClient

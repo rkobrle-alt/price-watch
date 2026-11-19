@@ -6,6 +6,9 @@ Accepted for v1.2.0 under the approved daily-summary freshness milestone.
 
 ## Decision
 
+ADR-0036 narrows stale-offer retention for product URLs confirmed missing
+during the current preparation; transient failures still retain warnings.
+
 Before generating a newly reserved Home Assistant daily digest, refresh up to
 200 currently qualifying products whose latest successful snapshot is older
 than one hour. Future-dated snapshots also require verification. Oldest

@@ -1,3 +1,7 @@
+# 1.2.6
+
+- Exclude product URLs confirmed missing (HTTP 404/410) during daily preparation from that digest. Keep transient-failure warnings, historical observations, retries and daily duplicate protection.
+
 # 1.2.5
 
 - Accept the official Lidl Plus coupon host in daily promotion banners, fixing blocked daily digests. Keep strict link validation and duplicate prevention.

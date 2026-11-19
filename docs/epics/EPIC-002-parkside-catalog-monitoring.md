@@ -148,3 +148,7 @@ boundary between durable reservation and Home Assistant delivery.
   error summary remains durable and restart-safe
 - the daily digest prioritizes bounded rechecks of stale qualifying offers and
   honestly reports successful observation times and unverified prices (ADR-0035)
+# Maintenance extension
+
+STORY-040 and ADR-0036 distinguish missing product pages from transient
+refresh failures in the daily digest without retiring catalog history.

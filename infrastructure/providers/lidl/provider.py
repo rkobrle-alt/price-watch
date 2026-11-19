@@ -13,8 +13,9 @@ from core.provider import (
     ProviderDataError,
     ProviderError,
     ProviderTransportError,
+    ProviderProductNotFoundError,
 )
-from infrastructure.http import HttpClientError, TextHttpClient
+from infrastructure.http import HttpClientError, HttpResourceNotFoundError, TextHttpClient
 from infrastructure.providers.lidl.parser import (
     LidlProductDataError,
     parse_lidl_product,
@@ -57,6 +58,8 @@ class LidlParksideProvider:
             try:
                 html = self._http_client.get(url)
                 products.append(parse_lidl_product(html, url, self.id, started_at))
+            except HttpResourceNotFoundError as error:
+                errors.append(ProviderProductNotFoundError(f"{url}: {error}", url))
             except HttpClientError as error:
                 errors.append(ProviderTransportError(f"{url}: {error}"))
             except LidlProductDataError as error:

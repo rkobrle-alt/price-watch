@@ -7,7 +7,7 @@ from ssl import SSLError
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
-from infrastructure.http.exceptions import HttpClientError
+from infrastructure.http.exceptions import HttpClientError, HttpResourceNotFoundError
 
 _MAX_READ_ATTEMPTS = 2
 
@@ -62,6 +62,10 @@ class UrllibTextHttpClient:
                     f"failed to retrieve {url} [HTTP protocol error]"
                 ) from error
             except (HTTPError, URLError, OSError, UnicodeError) as error:
+                if isinstance(error, HTTPError) and error.code in {404, 410}:
+                    raise HttpResourceNotFoundError(
+                        f"failed to retrieve {url} [HTTP {error.code}]"
+                    ) from error
                 raise HttpClientError(
                     f"failed to retrieve {url} [{_failure_detail(error)}]"
                 ) from error

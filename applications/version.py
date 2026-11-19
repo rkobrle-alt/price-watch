@@ -1,3 +1,3 @@
 """Canonical Price Watch application version."""
 
-VERSION: str = "1.2.5"
+VERSION: str = "1.2.6"
