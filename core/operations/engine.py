@@ -5,6 +5,7 @@ from datetime import datetime
 
 from core.operations.enums import (
     OperationalHealthStatus,
+    OperationalFailureKind,
     OperationalNotificationKind,
 )
 from core.operations.model import (
@@ -146,12 +147,15 @@ def _failed_state(
     check: OperationalCheck,
     failure_threshold: int,
 ) -> OperationalState:
-    continuing = previous.status is not OperationalHealthStatus.OK
+    partial = check.failure_kind is OperationalFailureKind.PARTIAL_PROVIDER_FAILURE
+    continuing = previous.status is not OperationalHealthStatus.OK and (
+        (previous.failure_kind is OperationalFailureKind.PARTIAL_PROVIDER_FAILURE) == partial
+    )
     count = previous.consecutive_failure_cycles + 1 if continuing else 1
     started_at = previous.incident_started_at if continuing else check.timestamp
     status = (
         OperationalHealthStatus.FAILED
-        if count >= failure_threshold
+        if count >= failure_threshold and not partial
         else OperationalHealthStatus.DEGRADED
     )
     incident_notified = previous.incident_notified if continuing else False

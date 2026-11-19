@@ -76,3 +76,9 @@ Dropping every stale observation would hide potentially useful offers and
 distort the new-discount baseline. Bounded targeted refresh plus truthful
 warnings provides useful evidence even during upstream outages. It cannot
 guarantee stock or price at purchase time.
+
+## v1.3.0 amendment
+
+ADR-0037 adds a 24-hour preview cadence, persistent missing-page retry evidence
+and partial-failure health semantics. It supersedes the corresponding earlier
+behavior while retaining explicit maintenance safeguards and observation history.

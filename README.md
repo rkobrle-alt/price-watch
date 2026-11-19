@@ -221,3 +221,22 @@ python -m pytest
 
 Architecture decisions, implementation stories and the roadmap are located in
 `docs/`.
+
+## Monitoring efficiency in 1.3.0
+
+Daily email preparation precedes optional retention diagnostics. The preview
+runs at process startup and then at most every 24 hours; its timestamp reports
+its actual age. Explicit maintenance actions still replan and require a backup
+before deletion. No automatic history deletion is introduced.
+
+Missing product pages persist across restarts. Retry after 6 hours, then 1 day,
+then 7 days after repeated 404/410 responses. Normal successful refresh restores
+the URL to current offers. Known missing URLs are excluded even outside the
+200-product digest preparation budget. Transient failures retain warnings.
+Partial provider failures stay degraded; full upstream outages can escalate to
+failed after three severe cycles. Missing pages are counted separately in the
+catalog sensor as missing_product_count, while raw provider errors stay visible.
+
+The update migrates SQLite schema 7 to 8. Preserve a pre-update App backup for
+rollback; 1.2.x binaries cannot read the new schema. Existing options, history
+and daily reservations are retained. See ADR-0037 and STORY-041.

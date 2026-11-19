@@ -40,6 +40,9 @@ def test_catalog_public_api_is_explicit() -> None:
         "CatalogStatisticsReader",
         "ProductCatalog",
         "ProductReference",
+        "MissingProductPage",
+        "MissingProductPageStore",
+        "MissingPagePolicy",
     ]
     assert catalog_api.CatalogEntry is CatalogEntry
     assert catalog_api.CatalogError is CatalogError

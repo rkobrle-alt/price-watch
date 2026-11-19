@@ -132,6 +132,8 @@ def _workflow(
 
 def test_public_api_is_explicit_documented_and_typed() -> None:
     assert catalog_api.__all__ == [
+        "ProductPageTracker",
+        "PageAwareSnapshotReader",
         "CatalogBatchSynchronizer",
         "CatalogMonitoringConfig",
         "CatalogMonitoringResult",

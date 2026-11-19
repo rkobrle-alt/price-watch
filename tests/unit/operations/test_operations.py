@@ -119,14 +119,14 @@ def test_engine_transitions_degraded_failed_notified_and_recovered() -> None:
         engine,
         first,
         2,
-        OperationalFailureKind.PARTIAL_PROVIDER_FAILURE,
+        OperationalFailureKind.PROVIDER_UNAVAILABLE,
     )
     failed = _fail(engine, second, 3)
 
     assert first.status is OperationalHealthStatus.DEGRADED
     assert first.consecutive_failure_cycles == 1
     assert second.consecutive_failure_cycles == 2
-    assert second.failure_kind is OperationalFailureKind.PARTIAL_PROVIDER_FAILURE
+    assert second.failure_kind is OperationalFailureKind.PROVIDER_UNAVAILABLE
     assert second.incident_started_at == NOW + timedelta(minutes=1)
     assert failed.status is OperationalHealthStatus.FAILED
     assert failed.pending_notification is OperationalNotificationKind.FAILURE

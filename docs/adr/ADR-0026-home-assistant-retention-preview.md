@@ -99,3 +99,9 @@ all destructive behavior remains confined to the explicit CLI command. The
 preview adds one read-only database pass and one state update per enabled
 catalog cycle. Large histories may make planning increasingly expensive, so
 the feature is opt-in and no default retention period is introduced.
+
+## v1.3.0 amendment
+
+ADR-0037 adds a 24-hour preview cadence, persistent missing-page retry evidence
+and partial-failure health semantics. It supersedes the corresponding earlier
+behavior while retaining explicit maintenance safeguards and observation history.

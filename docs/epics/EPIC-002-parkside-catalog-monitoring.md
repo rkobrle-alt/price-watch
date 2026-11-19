@@ -152,3 +152,9 @@ boundary between durable reservation and Home Assistant delivery.
 
 STORY-040 and ADR-0036 distinguish missing product pages from transient
 refresh failures in the daily digest without retiring catalog history.
+
+## v1.3.0 — Monitoring efficiency
+
+ADR-0037 / STORY-041: daily retention-preview cadence, durable missing-page
+retry scheduling and partial-versus-full failure diagnostics. Schema 8 retains
+history and notification reservations.

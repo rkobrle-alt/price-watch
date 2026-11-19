@@ -1,3 +1,14 @@
+# 1.3.0
+
+- Prepare the daily email before retention diagnostics; refresh the optional
+  retention preview at startup and then every 24 hours, or after manual action.
+- Persist missing-page evidence with 6-hour, 1-day and capped 7-day retries.
+  Exclude known missing URLs from digests until a successful fetch restores them.
+- Keep partial product failures degraded; missing pages no longer fail health.
+  Publish missing_product_count separately. Raw provider errors remain visible.
+- Migrate SQLite schema 7 to 8 without losing history or email reservations.
+  Preserve a pre-update App backup; older binaries cannot read schema 8.
+
 # 1.2.6
 
 - Exclude product URLs confirmed missing (HTTP 404/410) during daily preparation from that digest. Keep transient-failure warnings, historical observations, retries and daily duplicate protection.

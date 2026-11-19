@@ -1,6 +1,7 @@
 """Public API for provider-neutral product catalog discovery."""
 
 from core.catalog.contract import ProductCatalog
+from core.catalog.missing_pages import MissingProductPage, MissingProductPageStore, MissingPagePolicy
 from core.catalog.entry import CatalogEntry
 from core.catalog.exceptions import CatalogError, CatalogStoreError
 from core.catalog.reference import ProductReference
@@ -18,4 +19,7 @@ __all__ = [
     "CatalogStatisticsReader",
     "ProductCatalog",
     "ProductReference",
+    "MissingProductPage",
+    "MissingProductPageStore",
+    "MissingPagePolicy",
 ]

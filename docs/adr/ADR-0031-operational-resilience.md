@@ -155,3 +155,9 @@ The operator gets a durable, low-noise health view, one sustained-incident
 email, one meaningful recovery email and restart-safe digest diagnostics.
 This adds one SQLite row and two state publications per catalog cycle while
 preserving product monitoring and all established public states.
+
+## v1.3.0 amendment
+
+ADR-0037 adds a 24-hour preview cadence, persistent missing-page retry evidence
+and partial-failure health semantics. It supersedes the corresponding earlier
+behavior while retaining explicit maintenance safeguards and observation history.

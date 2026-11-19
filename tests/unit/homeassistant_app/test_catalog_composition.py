@@ -321,7 +321,7 @@ def test_catalog_composition_assembles_optional_daily_digest() -> None:
         workflow._product_refresher._synchronizer
         is result.catalog_workflow._batch_synchronizer
     )
-    assert isinstance(workflow._snapshot_reader, SqliteStateStore)
+    assert isinstance(workflow._snapshot_reader._reader, SqliteStateStore)
     assert isinstance(
         workflow._reservation_store,
         SqliteDailyDigestReservationStore,

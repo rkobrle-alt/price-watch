@@ -1,7 +1,7 @@
 """Concrete Home Assistant workflow composition."""
 
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime, time, timedelta
 from decimal import Decimal
 from typing import cast
@@ -9,6 +9,7 @@ from uuid import UUID
 
 from applications.catalog_monitoring import (
     CatalogMonitoringWorkflow,
+    ProductPageTracker, PageAwareSnapshotReader,
     CatalogMonitoringConfig,
 )
 from applications.daily_digest import DailyDigestConfig, DailyDigestWorkflow
@@ -22,7 +23,7 @@ from applications.operational_monitoring import (
 from applications.configuration import ApplicationConfig
 from applications.synchronization import SynchronizationResult, SynchronizationWorkflow
 from applications.version import VERSION
-from core.catalog import CatalogStatisticsReader, ProductReference
+from core.catalog import CatalogStatisticsReader, ProductReference, MissingProductPageStore
 from core.domain import Percentage, ProviderId, Rule, RuleType
 from core.notifications import (
     NotificationChannel,
@@ -59,6 +60,7 @@ from infrastructure.notifications.homeassistant import HomeAssistantNotification
 from infrastructure.persistence.json import JsonStateStore
 from infrastructure.persistence.sqlite import (
     SqliteCatalogStore,
+    SqliteMissingProductPageStore,
     SqliteNotificationReservationStore,
     SqliteObservationRetentionManager,
     SqliteOperationalStateStore,
@@ -116,6 +118,7 @@ class _CatalogStatusComposition:
     snapshot_reader: LatestSnapshotReader
     provider_id: ProviderId
     minimum_discount: Percentage | None
+    missing_page_store: MissingProductPageStore | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -126,6 +129,13 @@ class _StorageStatusComposition:
     statistics_reader: ObservationStatisticsReader
 
 
+@dataclass(slots=True)
+class _PreviewSchedule:
+    """Retain the last successfully published preview in this process."""
+
+    last_published_at: datetime | None = None
+
+
 @dataclass(frozen=True, slots=True)
 class _MaintenanceStatusComposition:
     """Hold collaborators for observation-retention status and commands."""
@@ -134,6 +144,7 @@ class _MaintenanceStatusComposition:
     retention_manager: ObservationRetentionManager
     retention_days: int
     apply_available: bool = False
+    preview_schedule: _PreviewSchedule = field(default_factory=_PreviewSchedule, compare=False)
 
     def __post_init__(self) -> None:
         if isinstance(self.retention_days, bool) or not isinstance(
@@ -177,7 +188,9 @@ class _LidlCatalogBatchSynchronizer:
         price_reference_policy: PriceReferencePolicy,
         notification_reservation_store: NotificationReservationStore,
         price_drop_reservation_policy: PriceDropReservationPolicy,
+        page_tracker: ProductPageTracker | None = None,
     ) -> None:
+        self._page_tracker = page_tracker
         self._http_client = http_client
         self._clock = clock
         self._state_store = state_store
@@ -214,7 +227,11 @@ class _LidlCatalogBatchSynchronizer:
             notification_reservation_store=self._notification_reservation_store,
             price_drop_reservation_policy=self._price_drop_reservation_policy,
         )
-        return workflow.run(rules, timestamp)
+        result = workflow.run(rules, timestamp)
+        if self._page_tracker is not None:
+            products = tuple(product for fetched in result.fetch_results for product in fetched.products)
+            self._page_tracker.record(provider.id, products, result.provider_errors, timestamp)
+        return result
 
 
 def _compose_homeassistant(
@@ -327,6 +344,8 @@ def _compose_catalog(
     catalog = LidlParksideCatalog(binary_client)
     catalog_store = SqliteCatalogStore(catalog_config.database_file)
     state_store = SqliteStateStore(catalog_config.database_file)
+    page_store = SqliteMissingProductPageStore(catalog_config.database_file)
+    snapshot_reader = PageAwareSnapshotReader(state_store, page_store)
     reservation_store = SqliteNotificationReservationStore(
         catalog_config.database_file
     )
@@ -342,6 +361,7 @@ def _compose_catalog(
         PriceReferencePolicy(),
         reservation_store,
         PriceDropReservationPolicy(),
+        ProductPageTracker(page_store),
     )
     catalog_workflow = CatalogMonitoringWorkflow(
         catalog,
@@ -350,6 +370,7 @@ def _compose_catalog(
         batch_synchronizer,
         LidlParksideCatalog.id,
         catalog_config.batch_size,
+        missing_page_store=page_store,
     )
     return _HomeAssistantComposition(
         workflow=None,
@@ -368,7 +389,7 @@ def _compose_catalog(
         discovery_interval_cycles=catalog_config.discovery_interval_cycles,
         daily_digest_workflow=compose_daily_digest(
             daily_digest_config,
-            state_store,
+            snapshot_reader,
             catalog_config.database_file,
             homeassistant_client,
             notify_entity,
@@ -384,6 +405,7 @@ def _compose_catalog(
             ),
             statistics_reader=catalog_store,
             snapshot_reader=state_store,
+            missing_page_store=page_store,
             provider_id=LidlParksideCatalog.id,
             minimum_discount=(
                 None

@@ -11,7 +11,7 @@ The stable 1.x surface consists of:
 - CLI commands, accepted options and exit meanings;
 - valid Home Assistant App option documents;
 - published Home Assistant entity IDs, state types and attribute meanings;
-- sequential SQLite migration from valid schemas 1 through 6;
+- sequential SQLite migration from valid schemas 1 through 7;
 - JSON state schema 1 and application configuration schema 1.
 
 Compatible additions may introduce new optional APIs, options or entities.
@@ -43,3 +43,7 @@ tree:
 - CLI and Home Assistant remain the concrete outer composition roots.
 
 These checks complement, rather than replace, ADR and public-API review.
+
+Version 1.3.0 adds schema 8 lifecycle evidence under ADR-0037. Preserve a
+pre-update App backup for rollback. Health partial-failure severity is refined
+as explicitly authorized by that ADR; raw provider counts retain their meaning.

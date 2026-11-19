@@ -547,3 +547,9 @@ See ADR-0035 and STORY-034.
 
 ADR-0036 / STORY-040: exclude confirmed missing pages from the current digest
 while retaining historical observations and retrying on later preparations.
+
+## v1.3.0 — Monitoring efficiency
+
+ADR-0037 / STORY-041: daily retention-preview cadence, durable missing-page
+retry scheduling and partial-versus-full failure diagnostics. Schema 8 retains
+history and notification reservations.

@@ -17,7 +17,7 @@ from core.operations import (
     OperationalFailureKind,
     OperationalNotificationKind,
 )
-from core.provider import ProviderDataError, ProviderTransportError
+from core.provider import ProviderDataError, ProviderTransportError, ProviderProductNotFoundError
 from infrastructure.homeassistant import (
     CatalogStatus,
     HomeAssistantError,
@@ -82,18 +82,23 @@ def _publish_catalog_status(
         for snapshot in context.snapshot_reader.latest_snapshots()
         if snapshot.product.provider_id == context.provider_id
     )
-    available_count = sum(snapshot.product.availability for snapshot in snapshots)
+    missing_pages = () if context.missing_page_store is None else context.missing_page_store.load()
+    missing_urls = {p.url for p in missing_pages if p.provider_id == context.provider_id}
+    visible = tuple(s for s in snapshots if s.product.url not in missing_urls)
+    available_count = sum(snapshot.product.availability for snapshot in visible)
     qualifying_count = 0
     if context.minimum_discount is not None:
         digest = DailyDiscountDigestEngine().generate(
-            snapshots,
+            visible,
             context.minimum_discount,
             timestamp.date(),
             timestamp,
         )
         qualifying_count = len(digest.products)
+    missing_count = len(missing_urls)
     status = CatalogStatus(
         timestamp=timestamp,
+        missing_product_count=missing_count,
         reference_count=statistics.reference_count,
         observed_product_count=len(snapshots),
         available_product_count=available_count,
@@ -165,15 +170,14 @@ def execute_catalog_cycle(
         ),
         stderr,
     )
+    digest_result = _run_daily_digest(composition, timestamp)
     storage_status_published = _publish_storage_status(
         composition,
         timestamp,
         stderr,
     )
     maintenance_status_published = publish_maintenance_status(
-        composition,
-        timestamp,
-        stderr,
+        composition, timestamp, stderr, force=False,
     )
     status_published = (
         cycle_status_published
@@ -181,7 +185,6 @@ def execute_catalog_cycle(
         and storage_status_published
         and maintenance_status_published
     )
-    digest_result = _run_daily_digest(composition, timestamp)
     if digest_result is not None:
         for error in digest_result.refresh_errors:
             _write(stderr, f"digest refresh error: {error}\n")
@@ -258,10 +261,14 @@ def publish_maintenance_status(
     composition: _HomeAssistantComposition,
     timestamp: datetime,
     stderr: TextIO,
+    *, force: bool = True,
 ) -> bool:
     """Publish the configured current retention plan without applying it."""
     context = composition.maintenance_status
     if context is None:
+        return True
+    previous_preview = context.preview_schedule.last_published_at
+    if not force and previous_preview is not None and timedelta(0) <= timestamp - previous_preview < timedelta(hours=24):
         return True
     cutoff = timestamp - timedelta(days=context.retention_days)
     plan = context.retention_manager.plan(cutoff)
@@ -277,6 +284,7 @@ def publish_maintenance_status(
     except HomeAssistantError as error:
         _write(stderr, f"maintenance status error: {error}\n")
         return False
+    context.preview_schedule.last_published_at = timestamp
     return True
 
 
@@ -368,7 +376,9 @@ def _operational_failure_kind(
         return OperationalFailureKind.CATALOG_UNAVAILABLE
     synchronization = result.synchronization
     errors = () if synchronization is None else synchronization.provider_errors
-    selected_count = len(result.refresh_references)
+    missing_count = sum(isinstance(error, ProviderProductNotFoundError) for error in errors)
+    errors = tuple(error for error in errors if not isinstance(error, ProviderProductNotFoundError))
+    selected_count = len(result.refresh_references) - missing_count
     if errors and len(errors) == selected_count and not products:
         if all(isinstance(error, ProviderDataError) for error in errors):
             return OperationalFailureKind.PROVIDER_DATA_INCOMPATIBLE
@@ -377,7 +387,7 @@ def _operational_failure_kind(
         return OperationalFailureKind.PROVIDER_FAILURE
     if errors:
         return OperationalFailureKind.PARTIAL_PROVIDER_FAILURE
-    if digest_result is not None and digest_result.refresh_errors:
+    if digest_result is not None and any(not isinstance(e, ProviderProductNotFoundError) for e in digest_result.refresh_errors):
         return OperationalFailureKind.PARTIAL_PROVIDER_FAILURE
     if (
         digest_result is not None

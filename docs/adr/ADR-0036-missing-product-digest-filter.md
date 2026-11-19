@@ -43,3 +43,9 @@ search endpoints or inventing alternate product identities is not justified.
 
 This narrowly amends ADR-0035's retention of failed observations for confirmed
 missing pages in the current digest only; historical storage remains untouched.
+
+## v1.3.0 amendment
+
+ADR-0037 adds a 24-hour preview cadence, persistent missing-page retry evidence
+and partial-failure health semantics. It supersedes the corresponding earlier
+behavior while retaining explicit maintenance safeguards and observation history.

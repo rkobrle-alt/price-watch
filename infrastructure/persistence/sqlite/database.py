@@ -3,7 +3,7 @@
 import sqlite3
 from pathlib import Path
 
-SCHEMA_VERSION = 7
+SCHEMA_VERSION = 8
 
 _CATALOG_COLUMNS_V1 = (
     "sequence",
@@ -31,7 +31,8 @@ _VERSION_THREE_TABLES = _LEGACY_TABLES | {"notification_reservations"}
 _VERSION_FOUR_TABLES = _VERSION_THREE_TABLES | {"daily_digest_reservations"}
 _VERSION_FIVE_TABLES = _VERSION_FOUR_TABLES | {"operational_state"}
 _VERSION_SIX_TABLES = _VERSION_FIVE_TABLES | {"daily_digest_baselines"}
-_REQUIRED_TABLES = _VERSION_SIX_TABLES | {"weekly_operational_summaries"}
+_VERSION_SEVEN_TABLES = _VERSION_SIX_TABLES | {"weekly_operational_summaries"}
+_REQUIRED_TABLES = _VERSION_SEVEN_TABLES | {"missing_product_pages"}
 
 
 class SqlitePersistenceError(Exception):
@@ -226,12 +227,22 @@ class SqliteDatabase:
                 True,
                 True,
             )
-        elif version != SCHEMA_VERSION:
+        elif version not in {7, SCHEMA_VERSION}:
             raise SqlitePersistenceError(
                 f"unsupported SQLite schema version: {version}"
             )
         if 1 <= version <= 6:
             _migrate_version_six(connection)
+        if 1 <= version <= 7:
+            _validate_schema_columns(connection, _CATALOG_COLUMNS, _VERSION_SEVEN_TABLES, True, True, True, True, True)
+            try:
+                with connection:
+                    connection.execute("BEGIN IMMEDIATE")
+                    _create_missing_page_table(connection)
+                    _validate_schema(connection)
+                    connection.execute("PRAGMA user_version = 8")
+            except sqlite3.Error as error:
+                raise SqlitePersistenceError("failed to migrate missing-page schema") from error
         _validate_schema(connection)
 
 
@@ -293,6 +304,7 @@ def _create_schema(connection: sqlite3.Connection) -> None:
             _create_operational_state_table(connection)
             _create_digest_baseline_table(connection)
             _create_weekly_operational_table(connection)
+            _create_missing_page_table(connection)
             connection.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
     except sqlite3.Error as error:
         raise SqlitePersistenceError("failed to initialize SQLite schema") from error
@@ -327,7 +339,7 @@ def _migrate_version_six(connection: sqlite3.Connection) -> None:
         with connection:
             connection.execute("BEGIN IMMEDIATE")
             _create_weekly_operational_table(connection)
-            connection.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
+            connection.execute("PRAGMA user_version = 7")
     except sqlite3.Error as error:
         raise SqlitePersistenceError("failed to migrate SQLite schema") from error
 
@@ -419,7 +431,19 @@ def _create_weekly_operational_table(connection: sqlite3.Connection) -> None:
     )
 
 
+def _create_missing_page_table(connection: sqlite3.Connection) -> None:
+    connection.execute(
+        "CREATE TABLE IF NOT EXISTS missing_product_pages (provider_id TEXT NOT NULL, "
+        "url TEXT NOT NULL, failures INTEGER NOT NULL, checked_at TEXT NOT NULL, "
+        "retry_at TEXT NOT NULL, PRIMARY KEY(provider_id, url))"
+    )
+
+
 def _validate_schema(connection: sqlite3.Connection) -> None:
+    if _table_columns(connection, "missing_product_pages") != (
+        "provider_id", "url", "failures", "checked_at", "retry_at"
+    ):
+        raise SqlitePersistenceError("missing_product_pages schema is incompatible")
     _validate_schema_columns(
         connection,
         _CATALOG_COLUMNS,

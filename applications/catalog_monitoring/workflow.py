@@ -12,6 +12,7 @@ from core.catalog import (
     CatalogStore,
     ProductCatalog,
     ProductReference,
+    MissingProductPageStore,
 )
 from core.domain import ProviderId, Rule
 
@@ -27,6 +28,8 @@ class CatalogMonitoringWorkflow:
         batch_synchronizer: CatalogBatchSynchronizer,
         provider_id: ProviderId,
         batch_size: int,
+        *,
+        missing_page_store: MissingProductPageStore | None = None,
     ) -> None:
         """Validate and retain injected catalog monitoring dependencies."""
         _validate_dependency(catalog, ("discover",), "catalog")
@@ -61,6 +64,7 @@ class CatalogMonitoringWorkflow:
         )
         self._provider_id = provider_id
         self._batch_size = batch_size
+        self._missing_page_store = missing_page_store
 
     def run(
         self,
@@ -93,11 +97,20 @@ class CatalogMonitoringWorkflow:
                     "catalog store",
                 )
 
+        selection_limit = self._batch_size
+        blocked: set[str] = set()
+        if self._missing_page_store is not None:
+            blocked = {
+                p.url for p in self._missing_page_store.load()
+                if p.provider_id == self._provider_id and timestamp < p.retry_at
+            }
+            selection_limit = max(selection_limit, len(self._catalog_store.list_entries(self._provider_id)))
         refresh_references = self._refresh_store.list_refresh_batch(
             self._provider_id,
-            self._batch_size,
+            selection_limit,
         )
         _validate_reference_result(refresh_references, "refresh store")
+        refresh_references = tuple(r for r in refresh_references if r.url not in blocked)[:self._batch_size]
         synchronization: SynchronizationResult | None = None
         if refresh_references:
             synchronization = self._batch_synchronizer.synchronize(

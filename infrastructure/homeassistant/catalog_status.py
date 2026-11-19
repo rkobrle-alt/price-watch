@@ -30,11 +30,13 @@ class CatalogStatus:
     catalog_error_count: int
     notification_count: int = 0
     suppressed_notification_count: int = 0
+    missing_product_count: int = 0
 
     def __post_init__(self) -> None:
         """Validate aggregate counts and chronological values."""
         _validate_timestamp(self.timestamp, "timestamp")
         for name in (
+            "missing_product_count",
             "reference_count",
             "observed_product_count",
             "available_product_count",
@@ -109,6 +111,7 @@ class HomeAssistantCatalogStatusPublisher:
                 "friendly_name": "Price Watch Catalog",
                 "last_checked": timestamp_text,
                 "reference_count": status.reference_count,
+                "missing_product_count": status.missing_product_count,
                 "observed_product_count": status.observed_product_count,
                 "available_product_count": status.available_product_count,
                 "qualifying_discount_count": status.qualifying_discount_count,
@@ -143,6 +146,7 @@ class HomeAssistantCatalogStatusPublisher:
                 "unit_of_measurement": "products",
                 "last_checked": timestamp_text,
                 "reference_count": status.reference_count,
+                "missing_product_count": status.missing_product_count,
                 "observed_product_count": status.observed_product_count,
                 "available_product_count": status.available_product_count,
                 "minimum_discount_percentage": minimum_discount,
